@@ -1,0 +1,17 @@
+# Python / Flask
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+
+# Node / React (Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Archivos del Sistema / IDEs
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

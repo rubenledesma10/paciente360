@@ -14,3 +14,14 @@ class NewsAndPrevention(db.Model):
     date = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
 
     author = db.relationship('User', back_populates='news_and_prevention')
+
+    def to_dict(self):
+        return {
+            'id_news_and_prevention': self.id_news_and_prevention,
+            'id_user': self.id_user,
+            'title': self.title,
+            'content': self.content,
+            'category': self.category,
+            'photo': self.photo,
+            'date': self.date.isoformat() if self.date else None
+        }

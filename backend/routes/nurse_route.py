@@ -65,7 +65,7 @@ def create_nurse():
                 new_user.profile_photo = file_path
 
         db.session.commit()
-        return jsonify({"msg": "Nurse created successfully", "nurse_id": new_user.id})
+        return jsonify({"msg": "Nurse created successfully", "nurse_id": new_user.id}), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error creating nurse"}), 500

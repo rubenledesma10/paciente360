@@ -100,7 +100,7 @@ def update_nurse(nurse_id):
         if 'dni' in request.json:
             if User.query.filter_by(dni=request.json.get('dni')).first() and nurse.dni != request.json.get('dni'):
                 return jsonify({"msg": "DNI already exists"}), 400
-            nurse.dni = request.json.get('dni')
+            nurse.dni = request.json.get('dni') 
 
         if 'email' in request.json:
             if User.query.filter_by(email=request.json.get('email')).first() and nurse.email != request.json.get('email'):

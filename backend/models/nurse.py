@@ -22,6 +22,12 @@ class Nurse(User):
         cascade="all, delete-orphan"
     )
 
+    follow_ups = db.relationship(
+        'PatientFollowUp',
+        back_populates='nurse',
+        cascade="all, delete-orphan"
+    )
+    
     def to_dict(self):
         return {
             'id_user': self.id_user,

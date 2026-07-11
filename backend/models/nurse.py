@@ -8,6 +8,20 @@ class Nurse(User):
     is_reference= db.Column(db.Boolean, default=False, nullable=False)
     license_number = db.Column(db.String(50), unique=True, nullable=False)
 
+    user = db.relationship('User', back_populates='nurse')
+
+    guard_passes = db.relationship(
+        'GuardPass', 
+        back_populates='nurse', 
+        cascade="all, delete-orphan"
+    )
+
+    signs_and_symptoms = db.relationship(
+        'SignsAndSymptoms', 
+        back_populates='nurse', 
+        cascade="all, delete-orphan"
+    )
+
     def to_dict(self):
         return {
             'id_user': self.id_user,

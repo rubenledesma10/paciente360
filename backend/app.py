@@ -32,6 +32,7 @@ with app.app_context():
 from routes.patient_routes import patients_bp
 app.register_blueprint(patients_bp)
 
+
 from routes.patient_follow_up_routes import follow_ups_bp
 app.register_blueprint(follow_ups_bp)
 

@@ -149,7 +149,8 @@ def delete_patient(patient_id):
         return jsonify({"msg": "Patient deleted successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Error deleting patient"}), 500
+        print(f"ERROR AL BORRAR PACIENTE: {e}")
+        return jsonify({"msg": "Error deleting patient", "error": str(e)}), 500
 
 
 @patients_bp.route('/search', methods=['GET'])

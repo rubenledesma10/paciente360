@@ -6,8 +6,9 @@ from models.db import db
 from models.user import User
 from models.nurse import Nurse
 from models.patient import Patient
+from models.signs_and_symptoms import SignsAndSymptoms
 from models.news_and_prevention import NewsAndPrevention
-
+from models.guard_pass import GuardPass
 
 
 app= Flask(__name__)
@@ -22,6 +23,8 @@ with app.app_context():
     from models.nurse import Nurse
     from models.patient import Patient
     from models.news_and_prevention import NewsAndPrevention
+    from models.signs_and_symptoms import SignsAndSymptoms
+    from models.guard_pass import GuardPass 
     db.create_all()
 
 # Registro blueprints 

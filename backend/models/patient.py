@@ -10,8 +10,7 @@ class Patient(User):
     health_plan_name = db.Column(db.String(120), nullable=True)
     member_number = db.Column(db.String(50), nullable=True)
 
-    user = db.relationship('User', back_populates='patient')
-
+    signs_and_symptoms = db.relationship('SignsAndSymptoms',back_populates='patient',cascade="all, delete-orphan")
     # appointments = db.relationship('MedicalAppointment', back_populates='patient', cascade="all, delete-orphan")
     # traceabilities = db.relationship('Traceability', back_populates='patient', cascade="all, delete-orphan")
     # follow_ups = db.relationship('PatientFollowUp', back_populates='patient', cascade="all, delete-orphan")

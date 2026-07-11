@@ -34,6 +34,13 @@ class User(db.Model):
         uselist=False,
         cascade="all, delete-orphan"
     )
+    
+    patient = db.relationship(
+        'Patient',
+        back_populates='user',
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
 
     def set_password(self, password_input): #aca va la logica para hashear la contraseña
         self.password = generate_password_hash(password_input)

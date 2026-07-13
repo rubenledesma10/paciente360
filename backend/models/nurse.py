@@ -8,8 +8,6 @@ class Nurse(User):
     is_reference= db.Column(db.Boolean, default=False, nullable=False)
     license_number = db.Column(db.String(50), unique=True, nullable=False)
 
-    user = db.relationship('User', back_populates='nurse')
-
     guard_passes = db.relationship(
         'GuardPass', 
         back_populates='nurse', 

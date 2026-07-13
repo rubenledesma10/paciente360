@@ -28,14 +28,6 @@ class User(db.Model):
         cascade="all, delete-orphan",
     )
 
-    nurse = db.relationship(
-        'Nurse',
-        back_populates='user', 
-        uselist=False,
-        cascade="all, delete-orphan"
-    )
-    
-
     def set_password(self, password_input): #aca va la logica para hashear la contraseña
         self.password = generate_password_hash(password_input)
     def check_password(self, password_input): #aca va la logica para verificar el hash de la contraseña

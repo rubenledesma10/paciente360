@@ -1,5 +1,6 @@
 from datetime import datetime
 from models.db import db
+from enums import AppointmentStatusEnum
 
 
 class MedicalAppointment(db.Model):
@@ -9,7 +10,7 @@ class MedicalAppointment(db.Model):
     # id_doctor = db.Column(db.Integer, db.ForeignKey('doctors.id_user'), nullable=False)  # activamos cuando exista Doctor
     date = db.Column(db.Date, nullable=False)
     hour = db.Column(db.String(10), nullable=False)
-    status = db.Column(db.String(50), nullable=False, default="Pendiente")
+    status = db.Column(db.Enum(AppointmentStatusEnum), default=AppointmentStatusEnum.RESERVADO, nullable=False)
     reason = db.Column(db.String(255), nullable=True)
 
     patient = db.relationship('Patient', back_populates='appointments')

@@ -1,4 +1,19 @@
+"""
+seed.py
 
+Carga datos de prueba con todo lo que está integrado del equipo hasta ahora:
+User, Nurse, Patient, NewsAndPrevention, GuardPass, SignsAndSymptoms,
+PatientFollowUp, MedicalAppointment, Traceability.
+
+Todavía NO incluye Doctor, MedicalIndication, MedicalProduct, Specialty ni
+MovimientoStock (son de Rodri, todavía no están mergeadas). El "médico" acá
+es un User plano con rol=DOCTOR -> reemplazar por Doctor real cuando exista.
+Por el mismo motivo, id_doctor en MedicalAppointment e id_product en
+Traceability quedan sin completar (están comentados en esos modelos).
+
+Uso (parado en la carpeta back/, con el venv activado):
+    python seed.py
+"""
 from datetime import date, timedelta
 
 from app import app
@@ -10,8 +25,7 @@ from models.news_and_prevention import NewsAndPrevention
 from models.guard_pass import GuardPass
 from models.signs_and_symptoms import SignsAndSymptoms
 from models.patient_follow_up import PatientFollowUp
-from models.medical_appointment import MedicalAppointment
-from enums import AppointmentStatusEnum
+from models.medical_appointment import MedicalAppointment, AppointmentStatusEnum
 from models.traceability import Traceability
 from enums import RoleEnum
 
@@ -56,7 +70,7 @@ def seed():
 
         # ---------- 3 pacientes ----------
         paciente1 = Patient(
-            first_name="Marta", last_name="Gómez", username="mgomez",
+            first_name="Marta", last_name="Gómez", username="28456112",
             dni="28456112", email="marta.gomez@mail.com",
             date_of_birth=date(1962, 4, 12),
             address="San Martín 452, Maipú",
@@ -67,10 +81,11 @@ def seed():
             health_plan_name="PAMI",
             member_number="PAMI-88213",
         )
-        paciente1.set_password("paciente123")
+        # Paciente: username y password son el mismo valor que el dni.
+        paciente1.set_password(paciente1.dni)
 
         paciente2 = Patient(
-            first_name="Luis", last_name="Fernández", username="lfernandez",
+            first_name="Luis", last_name="Fernández", username="35221987",
             dni="35221987", email="luis.fernandez@mail.com",
             date_of_birth=date(1984, 8, 20),
             address="Belgrano 118, Maipú",
@@ -81,10 +96,8 @@ def seed():
             health_plan_name="OSDE",
             member_number="OSDE-44120",
         )
-        paciente2.set_password("paciente123")
-
         paciente3 = Patient(
-            first_name="Ana", last_name="Torres", username="atorres",
+            first_name="Ana", last_name="Torres", username="19887334",
             dni="19887334", email="ana.torres@mail.com",
             date_of_birth=date(1953, 1, 30),
             address="Rivadavia 890, Maipú",
@@ -95,7 +108,8 @@ def seed():
             health_plan_name="PAMI",
             member_number="PAMI-91045",
         )
-        paciente3.set_password("paciente123")
+        paciente2.set_password(paciente2.dni)
+        paciente3.set_password(paciente3.dni)
 
         db.session.add_all([paciente1, paciente2, paciente3])
         db.session.commit()

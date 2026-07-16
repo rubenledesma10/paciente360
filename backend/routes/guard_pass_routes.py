@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
-from backend.models import db
-from backend.models.guard_pass import GuardPass
+from models import db
+from models.guard_pass import GuardPass
 from models.nurse import Nurse
 from datetime import datetime, timedelta
 

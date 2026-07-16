@@ -17,10 +17,10 @@ def login():
     
     user = User.query.filter_by(username=username).first()
 
-    if not user or not user.checkpassword(password):
+    if not user or not user.check_password(password):
         return jsonify({"Error":"Username and password incorrect."}),401
     
-    if not user.is_activate:
+    if not user.is_active:
         return jsonify({"Error":"User not activate"})
     
     token=create_access_token(

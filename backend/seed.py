@@ -1,6 +1,9 @@
 """
 seed.py
 
+<<<<<<< HEAD
+from datetime import date, datetime, timedelta
+=======
 Carga datos de prueba con todo lo que está integrado del equipo hasta ahora:
 User, Nurse, Patient, NewsAndPrevention, GuardPass, SignsAndSymptoms,
 PatientFollowUp, MedicalAppointment, Traceability.
@@ -15,6 +18,7 @@ Uso (parado en la carpeta back/, con el venv activado):
     python seed.py
 """
 from datetime import date, timedelta
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
 
 from app import app
 from models.db import db
@@ -27,6 +31,11 @@ from models.signs_and_symptoms import SignsAndSymptoms
 from models.patient_follow_up import PatientFollowUp
 from models.medical_appointment import MedicalAppointment, AppointmentStatusEnum
 from models.traceability import Traceability
+<<<<<<< HEAD
+from models.medical_product import MedicalProduct
+from models.stock_movement import StockMovement
+=======
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
 from enums import RoleEnum
 
 
@@ -35,6 +44,12 @@ def seed():
         # Orden de borrado: primero lo que depende de nurses/patients/users,
         # despues las subclases (Nurse, Patient), al final la tabla base (User).
         Traceability.query.delete()
+<<<<<<< HEAD
+        StockMovement.query.delete()
+        MedicalProduct.query.delete()
+        MedicalIndication.query.delete()
+=======
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         MedicalAppointment.query.delete()
         PatientFollowUp.query.delete()
         SignsAndSymptoms.query.delete()
@@ -210,7 +225,86 @@ def seed():
         db.session.add_all([turno1, turno2, turno3])
         db.session.commit()
 
+<<<<<<< HEAD
+        # ---------- Indicaciones médicas (MedicalIndication) ----------
+        indicacion1 = MedicalIndication(
+            id_patient=paciente1.id_user,
+            id_doctor=medico.id_user,
+            indication="Reposo relativo por 48hs",
+            treatment="Ibuprofeno 400mg cada 8hs",
+        )
+        indicacion2 = MedicalIndication(
+            id_patient=paciente2.id_user,
+            id_doctor=medico.id_user,
+            indication="Control de temperatura cada 4hs",
+            treatment="Paracetamol 500mg si fiebre mayor a 38°",
+        )
+        indicacion3 = MedicalIndication(
+            id_patient=paciente3.id_user,
+            id_doctor=medico.id_user,
+            indication="Dieta hiposódica",
+            treatment="Enalapril 10mg cada 24hs",
+        )
+
+        db.session.add_all([indicacion1, indicacion2, indicacion3])
+        db.session.commit()
+
+        # ---------- Productos médicos (MedicalProduct) ----------
+        producto1 = MedicalProduct(
+            name_product="Ibuprofeno 400mg",
+            expiration_date=date(2027, 3, 1),
+            batch_number="LOTE-2201",
+            current_stock=150,
+            minimum_stock_level=30,
+            type_product="Medicamento",
+        )
+        producto2 = MedicalProduct(
+            name_product="Jeringa descartable 5ml",
+            expiration_date=date(2028, 6, 15),
+            batch_number="LOTE-5502",
+            current_stock=500,
+            minimum_stock_level=100,
+            type_product="Insumo descartable",
+        )
+        producto3 = MedicalProduct(
+            name_product="Vacuna antigripal",
+            expiration_date=date(2026, 12, 1),
+            batch_number="LOTE-9081",
+            current_stock=80,
+            minimum_stock_level=20,
+            type_product="Vacuna",
+        )
+
+        db.session.add_all([producto1, producto2, producto3])
+        db.session.commit()
+
+        # ---------- Movimientos de stock (StockMovement) ----------
+        movimiento1 = StockMovement(
+            id_product=producto1.id_product,
+            type_movement="Entrada",
+            quantity=150,
+            date_time=datetime.utcnow() - timedelta(days=10),
+        )
+        movimiento2 = StockMovement(
+            id_product=producto1.id_product,
+            type_movement="Salida",
+            quantity=20,
+            date_time=datetime.utcnow() - timedelta(days=2),
+        )
+        movimiento3 = StockMovement(
+            id_product=producto2.id_product,
+            type_movement="Entrada",
+            quantity=500,
+            date_time=datetime.utcnow() - timedelta(days=15),
+        )
+
+        db.session.add_all([movimiento1, movimiento2, movimiento3])
+        db.session.commit()
+
+        # ---------- Trazabilidad ----------
+=======
         # ---------- Trazabilidad (sin producto todavia, MedicalProduct no esta mergeado) ----------
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
         )
@@ -249,7 +343,14 @@ def seed():
         print(f"  - Seguimiento: 1 registro")
         print(f"  - Pase de guardia: 1 registro")
         print(f"  - Turnos: 3 (uno por cada estado: reservado, en espera, atendido)")
+<<<<<<< HEAD
+        print(f"  - Indicaciones médicas: 3 registros")
+        print(f"  - Productos médicos: 3 registros")
+        print(f"  - Movimientos de stock: 3 registros")
+        print(f"  - Trazabilidad: 1 registro (ligado a {producto1.name_product})")
+=======
         print(f"  - Trazabilidad: 1 registro (sin producto, MedicalProduct pendiente)")
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         print(f"  - Noticias: {noticia1.title} | {noticia2.title} | {noticia3.title}")
 
 

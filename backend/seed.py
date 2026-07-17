@@ -7,6 +7,7 @@ from models.user import User
 from models.nurse import Nurse
 from models.patient import Patient
 from models.doctor import Doctor
+from models.specialty import Specialty
 from models.news_and_prevention import NewsAndPrevention
 from models.guard_pass import GuardPass
 from models.signs_and_symptoms import SignsAndSymptoms
@@ -32,9 +33,18 @@ def seed():
         GuardPass.query.delete()
         NewsAndPrevention.query.delete()
         Doctor.query.delete()
+        Specialty.query.delete()
         Nurse.query.delete()
         Patient.query.delete()
         User.query.delete()
+        db.session.commit()
+
+        # ---------- Especialidades ----------
+        especialidad1 = Specialty(name="Clínica Médica")
+        especialidad2 = Specialty(name="Cardiología")
+        especialidad3 = Specialty(name="Pediatría")
+
+        db.session.add_all([especialidad1, especialidad2, especialidad3])
         db.session.commit()
 
         # ---------- Médico ----------
@@ -45,6 +55,7 @@ def seed():
             gender="Masculino",
             rol=RoleEnum.DOCTOR,
             medical_license=45231,
+            id_especialidad=especialidad1.id_speciality,
         )
         medico.set_password("medico123")
 
@@ -290,7 +301,8 @@ def seed():
         db.session.commit()
 
         print("Seed completado:")
-        print(f"  - Médico: {medico.username}")
+        print(f"  - Especialidades: {especialidad1.name}, {especialidad2.name}, {especialidad3.name}")
+        print(f"  - Médico: {medico.username} ({especialidad1.name})")
         print(f"  - Administrativo: {administrativo.username}")
         print(f"  - Pacientes: {paciente1.username}, {paciente2.username}, {paciente3.username}")
         print(f"  - Enfermeros: {enfermero1.username}, {enfermero2.username}, {enfermero3.username}")

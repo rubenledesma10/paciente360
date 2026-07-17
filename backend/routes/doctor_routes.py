@@ -3,6 +3,7 @@ from datetime import date
 from models.db import db
 from models.user import User
 from models.doctor import Doctor
+from models.specialty import Specialty
 from enums import RoleEnum
 
 doctors_bp = Blueprint('doctors', __name__, url_prefix='/api/doctors')
@@ -25,6 +26,9 @@ def create_doctor():
         if Doctor.query.filter_by(medical_license=data.get('medical_license')).first():
             return jsonify({"msg": "Medical license already exists"}), 400
 
+        if data.get('id_especialidad') and not Specialty.query.get(data.get('id_especialidad')):
+            return jsonify({"msg": "Specialty not found"}), 404
+
         # Creación por herencia directa: inserta en 'users' y 'doctors' de una.
         new_doctor = Doctor(
             first_name=data.get('first_name'),
@@ -40,7 +44,8 @@ def create_doctor():
             address=data.get('address'),
             emergency_contact=data.get('emergency_contact'),
             rol=RoleEnum.DOCTOR,
-            medical_license=data.get('medical_license')
+            medical_license=data.get('medical_license'),
+            id_especialidad=data.get('id_especialidad')
         )
         new_doctor.set_password(data.get('password'))
 
@@ -105,6 +110,10 @@ def update_doctor(doctor_id):
             if existing and existing.id_user != doctor.id_user:
                 return jsonify({"msg": "Medical license already exists"}), 400
             doctor.medical_license = data.get('medical_license')
+        if 'id_especialidad' in data:
+            if data.get('id_especialidad') and not Specialty.query.get(data.get('id_especialidad')):
+                return jsonify({"msg": "Specialty not found"}), 404
+            doctor.id_especialidad = data.get('id_especialidad')
 
         if 'first_name' in data:
             doctor.first_name = data.get('first_name')

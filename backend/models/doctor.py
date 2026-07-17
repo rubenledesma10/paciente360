@@ -6,10 +6,11 @@ class Doctor(User):
     __tablename__ = 'doctors'
     id_user = db.Column(db.Integer, db.ForeignKey('users.id_user'), primary_key=True)
     medical_license = db.Column(db.Integer, nullable=False, unique=True)
-    # id_especialidad = db.Column(db.Integer, db.ForeignKey('specialties.id_speciality'), nullable=True)  # activamos cuando exista Specialty
+    id_especialidad = db.Column(db.Integer, db.ForeignKey('specialties.id_speciality'), nullable=True)
 
     appointments = db.relationship('MedicalAppointment', back_populates='doctor', cascade="all, delete-orphan")
     medical_indications = db.relationship('MedicalIndication', back_populates='doctor', cascade="all, delete-orphan")
+    specialty = db.relationship('Specialty', back_populates='doctors')
 
     def to_dict(self):
         return {
@@ -27,5 +28,6 @@ class Doctor(User):
             'emergency_contact': self.emergency_contact,
             'gender': self.gender,
             'is_active': self.is_active,
-            'medical_license': self.medical_license
+            'medical_license': self.medical_license,
+            'id_especialidad': self.id_especialidad
         }

@@ -1,23 +1,41 @@
+"""
+seed.py
 
+<<<<<<< HEAD
 from datetime import date, datetime, timedelta
+=======
+Carga datos de prueba con todo lo que está integrado del equipo hasta ahora:
+User, Nurse, Patient, NewsAndPrevention, GuardPass, SignsAndSymptoms,
+PatientFollowUp, MedicalAppointment, Traceability.
+
+Todavía NO incluye Doctor, MedicalIndication, MedicalProduct, Specialty ni
+MovimientoStock (son de Rodri, todavía no están mergeadas). El "médico" acá
+es un User plano con rol=DOCTOR -> reemplazar por Doctor real cuando exista.
+Por el mismo motivo, id_doctor en MedicalAppointment e id_product en
+Traceability quedan sin completar (están comentados en esos modelos).
+
+Uso (parado en la carpeta back/, con el venv activado):
+    python seed.py
+"""
+from datetime import date, timedelta
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
 
 from app import app
 from models.db import db
 from models.user import User
 from models.nurse import Nurse
 from models.patient import Patient
-from models.doctor import Doctor
-from models.specialty import Specialty
 from models.news_and_prevention import NewsAndPrevention
 from models.guard_pass import GuardPass
 from models.signs_and_symptoms import SignsAndSymptoms
 from models.patient_follow_up import PatientFollowUp
-from models.medical_appointment import MedicalAppointment
-from models.medical_indication import MedicalIndication
-from enums import AppointmentStatusEnum
+from models.medical_appointment import MedicalAppointment, AppointmentStatusEnum
 from models.traceability import Traceability
+<<<<<<< HEAD
 from models.medical_product import MedicalProduct
 from models.stock_movement import StockMovement
+=======
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
 from enums import RoleEnum
 
 
@@ -26,38 +44,29 @@ def seed():
         # Orden de borrado: primero lo que depende de nurses/patients/users,
         # despues las subclases (Nurse, Patient), al final la tabla base (User).
         Traceability.query.delete()
+<<<<<<< HEAD
         StockMovement.query.delete()
         MedicalProduct.query.delete()
         MedicalIndication.query.delete()
+=======
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         MedicalAppointment.query.delete()
         PatientFollowUp.query.delete()
         SignsAndSymptoms.query.delete()
         GuardPass.query.delete()
         NewsAndPrevention.query.delete()
-        Doctor.query.delete()
-        Specialty.query.delete()
         Nurse.query.delete()
         Patient.query.delete()
         User.query.delete()
         db.session.commit()
 
-        # ---------- Especialidades ----------
-        especialidad1 = Specialty(name="Clínica Médica")
-        especialidad2 = Specialty(name="Cardiología")
-        especialidad3 = Specialty(name="Pediatría")
-
-        db.session.add_all([especialidad1, especialidad2, especialidad3])
-        db.session.commit()
-
-        # ---------- Médico ----------
-        medico = Doctor(
+        # ---------- Médico (todavía plano, Doctor no está mergeado) ----------
+        medico = User(
             first_name="Javier", last_name="Ríos", username="jrios",
             dni="30112233", email="javier.rios@paciente360.com",
             date_of_birth=date(1980, 6, 3),
             gender="Masculino",
             rol=RoleEnum.DOCTOR,
-            medical_license=45231,
-            id_especialidad=especialidad1.id_speciality,
         )
         medico.set_password("medico123")
 
@@ -76,7 +85,7 @@ def seed():
 
         # ---------- 3 pacientes ----------
         paciente1 = Patient(
-            first_name="Marta", last_name="Gómez", username="mgomez",
+            first_name="Marta", last_name="Gómez", username="28456112",
             dni="28456112", email="marta.gomez@mail.com",
             date_of_birth=date(1962, 4, 12),
             address="San Martín 452, Maipú",
@@ -87,10 +96,11 @@ def seed():
             health_plan_name="PAMI",
             member_number="PAMI-88213",
         )
-        paciente1.set_password("paciente123")
+        # Paciente: username y password son el mismo valor que el dni.
+        paciente1.set_password(paciente1.dni)
 
         paciente2 = Patient(
-            first_name="Luis", last_name="Fernández", username="lfernandez",
+            first_name="Luis", last_name="Fernández", username="35221987",
             dni="35221987", email="luis.fernandez@mail.com",
             date_of_birth=date(1984, 8, 20),
             address="Belgrano 118, Maipú",
@@ -101,10 +111,8 @@ def seed():
             health_plan_name="OSDE",
             member_number="OSDE-44120",
         )
-        paciente2.set_password("paciente123")
-
         paciente3 = Patient(
-            first_name="Ana", last_name="Torres", username="atorres",
+            first_name="Ana", last_name="Torres", username="19887334",
             dni="19887334", email="ana.torres@mail.com",
             date_of_birth=date(1953, 1, 30),
             address="Rivadavia 890, Maipú",
@@ -115,7 +123,8 @@ def seed():
             health_plan_name="PAMI",
             member_number="PAMI-91045",
         )
-        paciente3.set_password("paciente123")
+        paciente2.set_password(paciente2.dni)
+        paciente3.set_password(paciente3.dni)
 
         db.session.add_all([paciente1, paciente2, paciente3])
         db.session.commit()
@@ -193,7 +202,6 @@ def seed():
         # ---------- Turnos (MedicalAppointment) ----------
         turno1 = MedicalAppointment(
             id_patient=paciente1.id_user,
-            id_doctor=medico.id_user,
             date=date.today() + timedelta(days=5),
             hour="10:30",
             status=AppointmentStatusEnum.RESERVADO,
@@ -201,7 +209,6 @@ def seed():
         )
         turno2 = MedicalAppointment(
             id_patient=paciente2.id_user,
-            id_doctor=medico.id_user,
             date=date.today(),
             hour="09:00",
             status=AppointmentStatusEnum.EN_ESPERA,
@@ -209,7 +216,6 @@ def seed():
         )
         turno3 = MedicalAppointment(
             id_patient=paciente3.id_user,
-            id_doctor=medico.id_user,
             date=date.today(),
             hour="08:30",
             status=AppointmentStatusEnum.ATENDIDO,
@@ -219,6 +225,7 @@ def seed():
         db.session.add_all([turno1, turno2, turno3])
         db.session.commit()
 
+<<<<<<< HEAD
         # ---------- Indicaciones médicas (MedicalIndication) ----------
         indicacion1 = MedicalIndication(
             id_patient=paciente1.id_user,
@@ -295,9 +302,11 @@ def seed():
         db.session.commit()
 
         # ---------- Trazabilidad ----------
+=======
+        # ---------- Trazabilidad (sin producto todavia, MedicalProduct no esta mergeado) ----------
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
-            id_product=producto1.id_product,
         )
         db.session.add(trazabilidad1)
         db.session.commit()
@@ -326,8 +335,7 @@ def seed():
         db.session.commit()
 
         print("Seed completado:")
-        print(f"  - Especialidades: {especialidad1.name}, {especialidad2.name}, {especialidad3.name}")
-        print(f"  - Médico: {medico.username} ({especialidad1.name})")
+        print(f"  - Médico (plano): {medico.username}")
         print(f"  - Administrativo: {administrativo.username}")
         print(f"  - Pacientes: {paciente1.username}, {paciente2.username}, {paciente3.username}")
         print(f"  - Enfermeros: {enfermero1.username}, {enfermero2.username}, {enfermero3.username}")
@@ -335,10 +343,14 @@ def seed():
         print(f"  - Seguimiento: 1 registro")
         print(f"  - Pase de guardia: 1 registro")
         print(f"  - Turnos: 3 (uno por cada estado: reservado, en espera, atendido)")
+<<<<<<< HEAD
         print(f"  - Indicaciones médicas: 3 registros")
         print(f"  - Productos médicos: 3 registros")
         print(f"  - Movimientos de stock: 3 registros")
         print(f"  - Trazabilidad: 1 registro (ligado a {producto1.name_product})")
+=======
+        print(f"  - Trazabilidad: 1 registro (sin producto, MedicalProduct pendiente)")
+>>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         print(f"  - Noticias: {noticia1.title} | {noticia2.title} | {noticia3.title}")
 
 

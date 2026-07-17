@@ -5,7 +5,7 @@ from models.user import User
 class Doctor(User):
     __tablename__ = 'doctors'
     id_user = db.Column(db.Integer, db.ForeignKey('users.id_user'), primary_key=True)
-    medical_license = db.Column(db.Integer, nullable=False, unique=True)
+    medical_license = db.Column(db.String(20), nullable=False, unique=True)
     id_especialidad = db.Column(db.Integer, db.ForeignKey('specialties.id_speciality'), nullable=True)
 
     appointments = db.relationship('MedicalAppointment', back_populates='doctor', cascade="all, delete-orphan")

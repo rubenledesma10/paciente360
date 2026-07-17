@@ -1,76 +1,67 @@
 """
 seed.py
-
-<<<<<<< HEAD
-from datetime import date, datetime, timedelta
-=======
-Carga datos de prueba con todo lo que está integrado del equipo hasta ahora:
-User, Nurse, Patient, NewsAndPrevention, GuardPass, SignsAndSymptoms,
-PatientFollowUp, MedicalAppointment, Traceability.
-
-Todavía NO incluye Doctor, MedicalIndication, MedicalProduct, Specialty ni
-MovimientoStock (son de Rodri, todavía no están mergeadas). El "médico" acá
-es un User plano con rol=DOCTOR -> reemplazar por Doctor real cuando exista.
-Por el mismo motivo, id_doctor en MedicalAppointment e id_product en
-Traceability quedan sin completar (están comentados en esos modelos).
-
+ 
+Carga datos de prueba con TODAS las entidades ya integradas del equipo:
+User, Nurse, Patient, Doctor, NewsAndPrevention, GuardPass, SignsAndSymptoms,
+PatientFollowUp, MedicalAppointment, MedicalIndication, MedicalProduct,
+StockMovement, Traceability.
+ 
 Uso (parado en la carpeta back/, con el venv activado):
     python seed.py
 """
-from datetime import date, timedelta
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
-
+from datetime import date, timedelta, datetime
+ 
 from app import app
 from models.db import db
 from models.user import User
 from models.nurse import Nurse
 from models.patient import Patient
+from models.doctor import Doctor
 from models.news_and_prevention import NewsAndPrevention
 from models.guard_pass import GuardPass
 from models.signs_and_symptoms import SignsAndSymptoms
 from models.patient_follow_up import PatientFollowUp
-from models.medical_appointment import MedicalAppointment, AppointmentStatusEnum
+from models.medical_appointment import MedicalAppointment
 from models.traceability import Traceability
-<<<<<<< HEAD
 from models.medical_product import MedicalProduct
 from models.stock_movement import StockMovement
-=======
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
-from enums import RoleEnum
-
-
+from models.medical_indication import MedicalIndication
+from enums import RoleEnum, AppointmentStatusEnum
+ 
+ 
 def seed():
     with app.app_context():
-        # Orden de borrado: primero lo que depende de nurses/patients/users,
-        # despues las subclases (Nurse, Patient), al final la tabla base (User).
+        # Orden de borrado: primero lo que depende de doctors/nurses/patients/users,
+        # despues las subclases (Doctor, Nurse, Patient), al final la tabla base (User).
         Traceability.query.delete()
-<<<<<<< HEAD
         StockMovement.query.delete()
         MedicalProduct.query.delete()
         MedicalIndication.query.delete()
-=======
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         MedicalAppointment.query.delete()
         PatientFollowUp.query.delete()
         SignsAndSymptoms.query.delete()
         GuardPass.query.delete()
         NewsAndPrevention.query.delete()
+        Doctor.query.delete()
         Nurse.query.delete()
         Patient.query.delete()
         User.query.delete()
         db.session.commit()
-
-        # ---------- Médico (todavía plano, Doctor no está mergeado) ----------
-        medico = User(
+ 
+        # ---------- Médico (Doctor real) ----------
+        medico = Doctor(
             first_name="Javier", last_name="Ríos", username="jrios",
             dni="30112233", email="javier.rios@paciente360.com",
             date_of_birth=date(1980, 6, 3),
             gender="Masculino",
             rol=RoleEnum.DOCTOR,
+            medical_license=12456,  # int por ahora -> ver comentario sobre cambiar a String
         )
         medico.set_password("medico123")
-
-        # ---------- Administrativo (publica las noticias) ----------
+        db.session.add(medico)
+        db.session.commit()
+ 
+        # ---------- Administrativo (todavía plano, no tiene tabla propia) ----------
         administrativo = User(
             first_name="Lucía", last_name="Paredes", username="lparedes",
             dni="33221144", email="lucia.paredes@paciente360.com",
@@ -79,10 +70,9 @@ def seed():
             rol=RoleEnum.ADMINISTRATIVE,
         )
         administrativo.set_password("admin123")
-
-        db.session.add_all([medico, administrativo])
+        db.session.add(administrativo)
         db.session.commit()
-
+ 
         # ---------- 3 pacientes ----------
         paciente1 = Patient(
             first_name="Marta", last_name="Gómez", username="28456112",
@@ -96,9 +86,8 @@ def seed():
             health_plan_name="PAMI",
             member_number="PAMI-88213",
         )
-        # Paciente: username y password son el mismo valor que el dni.
         paciente1.set_password(paciente1.dni)
-
+ 
         paciente2 = Patient(
             first_name="Luis", last_name="Fernández", username="35221987",
             dni="35221987", email="luis.fernandez@mail.com",
@@ -111,6 +100,8 @@ def seed():
             health_plan_name="OSDE",
             member_number="OSDE-44120",
         )
+        paciente2.set_password(paciente2.dni)
+ 
         paciente3 = Patient(
             first_name="Ana", last_name="Torres", username="19887334",
             dni="19887334", email="ana.torres@mail.com",
@@ -123,12 +114,11 @@ def seed():
             health_plan_name="PAMI",
             member_number="PAMI-91045",
         )
-        paciente2.set_password(paciente2.dni)
         paciente3.set_password(paciente3.dni)
-
+ 
         db.session.add_all([paciente1, paciente2, paciente3])
         db.session.commit()
-
+ 
         # ---------- 3 enfermeros ----------
         enfermero1 = Nurse(
             first_name="Rubén", last_name="Ledesma", username="rledesma",
@@ -140,7 +130,7 @@ def seed():
             is_reference=True,
         )
         enfermero1.set_password("enfermero123")
-
+ 
         enfermero2 = Nurse(
             first_name="Sofía", last_name="Molina", username="smolina",
             dni="36223355", email="sofia.molina@paciente360.com",
@@ -151,7 +141,7 @@ def seed():
             is_reference=False,
         )
         enfermero2.set_password("enfermero123")
-
+ 
         enfermero3 = Nurse(
             first_name="Diego", last_name="Suárez", username="dsuarez",
             dni="37334466", email="diego.suarez@paciente360.com",
@@ -162,11 +152,11 @@ def seed():
             is_reference=False,
         )
         enfermero3.set_password("enfermero123")
-
+ 
         db.session.add_all([enfermero1, enfermero2, enfermero3])
         db.session.commit()
-
-        # ---------- Registros de enfermería, ligados a pacientes reales ----------
+ 
+        # ---------- Registros de enfermería ----------
         signo1 = SignsAndSymptoms(
             id_patient=paciente1.id_user, id_nurse=enfermero1.id_user,
             temperature=37.2, blood_pressure="120/80",
@@ -183,73 +173,69 @@ def seed():
             symptoms="Malestar general, escalofríos",
             record_type="Urgencia",
         )
-
+ 
         seguimiento1 = PatientFollowUp(
             id_patient=paciente3.id_user, id_nurse=enfermero1.id_user,
             observations="Buena evolución post control de presión",
             next_check_up=date.today() + timedelta(days=10),
             finish=False,
         )
-
+ 
         pase1 = GuardPass(
             id_nurse=enfermero1.id_user,
             notes="Paciente de sala 2 con control de glucemia pendiente para la mañana.",
         )
-
+ 
         db.session.add_all([signo1, signo2, seguimiento1, pase1])
         db.session.commit()
-
-        # ---------- Turnos (MedicalAppointment) ----------
+ 
+        # ---------- Turnos (ahora con id_doctor obligatorio) ----------
         turno1 = MedicalAppointment(
-            id_patient=paciente1.id_user,
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
             date=date.today() + timedelta(days=5),
             hour="10:30",
             status=AppointmentStatusEnum.RESERVADO,
             reason="Control de presión",
         )
         turno2 = MedicalAppointment(
-            id_patient=paciente2.id_user,
+            id_patient=paciente2.id_user, id_doctor=medico.id_user,
             date=date.today(),
             hour="09:00",
             status=AppointmentStatusEnum.EN_ESPERA,
             reason="Fiebre y malestar general",
         )
         turno3 = MedicalAppointment(
-            id_patient=paciente3.id_user,
+            id_patient=paciente3.id_user, id_doctor=medico.id_user,
             date=date.today(),
             hour="08:30",
             status=AppointmentStatusEnum.ATENDIDO,
             reason="Control de rutina",
         )
-
+ 
         db.session.add_all([turno1, turno2, turno3])
         db.session.commit()
-
-<<<<<<< HEAD
-        # ---------- Indicaciones médicas (MedicalIndication) ----------
+ 
+        # ---------- Indicaciones médicas ----------
         indicacion1 = MedicalIndication(
-            id_patient=paciente1.id_user,
-            id_doctor=medico.id_user,
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
             indication="Reposo relativo por 48hs",
             treatment="Ibuprofeno 400mg cada 8hs",
         )
         indicacion2 = MedicalIndication(
-            id_patient=paciente2.id_user,
-            id_doctor=medico.id_user,
+            id_patient=paciente2.id_user, id_doctor=medico.id_user,
             indication="Control de temperatura cada 4hs",
             treatment="Paracetamol 500mg si fiebre mayor a 38°",
         )
         indicacion3 = MedicalIndication(
-            id_patient=paciente3.id_user,
-            id_doctor=medico.id_user,
+            id_patient=paciente3.id_user, id_doctor=medico.id_user,
             indication="Dieta hiposódica",
             treatment="Enalapril 10mg cada 24hs",
         )
-
+ 
         db.session.add_all([indicacion1, indicacion2, indicacion3])
         db.session.commit()
-
-        # ---------- Productos médicos (MedicalProduct) ----------
+ 
+        # ---------- Productos médicos ----------
         producto1 = MedicalProduct(
             name_product="Ibuprofeno 400mg",
             expiration_date=date(2027, 3, 1),
@@ -274,11 +260,11 @@ def seed():
             minimum_stock_level=20,
             type_product="Vacuna",
         )
-
+ 
         db.session.add_all([producto1, producto2, producto3])
         db.session.commit()
-
-        # ---------- Movimientos de stock (StockMovement) ----------
+ 
+        # ---------- Movimientos de stock ----------
         movimiento1 = StockMovement(
             id_product=producto1.id_product,
             type_movement="Entrada",
@@ -297,21 +283,19 @@ def seed():
             quantity=500,
             date_time=datetime.utcnow() - timedelta(days=15),
         )
-
+ 
         db.session.add_all([movimiento1, movimiento2, movimiento3])
         db.session.commit()
-
-        # ---------- Trazabilidad ----------
-=======
-        # ---------- Trazabilidad (sin producto todavia, MedicalProduct no esta mergeado) ----------
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
+ 
+        # ---------- Trazabilidad (ahora con id_product obligatorio) ----------
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
+            id_product=producto1.id_product,
         )
         db.session.add(trazabilidad1)
         db.session.commit()
-
-        # ---------- 3 noticias, publicadas por el administrativo ----------
+ 
+        # ---------- 3 noticias ----------
         noticia1 = NewsAndPrevention(
             id_user=administrativo.id_user,
             title="Campaña de vacunación antigripal 2026",
@@ -330,29 +314,25 @@ def seed():
             content="Los controles periódicos permiten detectar a tiempo problemas de crecimiento y desarrollo. Consultá los turnos disponibles en pediatría.",
             category="Enfermedades",
         )
-
+ 
         db.session.add_all([noticia1, noticia2, noticia3])
         db.session.commit()
-
+ 
         print("Seed completado:")
-        print(f"  - Médico (plano): {medico.username}")
-        print(f"  - Administrativo: {administrativo.username}")
-        print(f"  - Pacientes: {paciente1.username}, {paciente2.username}, {paciente3.username}")
-        print(f"  - Enfermeros: {enfermero1.username}, {enfermero2.username}, {enfermero3.username}")
+        print(f"  - Médico: {medico.username} (id={medico.id_user})")
+        print(f"  - Administrativo: {administrativo.username} (id={administrativo.id_user})")
+        print(f"  - Pacientes: {paciente1.username} (id={paciente1.id_user}), {paciente2.username} (id={paciente2.id_user}), {paciente3.username} (id={paciente3.id_user})")
+        print(f"  - Enfermeros: {enfermero1.username} (id={enfermero1.id_user}), {enfermero2.username} (id={enfermero2.id_user}), {enfermero3.username} (id={enfermero3.id_user})")
         print(f"  - Signos y síntomas: 2 registros")
         print(f"  - Seguimiento: 1 registro")
         print(f"  - Pase de guardia: 1 registro")
         print(f"  - Turnos: 3 (uno por cada estado: reservado, en espera, atendido)")
-<<<<<<< HEAD
         print(f"  - Indicaciones médicas: 3 registros")
         print(f"  - Productos médicos: 3 registros")
         print(f"  - Movimientos de stock: 3 registros")
         print(f"  - Trazabilidad: 1 registro (ligado a {producto1.name_product})")
-=======
-        print(f"  - Trazabilidad: 1 registro (sin producto, MedicalProduct pendiente)")
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         print(f"  - Noticias: {noticia1.title} | {noticia2.title} | {noticia3.title}")
-
-
+ 
+ 
 if __name__ == "__main__":
     seed()

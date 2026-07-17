@@ -9,6 +9,7 @@ class Doctor(User):
     # id_especialidad = db.Column(db.Integer, db.ForeignKey('specialties.id_speciality'), nullable=True)  # activamos cuando exista Specialty
 
     appointments = db.relationship('MedicalAppointment', back_populates='doctor', cascade="all, delete-orphan")
+    medical_indications = db.relationship('MedicalIndication', back_populates='doctor', cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

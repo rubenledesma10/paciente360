@@ -12,6 +12,7 @@ from models.guard_pass import GuardPass
 from models.signs_and_symptoms import SignsAndSymptoms
 from models.patient_follow_up import PatientFollowUp
 from models.medical_appointment import MedicalAppointment
+from models.medical_indication import MedicalIndication
 from enums import AppointmentStatusEnum
 from models.traceability import Traceability
 from enums import RoleEnum
@@ -22,6 +23,7 @@ def seed():
         # Orden de borrado: primero lo que depende de nurses/patients/users,
         # despues las subclases (Nurse, Patient), al final la tabla base (User).
         Traceability.query.delete()
+        MedicalIndication.query.delete()
         MedicalAppointment.query.delete()
         PatientFollowUp.query.delete()
         SignsAndSymptoms.query.delete()
@@ -202,6 +204,29 @@ def seed():
         db.session.add_all([turno1, turno2, turno3])
         db.session.commit()
 
+        # ---------- Indicaciones médicas (MedicalIndication) ----------
+        indicacion1 = MedicalIndication(
+            id_patient=paciente1.id_user,
+            id_doctor=medico.id_user,
+            indication="Reposo relativo por 48hs",
+            treatment="Ibuprofeno 400mg cada 8hs",
+        )
+        indicacion2 = MedicalIndication(
+            id_patient=paciente2.id_user,
+            id_doctor=medico.id_user,
+            indication="Control de temperatura cada 4hs",
+            treatment="Paracetamol 500mg si fiebre mayor a 38°",
+        )
+        indicacion3 = MedicalIndication(
+            id_patient=paciente3.id_user,
+            id_doctor=medico.id_user,
+            indication="Dieta hiposódica",
+            treatment="Enalapril 10mg cada 24hs",
+        )
+
+        db.session.add_all([indicacion1, indicacion2, indicacion3])
+        db.session.commit()
+
         # ---------- Trazabilidad (sin producto todavia, MedicalProduct no esta mergeado) ----------
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
@@ -241,6 +266,7 @@ def seed():
         print(f"  - Seguimiento: 1 registro")
         print(f"  - Pase de guardia: 1 registro")
         print(f"  - Turnos: 3 (uno por cada estado: reservado, en espera, atendido)")
+        print(f"  - Indicaciones médicas: 3 registros")
         print(f"  - Trazabilidad: 1 registro (sin producto, MedicalProduct pendiente)")
         print(f"  - Noticias: {noticia1.title} | {noticia2.title} | {noticia3.title}")
 

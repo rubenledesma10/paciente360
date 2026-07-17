@@ -6,6 +6,7 @@ from models.db import db
 from models.user import User
 from models.nurse import Nurse
 from models.patient import Patient
+from models.doctor import Doctor
 from models.traceability import Traceability
 from models.medical_appointment import MedicalAppointment
 from models.patient_follow_up import PatientFollowUp
@@ -25,6 +26,7 @@ with app.app_context():
     from models.user import User
     from models.nurse import Nurse
     from models.patient import Patient
+    from models.doctor import Doctor
     from models.news_and_prevention import NewsAndPrevention
     from models.signs_and_symptoms import SignsAndSymptoms
     from models.guard_pass import GuardPass 
@@ -33,6 +35,9 @@ with app.app_context():
 # Registro blueprints 
 from routes.patient_routes import patients_bp
 app.register_blueprint(patients_bp)
+
+from routes.doctor_routes import doctors_bp
+app.register_blueprint(doctors_bp)
 
 from routes.traceability_routes import traceabilities_bp
 app.register_blueprint(traceabilities_bp)

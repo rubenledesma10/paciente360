@@ -3,7 +3,7 @@ from datetime import datetime
 from models.db import db
 from models.traceability import Traceability
 from models.patient import Patient
-# from models.medical_product import MedicalProduct   # activamos cuando exista MedicalProduct
+from models.medical_product import MedicalProduct
 
 traceabilities_bp = Blueprint('traceabilities', __name__, url_prefix='/api/traceabilities')
 
@@ -20,13 +20,12 @@ def create_traceability():
         if not Patient.query.get(data.get('id_patient')):
             return jsonify({"msg": "Patient not found"}), 404
 
-        # validamos que el producto exista cuando exista MedicalProduct
-        # if not MedicalProduct.query.get(data.get('id_product')):
-        #     return jsonify({"msg": "Product not found"}), 404
+        if not MedicalProduct.query.get(data.get('id_product')):
+            return jsonify({"msg": "Product not found"}), 404
 
         new_traceability = Traceability(
             id_patient=data.get('id_patient'),
-            # id_product=data.get('id_product'),   # activamos cuando exista MedicalProduct
+            id_product=data.get('id_product'),
             date_of_use=datetime.fromisoformat(data.get('date_of_use')) if data.get('date_of_use') else datetime.utcnow()
         )
         db.session.add(new_traceability)
@@ -83,11 +82,10 @@ def update_traceability(traceability_id):
         if 'date_of_use' in data:
             traceability.date_of_use = datetime.fromisoformat(data.get('date_of_use')) if data.get('date_of_use') else None
 
-        # permitir actualizar id_product cuando exista MedicalProduct
-        # if 'id_product' in data:
-        #     if not MedicalProduct.query.get(data.get('id_product')):
-        #         return jsonify({"msg": "Product not found"}), 404
-        #     traceability.id_product = data.get('id_product')
+        if 'id_product' in data:
+            if not MedicalProduct.query.get(data.get('id_product')):
+                return jsonify({"msg": "Product not found"}), 404
+            traceability.id_product = data.get('id_product')
 
         db.session.commit()
         return jsonify({"msg": "Traceability updated successfully"}), 200

@@ -12,6 +12,7 @@ class MedicalProduct(db.Model):
     type_product = db.Column(db.String(100), nullable=True)
 
     traceabilities = db.relationship('Traceability', back_populates='product', cascade="all, delete-orphan")
+    stock_movements = db.relationship('StockMovement', back_populates='product', cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

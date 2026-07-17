@@ -1,5 +1,5 @@
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from app import app
 from models.db import db
@@ -17,6 +17,7 @@ from models.medical_indication import MedicalIndication
 from enums import AppointmentStatusEnum
 from models.traceability import Traceability
 from models.medical_product import MedicalProduct
+from models.stock_movement import StockMovement
 from enums import RoleEnum
 
 
@@ -25,6 +26,7 @@ def seed():
         # Orden de borrado: primero lo que depende de nurses/patients/users,
         # despues las subclases (Nurse, Patient), al final la tabla base (User).
         Traceability.query.delete()
+        StockMovement.query.delete()
         MedicalProduct.query.delete()
         MedicalIndication.query.delete()
         MedicalAppointment.query.delete()
@@ -269,6 +271,29 @@ def seed():
         db.session.add_all([producto1, producto2, producto3])
         db.session.commit()
 
+        # ---------- Movimientos de stock (StockMovement) ----------
+        movimiento1 = StockMovement(
+            id_product=producto1.id_product,
+            type_movement="Entrada",
+            quantity=150,
+            date_time=datetime.utcnow() - timedelta(days=10),
+        )
+        movimiento2 = StockMovement(
+            id_product=producto1.id_product,
+            type_movement="Salida",
+            quantity=20,
+            date_time=datetime.utcnow() - timedelta(days=2),
+        )
+        movimiento3 = StockMovement(
+            id_product=producto2.id_product,
+            type_movement="Entrada",
+            quantity=500,
+            date_time=datetime.utcnow() - timedelta(days=15),
+        )
+
+        db.session.add_all([movimiento1, movimiento2, movimiento3])
+        db.session.commit()
+
         # ---------- Trazabilidad ----------
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
@@ -312,6 +337,7 @@ def seed():
         print(f"  - Turnos: 3 (uno por cada estado: reservado, en espera, atendido)")
         print(f"  - Indicaciones médicas: 3 registros")
         print(f"  - Productos médicos: 3 registros")
+        print(f"  - Movimientos de stock: 3 registros")
         print(f"  - Trazabilidad: 1 registro (ligado a {producto1.name_product})")
         print(f"  - Noticias: {noticia1.title} | {noticia2.title} | {noticia3.title}")
 

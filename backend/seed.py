@@ -15,6 +15,7 @@ from models.medical_appointment import MedicalAppointment
 from models.medical_indication import MedicalIndication
 from enums import AppointmentStatusEnum
 from models.traceability import Traceability
+from models.medical_product import MedicalProduct
 from enums import RoleEnum
 
 
@@ -23,6 +24,7 @@ def seed():
         # Orden de borrado: primero lo que depende de nurses/patients/users,
         # despues las subclases (Nurse, Patient), al final la tabla base (User).
         Traceability.query.delete()
+        MedicalProduct.query.delete()
         MedicalIndication.query.delete()
         MedicalAppointment.query.delete()
         PatientFollowUp.query.delete()
@@ -227,9 +229,39 @@ def seed():
         db.session.add_all([indicacion1, indicacion2, indicacion3])
         db.session.commit()
 
-        # ---------- Trazabilidad (sin producto todavia, MedicalProduct no esta mergeado) ----------
+        # ---------- Productos médicos (MedicalProduct) ----------
+        producto1 = MedicalProduct(
+            name_product="Ibuprofeno 400mg",
+            expiration_date=date(2027, 3, 1),
+            batch_number="LOTE-2201",
+            current_stock=150,
+            minimum_stock_level=30,
+            type_product="Medicamento",
+        )
+        producto2 = MedicalProduct(
+            name_product="Jeringa descartable 5ml",
+            expiration_date=date(2028, 6, 15),
+            batch_number="LOTE-5502",
+            current_stock=500,
+            minimum_stock_level=100,
+            type_product="Insumo descartable",
+        )
+        producto3 = MedicalProduct(
+            name_product="Vacuna antigripal",
+            expiration_date=date(2026, 12, 1),
+            batch_number="LOTE-9081",
+            current_stock=80,
+            minimum_stock_level=20,
+            type_product="Vacuna",
+        )
+
+        db.session.add_all([producto1, producto2, producto3])
+        db.session.commit()
+
+        # ---------- Trazabilidad ----------
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
+            id_product=producto1.id_product,
         )
         db.session.add(trazabilidad1)
         db.session.commit()
@@ -267,7 +299,8 @@ def seed():
         print(f"  - Pase de guardia: 1 registro")
         print(f"  - Turnos: 3 (uno por cada estado: reservado, en espera, atendido)")
         print(f"  - Indicaciones médicas: 3 registros")
-        print(f"  - Trazabilidad: 1 registro (sin producto, MedicalProduct pendiente)")
+        print(f"  - Productos médicos: 3 registros")
+        print(f"  - Trazabilidad: 1 registro (ligado a {producto1.name_product})")
         print(f"  - Noticias: {noticia1.title} | {noticia2.title} | {noticia3.title}")
 
 

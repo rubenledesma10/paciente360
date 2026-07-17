@@ -8,6 +8,7 @@ from models.nurse import Nurse
 from models.patient import Patient
 from models.doctor import Doctor
 from models.traceability import Traceability
+from models.medical_product import MedicalProduct
 from models.medical_appointment import MedicalAppointment
 from models.medical_indication import MedicalIndication
 from models.patient_follow_up import PatientFollowUp
@@ -51,6 +52,9 @@ app.register_blueprint(follow_ups_bp)
 
 from routes.medical_indication_routes import medical_indications_bp
 app.register_blueprint(medical_indications_bp)
+
+from routes.medical_product_routes import medical_products_bp
+app.register_blueprint(medical_products_bp)
 
 if __name__ == '__main__':
     print("Running Paciente360 application...")

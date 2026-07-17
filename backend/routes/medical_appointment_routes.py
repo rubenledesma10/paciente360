@@ -3,7 +3,7 @@ from datetime import date
 from models.db import db
 from models.medical_appointment import MedicalAppointment
 from models.patient import Patient
-# from models.doctor import Doctor   # activamos cuando exista Doctor
+from models.doctor import Doctor
 
 appointments_bp = Blueprint('appointments', __name__, url_prefix='/api/appointments')
 
@@ -20,13 +20,13 @@ def create_appointment():
         if not Patient.query.get(data.get('id_patient')):
             return jsonify({"msg": "Patient not found"}), 404
 
-        # validamos que el doctor exista cuando exista Doctor
-        # if not Doctor.query.get(data.get('id_doctor')):
-        #     return jsonify({"msg": "Doctor not found"}), 404
+        # Validamos que el doctor exista
+        if not Doctor.query.get(data.get('id_doctor')):
+            return jsonify({"msg": "Doctor not found"}), 404
 
         new_appointment = MedicalAppointment(
             id_patient=data.get('id_patient'),
-            # id_doctor=data.get('id_doctor'),   # activamos cuando exista Doctor
+            id_doctor=data.get('id_doctor'),
             date=date.fromisoformat(data.get('date')) if data.get('date') else None,
             hour=data.get('hour'),
             status=data.get('status', 'Pendiente'),
@@ -92,11 +92,10 @@ def update_appointment(appointment_id):
         if 'reason' in data:
             appointment.reason = data.get('reason')
 
-        # permitimops actualizar id_doctor cuando exista Doctor
-        # if 'id_doctor' in data:
-        #     if not Doctor.query.get(data.get('id_doctor')):
-        #         return jsonify({"msg": "Doctor not found"}), 404
-        #     appointment.id_doctor = data.get('id_doctor')
+        if 'id_doctor' in data:
+            if not Doctor.query.get(data.get('id_doctor')):
+                return jsonify({"msg": "Doctor not found"}), 404
+            appointment.id_doctor = data.get('id_doctor')
 
         db.session.commit()
         return jsonify({"msg": "Appointment updated successfully"}), 200

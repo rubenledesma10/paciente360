@@ -6,6 +6,7 @@ from models.db import db
 from models.user import User
 from models.nurse import Nurse
 from models.patient import Patient
+from models.doctor import Doctor
 from models.news_and_prevention import NewsAndPrevention
 from models.guard_pass import GuardPass
 from models.signs_and_symptoms import SignsAndSymptoms
@@ -26,18 +27,20 @@ def seed():
         SignsAndSymptoms.query.delete()
         GuardPass.query.delete()
         NewsAndPrevention.query.delete()
+        Doctor.query.delete()
         Nurse.query.delete()
         Patient.query.delete()
         User.query.delete()
         db.session.commit()
 
-        # ---------- Médico (todavía plano, Doctor no está mergeado) ----------
-        medico = User(
+        # ---------- Médico ----------
+        medico = Doctor(
             first_name="Javier", last_name="Ríos", username="jrios",
             dni="30112233", email="javier.rios@paciente360.com",
             date_of_birth=date(1980, 6, 3),
             gender="Masculino",
             rol=RoleEnum.DOCTOR,
+            medical_license=45231,
         )
         medico.set_password("medico123")
 
@@ -173,6 +176,7 @@ def seed():
         # ---------- Turnos (MedicalAppointment) ----------
         turno1 = MedicalAppointment(
             id_patient=paciente1.id_user,
+            id_doctor=medico.id_user,
             date=date.today() + timedelta(days=5),
             hour="10:30",
             status=AppointmentStatusEnum.RESERVADO,
@@ -180,6 +184,7 @@ def seed():
         )
         turno2 = MedicalAppointment(
             id_patient=paciente2.id_user,
+            id_doctor=medico.id_user,
             date=date.today(),
             hour="09:00",
             status=AppointmentStatusEnum.EN_ESPERA,
@@ -187,6 +192,7 @@ def seed():
         )
         turno3 = MedicalAppointment(
             id_patient=paciente3.id_user,
+            id_doctor=medico.id_user,
             date=date.today(),
             hour="08:30",
             status=AppointmentStatusEnum.ATENDIDO,
@@ -227,7 +233,7 @@ def seed():
         db.session.commit()
 
         print("Seed completado:")
-        print(f"  - Médico (plano): {medico.username}")
+        print(f"  - Médico: {medico.username}")
         print(f"  - Administrativo: {administrativo.username}")
         print(f"  - Pacientes: {paciente1.username}, {paciente2.username}, {paciente3.username}")
         print(f"  - Enfermeros: {enfermero1.username}, {enfermero2.username}, {enfermero3.username}")

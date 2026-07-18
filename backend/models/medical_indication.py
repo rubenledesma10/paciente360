@@ -1,4 +1,5 @@
 from models.db import db
+from datetime import datetime
 
 
 class MedicalIndication(db.Model):
@@ -8,7 +9,7 @@ class MedicalIndication(db.Model):
     id_doctor = db.Column(db.Integer, db.ForeignKey('doctors.id_user'), nullable=False)
     indication = db.Column(db.String(255), nullable=False)
     treatment = db.Column(db.String(255), nullable=True)
-
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     patient = db.relationship('Patient', back_populates='medical_indications')
     doctor = db.relationship('Doctor', back_populates='medical_indications')
 

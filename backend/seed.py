@@ -1,16 +1,16 @@
 """
 seed.py
- 
+
 Carga datos de prueba con TODAS las entidades ya integradas del equipo:
 User, Nurse, Patient, Doctor, NewsAndPrevention, GuardPass, SignsAndSymptoms,
 PatientFollowUp, MedicalAppointment, MedicalIndication, MedicalProduct,
 StockMovement, Traceability.
- 
+
 Uso (parado en la carpeta back/, con el venv activado):
     python seed.py
 """
 from datetime import date, timedelta, datetime
- 
+
 from app import app
 from models.db import db
 from models.user import User
@@ -27,8 +27,8 @@ from models.medical_product import MedicalProduct
 from models.stock_movement import StockMovement
 from models.medical_indication import MedicalIndication
 from enums import RoleEnum, AppointmentStatusEnum
- 
- 
+
+
 def seed():
     with app.app_context():
         # Orden de borrado: primero lo que depende de doctors/nurses/patients/users,
@@ -47,7 +47,7 @@ def seed():
         Patient.query.delete()
         User.query.delete()
         db.session.commit()
- 
+
         # ---------- Médico (Doctor real) ----------
         medico = Doctor(
             first_name="Javier", last_name="Ríos", username="jrios",
@@ -60,7 +60,7 @@ def seed():
         medico.set_password("medico123")
         db.session.add(medico)
         db.session.commit()
- 
+
         # ---------- Administrativo (todavía plano, no tiene tabla propia) ----------
         administrativo = User(
             first_name="Lucía", last_name="Paredes", username="lparedes",
@@ -72,7 +72,7 @@ def seed():
         administrativo.set_password("admin123")
         db.session.add(administrativo)
         db.session.commit()
- 
+
         # ---------- 3 pacientes ----------
         paciente1 = Patient(
             first_name="Marta", last_name="Gómez", username="28456112",
@@ -87,7 +87,7 @@ def seed():
             member_number="PAMI-88213",
         )
         paciente1.set_password(paciente1.dni)
- 
+
         paciente2 = Patient(
             first_name="Luis", last_name="Fernández", username="35221987",
             dni="35221987", email="luis.fernandez@mail.com",
@@ -101,7 +101,7 @@ def seed():
             member_number="OSDE-44120",
         )
         paciente2.set_password(paciente2.dni)
- 
+
         paciente3 = Patient(
             first_name="Ana", last_name="Torres", username="19887334",
             dni="19887334", email="ana.torres@mail.com",
@@ -115,10 +115,10 @@ def seed():
             member_number="PAMI-91045",
         )
         paciente3.set_password(paciente3.dni)
- 
+
         db.session.add_all([paciente1, paciente2, paciente3])
         db.session.commit()
- 
+
         # ---------- 3 enfermeros ----------
         enfermero1 = Nurse(
             first_name="Rubén", last_name="Ledesma", username="rledesma",
@@ -130,7 +130,7 @@ def seed():
             is_reference=True,
         )
         enfermero1.set_password("enfermero123")
- 
+
         enfermero2 = Nurse(
             first_name="Sofía", last_name="Molina", username="smolina",
             dni="36223355", email="sofia.molina@paciente360.com",
@@ -141,7 +141,7 @@ def seed():
             is_reference=False,
         )
         enfermero2.set_password("enfermero123")
- 
+
         enfermero3 = Nurse(
             first_name="Diego", last_name="Suárez", username="dsuarez",
             dni="37334466", email="diego.suarez@paciente360.com",
@@ -152,10 +152,10 @@ def seed():
             is_reference=False,
         )
         enfermero3.set_password("enfermero123")
- 
+
         db.session.add_all([enfermero1, enfermero2, enfermero3])
         db.session.commit()
- 
+
         # ---------- Registros de enfermería ----------
         signo1 = SignsAndSymptoms(
             id_patient=paciente1.id_user, id_nurse=enfermero1.id_user,
@@ -173,22 +173,22 @@ def seed():
             symptoms="Malestar general, escalofríos",
             record_type="Urgencia",
         )
- 
+
         seguimiento1 = PatientFollowUp(
             id_patient=paciente3.id_user, id_nurse=enfermero1.id_user,
             observations="Buena evolución post control de presión",
             next_check_up=date.today() + timedelta(days=10),
             finish=False,
         )
- 
+
         pase1 = GuardPass(
             id_nurse=enfermero1.id_user,
             notes="Paciente de sala 2 con control de glucemia pendiente para la mañana.",
         )
- 
+
         db.session.add_all([signo1, signo2, seguimiento1, pase1])
         db.session.commit()
- 
+
         # ---------- Turnos (ahora con id_doctor obligatorio) ----------
         turno1 = MedicalAppointment(
             id_patient=paciente1.id_user, id_doctor=medico.id_user,
@@ -211,10 +211,10 @@ def seed():
             status=AppointmentStatusEnum.ATENDIDO,
             reason="Control de rutina",
         )
- 
+
         db.session.add_all([turno1, turno2, turno3])
         db.session.commit()
- 
+
         # ---------- Indicaciones médicas ----------
         indicacion1 = MedicalIndication(
             id_patient=paciente1.id_user, id_doctor=medico.id_user,
@@ -230,11 +230,14 @@ def seed():
             id_patient=paciente3.id_user, id_doctor=medico.id_user,
             indication="Dieta hiposódica",
             treatment="Enalapril 10mg cada 24hs",
+            # Fecha vieja a propósito, para poder testear en Postman el caso
+            # "ya pasaron los 5 minutos" sin tener que esperar de verdad.
+            created_at=datetime.utcnow() - timedelta(minutes=10),
         )
- 
+
         db.session.add_all([indicacion1, indicacion2, indicacion3])
         db.session.commit()
- 
+
         # ---------- Productos médicos ----------
         producto1 = MedicalProduct(
             name_product="Ibuprofeno 400mg",
@@ -260,10 +263,10 @@ def seed():
             minimum_stock_level=20,
             type_product="Vacuna",
         )
- 
+
         db.session.add_all([producto1, producto2, producto3])
         db.session.commit()
- 
+
         # ---------- Movimientos de stock ----------
         movimiento1 = StockMovement(
             id_product=producto1.id_product,
@@ -283,10 +286,10 @@ def seed():
             quantity=500,
             date_time=datetime.utcnow() - timedelta(days=15),
         )
- 
+
         db.session.add_all([movimiento1, movimiento2, movimiento3])
         db.session.commit()
- 
+
         # ---------- Trazabilidad (ahora con id_product obligatorio) ----------
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
@@ -294,7 +297,7 @@ def seed():
         )
         db.session.add(trazabilidad1)
         db.session.commit()
- 
+
         # ---------- 3 noticias ----------
         noticia1 = NewsAndPrevention(
             id_user=administrativo.id_user,
@@ -314,10 +317,10 @@ def seed():
             content="Los controles periódicos permiten detectar a tiempo problemas de crecimiento y desarrollo. Consultá los turnos disponibles en pediatría.",
             category="Enfermedades",
         )
- 
+
         db.session.add_all([noticia1, noticia2, noticia3])
         db.session.commit()
- 
+
         print("Seed completado:")
         print(f"  - Médico: {medico.username} (id={medico.id_user})")
         print(f"  - Administrativo: {administrativo.username} (id={administrativo.id_user})")
@@ -332,7 +335,7 @@ def seed():
         print(f"  - Movimientos de stock: 3 registros")
         print(f"  - Trazabilidad: 1 registro (ligado a {producto1.name_product})")
         print(f"  - Noticias: {noticia1.title} | {noticia2.title} | {noticia3.title}")
- 
- 
+
+
 if __name__ == "__main__":
     seed()

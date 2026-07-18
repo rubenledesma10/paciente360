@@ -6,6 +6,7 @@ from utils.role_required import role_required
 from enums import RoleEnum
 from models.nurse import Nurse
 from models.user import User
+from models.patient import Patient
 from datetime import datetime, timedelta
 
 signs_and_symptoms_bp = Blueprint('signs_and_symptoms', __name__, url_prefix='/api/signs_and_symptoms')
@@ -20,6 +21,10 @@ def create_signs_and_symptoms():
     missing_items=[c for c in required_fields if c not in data]
     if missing_items:
         return jsonify({"error": f"Missing required fields: {', '.join(missing_items)}"}),400
+    
+    if not Patient.query.get(data['id_patient']):
+        return jsonify({"error":"Patient not found"}),404
+    
     id_nurse_login=int(get_jwt_identity())
     
     try:
@@ -55,7 +60,9 @@ def delete_signs_and_symptoms(id_signs_and_symptoms):
     signs_and_symptoms = SignsAndSymptoms.query.get(id_signs_and_symptoms)
     if not signs_and_symptoms:
         return jsonify({'error': 'Signs and Symptoms not found'}), 404
-
+    id_nurse_logueado = int(get_jwt_identity())
+    if signs_and_symptoms.id_nurse != id_nurse_logueado:
+        return jsonify({"error": "Only the nurse who recorded this can delete it."}), 403
     try:
         db.session.delete(signs_and_symptoms)
         db.session.commit()
@@ -67,10 +74,15 @@ def delete_signs_and_symptoms(id_signs_and_symptoms):
 @signs_and_symptoms_bp.route('/<int:id_signs_and_symptoms>', methods=['PUT'])
 @role_required(RoleEnum.NURSE)
 def update_signs_and_symptoms(id_signs_and_symptoms):
+
     data = request.get_json()
     signs_and_symptoms = SignsAndSymptoms.query.get(id_signs_and_symptoms)
     if not signs_and_symptoms:
         return jsonify({'error': 'Signs and Symptoms not found'}), 404
+    
+    id_nurse_logueado=int(get_jwt_identity())
+    if signs_and_symptoms.id_nurse != id_nurse_logueado:
+        return jsonify({"error":"Only the nurse who recorded this can edit it."}), 403
     
     now = datetime.utcnow()
     time_limit = signs_and_symptoms.date_and_time + timedelta(minutes=5)
@@ -89,7 +101,19 @@ def update_signs_and_symptoms(id_signs_and_symptoms):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-    
+
+@signs_and_symptoms_bp.route('/patient/<int:id_patient>', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+def get_by_patient(id_patient):
+
+    signs_and_symptoms = (
+        SignsAndSymptoms.query
+        .filter_by(id_patient=id_patient)
+        .order_by(SignsAndSymptoms.date_and_time.desc())
+        .all()
+    )
+    return jsonify([r.to_dict() for r in signs_and_symptoms]), 200
+
 @signs_and_symptoms_bp.route('/', methods=['GET'])
 @role_required(RoleEnum.NURSE)
 def get_all():

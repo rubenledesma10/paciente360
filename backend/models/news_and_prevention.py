@@ -12,6 +12,7 @@ class NewsAndPrevention(db.Model):
     category = db.Column(db.String(100), nullable=False)
     photo = db.Column(db.String(255), nullable=True)
     date = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    
 
     author = db.relationship('User', back_populates='news_and_prevention')
 

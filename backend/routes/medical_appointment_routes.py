@@ -5,6 +5,7 @@ from models.medical_appointment import MedicalAppointment
 from models.patient import Patient
 from models.doctor import Doctor
 from enums import AppointmentStatusEnum
+from models.specialty import Specialty 
 
 appointments_bp = Blueprint('appointments', __name__, url_prefix='/api/appointments')
 
@@ -31,6 +32,7 @@ def has_overlap(query_appointments, appointment_time, exclude_id=None):
             return True
     return False
 
+# ---------------------- Create appointment
 
 @appointments_bp.route('/', methods=['POST'])
 def create_appointment():
@@ -114,6 +116,8 @@ def create_appointment():
         return jsonify({"msg": "Error creating appointment", "error": str(e)}), 500
 
 
+# ---------------------- Get all appointment or appointment by id or by patient 
+
 @appointments_bp.route('/', methods=['GET'])
 def get_appointments():
     try:
@@ -142,6 +146,8 @@ def get_appointments_by_patient(patient_id):
     except Exception as e:
         return jsonify({"msg": "Error fetching patient appointments"}), 500
 
+
+# ---------------------- Update appointment
 
 @appointments_bp.route('/<int:appointment_id>', methods=['PUT'])
 def update_appointment(appointment_id):
@@ -221,6 +227,8 @@ def update_appointment(appointment_id):
         return jsonify({"msg": "Error updating appointment", "error": str(e)}), 500
 
 
+# ---------------------- Delete appointment
+
 @appointments_bp.route('/<int:appointment_id>', methods=['DELETE'])
 def delete_appointment(appointment_id):
     try:
@@ -236,6 +244,7 @@ def delete_appointment(appointment_id):
         print(f"ERROR AL BORRAR TURNO: {e}")
         return jsonify({"msg": "Error deleting appointment", "error": str(e)}), 500
 
+# ---------------------- Update appointment
 
 @appointments_bp.route('/<int:appointment_id>/status', methods=['PATCH'])
 def update_appointment_status(appointment_id):
@@ -262,3 +271,31 @@ def update_appointment_status(appointment_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error updating appointment status"}), 500
+
+# ---------------------- Get specialties
+
+@appointments_bp.route('/specialties', methods=['GET'])
+def get_specialties():
+    try:
+        specialties = Specialty.query.all()
+        return jsonify([s.to_dict() for s in specialties]), 200
+    except Exception as e:
+        return jsonify({"msg": "Error fetching specialties"}), 500
+
+# ---------------------- Get doctor by specialty
+
+@appointments_bp.route('/specialties/<int:specialty_id>/doctors', methods=['GET'])
+def get_doctors_by_specialty(specialty_id):
+    try:
+        # Validar que la especialidad exista
+        if not Specialty.query.get(specialty_id):
+            return jsonify({"msg": "Specialty not found"}), 404
+
+        # Traer los doctores de esa especialidad (solo activos)
+        doctors = Doctor.query.filter_by(
+            id_especialidad=specialty_id,
+            is_active=True
+        ).all()
+        return jsonify([d.to_dict() for d in doctors]), 200
+    except Exception as e:
+        return jsonify({"msg": "Error fetching doctors by specialty"}), 500

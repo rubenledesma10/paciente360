@@ -291,11 +291,21 @@ def get_doctors_by_specialty(specialty_id):
         if not Specialty.query.get(specialty_id):
             return jsonify({"msg": "Specialty not found"}), 404
 
-        # Traer los doctores de esa especialidad (solo activos)
+        # Traer los doctores activos de esa especialidad
         doctors = Doctor.query.filter_by(
             id_especialidad=specialty_id,
             is_active=True
         ).all()
+
+        # Filtro opcional por obra social (query param ?health_plan=OSDE)
+        health_plan_name = request.args.get('health_plan')
+        if health_plan_name:
+            normalized = health_plan_name.strip().lower()
+            doctors = [
+                doctor for doctor in doctors
+                if any(hp.name.strip().lower() == normalized for hp in doctor.health_plans)
+            ]
+
         return jsonify([d.to_dict() for d in doctors]), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching doctors by specialty"}), 500

@@ -68,7 +68,28 @@ def get_follow_ups_by_patient(patient_id):
     except Exception as e:
         return jsonify({"msg": "Error fetching patient follow-ups"}), 500
 
+@follow_ups_bp.route('/pending', methods=['GET'])
+def get_pending_follow_ups():
+    try:
+        today = date.today()
 
+        # Incomplete follow-ups, with an expired control date or due today
+        query = PatientFollowUp.query.filter(
+            PatientFollowUp.finish == False,
+            PatientFollowUp.next_check_up != None,
+            PatientFollowUp.next_check_up <= today
+        )
+
+        # Optional filter by nurse (id_nurse=X)
+        nurse_id = request.args.get('id_nurse')
+        if nurse_id:
+            query = query.filter(PatientFollowUp.id_nurse == nurse_id)
+
+        pending = query.all()
+        return jsonify([f.to_dict() for f in pending]), 200
+    except Exception as e:
+        return jsonify({"msg": "Error fetching pending follow-ups"}), 500
+    
 @follow_ups_bp.route('/<int:follow_up_id>', methods=['PUT'])
 def update_follow_up(follow_up_id):
     try:

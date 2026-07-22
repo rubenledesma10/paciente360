@@ -12,7 +12,7 @@ class SignsAndSymptoms(db.Model):
     date_and_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     signs = db.Column(db.String(255), nullable=True)
     symptoms = db.Column(db.String(255), nullable=True)
-    type = db.Column(db.String(50), nullable=False)
+    record_type = db.Column(db.String(50), nullable=False)
 
     nurse = db.relationship('Nurse', back_populates='signs_and_symptoms')
     patient = db.relationship('Patient', back_populates='signs_and_symptoms')
@@ -28,6 +28,6 @@ class SignsAndSymptoms(db.Model):
             'date_and_time': self.date_and_time.isoformat() if self.date_and_time else None,
             'signs': self.signs,
             'symptoms': self.symptoms,
-            'type': self.type
+            'record_type': self.record_type
         }
 

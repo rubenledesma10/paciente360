@@ -12,8 +12,9 @@ class Patient(User):
 
     signs_and_symptoms = db.relationship('SignsAndSymptoms',back_populates='patient',cascade="all, delete-orphan")
     follow_ups = db.relationship('PatientFollowUp', back_populates='patient', cascade="all, delete-orphan")
-    # appointments = db.relationship('MedicalAppointment', back_populates='patient', cascade="all, delete-orphan")
-    # traceabilities = db.relationship('Traceability', back_populates='patient', cascade="all, delete-orphan")
+    appointments = db.relationship('MedicalAppointment', back_populates='patient', cascade="all, delete-orphan")
+    traceabilities = db.relationship('Traceability', back_populates='patient', cascade="all, delete-orphan")
+    medical_indications = db.relationship('MedicalIndication', back_populates='patient', cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

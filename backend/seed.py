@@ -1,9 +1,7 @@
 """
 seed.py
 
-<<<<<<< HEAD
-from datetime import date, datetime, timedelta
-=======
+
 Carga datos de prueba con todo lo que está integrado del equipo hasta ahora:
 User, Nurse, Patient, NewsAndPrevention, GuardPass, SignsAndSymptoms,
 PatientFollowUp, MedicalAppointment, Traceability.
@@ -18,8 +16,6 @@ Uso (parado en la carpeta back/, con el venv activado):
     python seed.py
 """
 from datetime import date, timedelta
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
-
 from app import app
 from models.db import db
 from models.user import User
@@ -31,12 +27,11 @@ from models.signs_and_symptoms import SignsAndSymptoms
 from models.patient_follow_up import PatientFollowUp
 from models.medical_appointment import MedicalAppointment, AppointmentStatusEnum
 from models.traceability import Traceability
-<<<<<<< HEAD
 from models.medical_product import MedicalProduct
 from models.stock_movement import StockMovement
-=======
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
 from enums import RoleEnum
+from models.medical_indication import MedicalIndication
+
 
 
 def seed():
@@ -44,12 +39,9 @@ def seed():
         # Orden de borrado: primero lo que depende de nurses/patients/users,
         # despues las subclases (Nurse, Patient), al final la tabla base (User).
         Traceability.query.delete()
-<<<<<<< HEAD
         StockMovement.query.delete()
         MedicalProduct.query.delete()
         MedicalIndication.query.delete()
-=======
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         MedicalAppointment.query.delete()
         PatientFollowUp.query.delete()
         SignsAndSymptoms.query.delete()
@@ -225,7 +217,6 @@ def seed():
         db.session.add_all([turno1, turno2, turno3])
         db.session.commit()
 
-<<<<<<< HEAD
         # ---------- Indicaciones médicas (MedicalIndication) ----------
         indicacion1 = MedicalIndication(
             id_patient=paciente1.id_user,
@@ -302,9 +293,6 @@ def seed():
         db.session.commit()
 
         # ---------- Trazabilidad ----------
-=======
-        # ---------- Trazabilidad (sin producto todavia, MedicalProduct no esta mergeado) ----------
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
         )
@@ -343,14 +331,10 @@ def seed():
         print(f"  - Seguimiento: 1 registro")
         print(f"  - Pase de guardia: 1 registro")
         print(f"  - Turnos: 3 (uno por cada estado: reservado, en espera, atendido)")
-<<<<<<< HEAD
         print(f"  - Indicaciones médicas: 3 registros")
         print(f"  - Productos médicos: 3 registros")
         print(f"  - Movimientos de stock: 3 registros")
         print(f"  - Trazabilidad: 1 registro (ligado a {producto1.name_product})")
-=======
-        print(f"  - Trazabilidad: 1 registro (sin producto, MedicalProduct pendiente)")
->>>>>>> bb473b6d1acda4068db238d86fcbd104d14a2506
         print(f"  - Noticias: {noticia1.title} | {noticia2.title} | {noticia3.title}")
 
 

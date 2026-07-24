@@ -17,5 +17,9 @@ class Traceability(db.Model):
             'id_traceability': self.id_traceability,
             'id_patient': self.id_patient,
             'id_product': self.id_product,
-            'date_of_use': self.date_of_use.isoformat() if self.date_of_use else None
+            'date_of_use': self.date_of_use.isoformat() if self.date_of_use else None,
+            # Datos del producto asociado (validaciones 4 y 5 de la HU3)
+            'product_name': self.product.name_product if self.product else None,
+            'batch_number': self.product.batch_number if self.product else None,
+            'expiration_date': self.product.expiration_date.isoformat() if self.product and self.product.expiration_date else None
         }

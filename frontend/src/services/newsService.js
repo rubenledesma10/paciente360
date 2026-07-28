@@ -9,3 +9,12 @@ export async function getAllNews() {
   }
   return await response.json();
 }
+
+// Traemos una noticia puntual por su id
+export async function getNewsById(id) {
+  const response = await fetch(`${API_URL}/${id}`);
+  if (!response.ok) {
+    throw new Error('Error al traer la noticia');
+  }
+  return await response.json();
+}

@@ -1,0 +1,200 @@
+/* ===== Contenedor general ===== */
+.news-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+/* ===== Encabezado ===== */
+.news-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #e3eef7;
+}
+
+.news-title {
+  color: #0e4c82;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin: 0 0 0.4rem;
+}
+
+.news-subtitle {
+  color: #5b7387;
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* ===== Grilla de tarjetas ===== */
+.news-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.75rem;
+}
+
+/* ===== Tarjeta ===== */
+.news-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 3px rgba(14, 76, 130, 0.08),
+    0 8px 24px rgba(14, 76, 130, 0.04);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.news-card:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 4px 12px rgba(14, 76, 130, 0.12),
+    0 16px 40px rgba(14, 76, 130, 0.12);
+}
+
+/* Franja de acento superior */
+.news-card::before {
+  content: '';
+  display: block;
+  height: 5px;
+  background: linear-gradient(90deg, #29abe2, #1565a8);
+}
+
+/* ===== Cuerpo de la tarjeta ===== */
+.news-card-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* ===== Etiqueta de categoría ===== */
+.news-category {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.3rem 0.8rem;
+  border-radius: 8px;
+  margin-bottom: 0.9rem;
+}
+
+.news-category::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.news-category.prevencion {
+  background: #e4f5ee;
+  color: #1a8a5a;
+}
+
+.news-category.otro {
+  background: #fdf1e0;
+  color: #c77f1a;
+}
+
+/* ===== Título ===== */
+.news-card-title {
+  margin: 0 0 0.5rem;
+  color: #0e4c82;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* ===== Fecha ===== */
+.news-date {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin: 0 0 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.news-date::before {
+  content: '📅';
+  font-size: 0.85rem;
+}
+
+/* ===== Contenido ===== */
+.news-content {
+  color: #475569;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  margin: 0;
+  /* Recorta el texto a 4 líneas con puntos suspensivos */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4; /* <- agregar esta línea */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+  .news-container {
+    padding: 2rem 1rem;
+  }
+  .news-title {
+    font-size: 1.7rem;
+  }
+}
+
+/* ===== Filtros por categoría ===== */
+.news-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 2.5rem;
+}
+
+.news-filter-btn {
+  background: #ffffff;
+  color: #1565a8;
+  border: 1.5px solid #cfe4f5;
+  border-radius: 24px;
+  padding: 0.5rem 1.3rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.news-filter-btn:hover {
+  border-color: #29abe2;
+  background: #f0f8fe;
+}
+
+.news-filter-btn.active {
+  background: #1565a8;
+  color: #ffffff;
+  border-color: #1565a8;
+}
+
+.news-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}

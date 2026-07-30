@@ -25,6 +25,12 @@ class Nurse(User):
         back_populates='nurse',
         cascade="all, delete-orphan"
     )
+
+    traceabilities = db.relationship(
+        'Traceability',
+        back_populates='nurse',
+        cascade="all, delete-orphan"
+    )
     
     def to_dict(self):
         return {

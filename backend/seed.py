@@ -1,14 +1,4 @@
-"""
-seed.py
 
-Carga datos de prueba con TODAS las entidades ya integradas del equipo:
-User, Nurse, Patient, Doctor, NewsAndPrevention, GuardPass, SignsAndSymptoms,
-PatientFollowUp, MedicalAppointment, MedicalIndication, MedicalProduct,
-StockMovement, Traceability.
-
-Uso (parado en la carpeta back/, con el venv activado):
-    python seed.py
-"""
 from datetime import date, timedelta, datetime
 
 from app import app
@@ -294,6 +284,7 @@ def seed():
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
             id_product=producto1.id_product,
+            id_nurse=enfermero1.id_user,
         )
         db.session.add(trazabilidad1)
         db.session.commit()

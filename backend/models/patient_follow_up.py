@@ -31,6 +31,7 @@ class PatientFollowUp(db.Model):
             'observations': self.observations,
             'next_check_up': self.next_check_up.isoformat() if self.next_check_up else None,
             'date_time': self.date_time.isoformat() if self.date_time else None,
-            'finish': self.finish,
-            'status': self.get_status()
+            'status': self.get_status(),
+            'patient_name': f"{self.patient.first_name} {self.patient.last_name}" if self.patient else None
+            
         }

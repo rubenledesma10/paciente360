@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   getAllFollowUps,
   getPendingFollowUps,
+  toggleFinishFollowUp,
 } from '../services/followUpService';
 import './Seguimiento.css';
 
@@ -11,8 +12,8 @@ function Seguimiento() {
   const [pending, setPending] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState('Activos');
 
-  // Al cargar la página, traemos ambos del backend, todos y los pendientes.
-  useEffect(() => {
+  // Función que trae los seguimientos y los pendientes del backend
+  function loadData() {
     getAllFollowUps()
       .then((data) => setFollowUps(data))
       .catch((error) => console.error(error));
@@ -20,7 +21,19 @@ function Seguimiento() {
     getPendingFollowUps()
       .then((data) => setPending(data))
       .catch((error) => console.error(error));
+  }
+
+  // Al cargar la página, traemos los datos
+  useEffect(() => {
+    loadData();
   }, []);
+
+  // Marca un seguimiento como finalizado y refresca la lista
+  function handleFinish(followUpId) {
+    toggleFinishFollowUp(followUpId)
+      .then(() => loadData())
+      .catch((error) => console.error(error));
+  }
 
   // Formatea la fecha ISO a algo legible
   function formatDate(isoString) {
@@ -100,6 +113,14 @@ function Seguimiento() {
             <p className="follow-next">
               📅 Próximo control: {formatDate(item.next_check_up)}
             </p>
+            {item.status !== 'Finalizado' && (
+              <button
+                className="follow-finish-btn"
+                onClick={() => handleFinish(item.id_follow_up)}
+              >
+                Marcar finalizado
+              </button>
+            )}
           </div>
         ))}
         {filteredFollowUps.length === 0 && (

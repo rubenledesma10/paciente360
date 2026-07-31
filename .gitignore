@@ -1,15 +1,18 @@
 # Python / Flask
 backend/venv/
-backend/__pycache__/
-backend/*.pyc
+backend/**/__pycache__/
+backend/**/*.pyc
 backend/.env
-
+backend/instance/
+backend/**/*.egg-info/
+backend/.pytest_cache/
+ 
 # Node / React (Vite)
 frontend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/.env.local
-
+ 
 # Archivos del Sistema / IDEs
 .vscode/
 .idea/

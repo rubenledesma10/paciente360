@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from models.db import db
 
 
@@ -15,6 +15,14 @@ class PatientFollowUp(db.Model):
     patient = db.relationship('Patient', back_populates='follow_ups')
     nurse = db.relationship('Nurse', back_populates='follow_ups')
 
+    #Function to determinate the status of control/follow up the patient
+    def get_status(self):
+        if self.finish:
+            return "Finalizado"
+        if self.next_check_up and self.next_check_up <= date.today():
+            return "Pendiente"
+        return "Programado"
+    
     def to_dict(self):
         return {
             'id_follow_up': self.id_follow_up,
@@ -23,5 +31,7 @@ class PatientFollowUp(db.Model):
             'observations': self.observations,
             'next_check_up': self.next_check_up.isoformat() if self.next_check_up else None,
             'date_time': self.date_time.isoformat() if self.date_time else None,
-            'finish': self.finish
+            'status': self.get_status(),
+            'patient_name': f"{self.patient.first_name} {self.patient.last_name}" if self.patient else None
+            
         }

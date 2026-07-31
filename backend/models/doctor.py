@@ -5,13 +5,15 @@ from models.user import User
 class Doctor(User):
     __tablename__ = 'doctors'
     id_user = db.Column(db.Integer, db.ForeignKey('users.id_user'), primary_key=True)
-    medical_license = db.Column(db.Integer, nullable=False, unique=True)
+    medical_license = db.Column(db.String(20), nullable=False, unique=True)
     id_especialidad = db.Column(db.Integer, db.ForeignKey('specialties.id_speciality'), nullable=True)
 
     appointments = db.relationship('MedicalAppointment', back_populates='doctor', cascade="all, delete-orphan")
     medical_indications = db.relationship('MedicalIndication', back_populates='doctor', cascade="all, delete-orphan")
     specialty = db.relationship('Specialty', back_populates='doctors')
-
+    health_plans = db.relationship('HealthPlan',secondary='doctor_health_plan',back_populates='doctors') # Agregamos esta relacion, para filtrar doctores
+    # asociados con X obra social
+    
     def to_dict(self):
         return {
             'id_user': self.id_user,
@@ -29,5 +31,6 @@ class Doctor(User):
             'gender': self.gender,
             'is_active': self.is_active,
             'medical_license': self.medical_license,
-            'id_especialidad': self.id_especialidad
+            'id_especialidad': self.id_especialidad,
+            'health_plans': [hp.name for hp in self.health_plans]
         }

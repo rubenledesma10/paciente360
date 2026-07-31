@@ -32,8 +32,8 @@ from models.patient_follow_up import PatientFollowUp
 from models.signs_and_symptoms import SignsAndSymptoms
 from models.news_and_prevention import NewsAndPrevention
 from models.guard_pass import GuardPass
-
-
+from models.health_plan import HealthPlan
+from routes.health_plan_routes import health_plans_bp
 
 app= Flask(__name__)
 app.config.from_object(Config)
@@ -59,6 +59,7 @@ app.register_blueprint(medical_indications_bp)
 app.register_blueprint(medical_products_bp)
 app.register_blueprint(specialties_bp)
 app.register_blueprint(stock_movements_bp)
+app.register_blueprint(health_plans_bp)
 
 with app.app_context():
     from models.user import User
@@ -68,6 +69,7 @@ with app.app_context():
     from models.news_and_prevention import NewsAndPrevention
     from models.signs_and_symptoms import SignsAndSymptoms
     from models.guard_pass import GuardPass 
+    from models.health_plan import HealthPlan
     db.create_all()
 
 

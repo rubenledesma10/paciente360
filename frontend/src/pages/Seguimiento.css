@@ -189,3 +189,84 @@
   color: #ffffff;
   border-color: #1565a8;
 }
+
+/* Encabezado con botón */
+.follow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.follow-new-btn {
+  background: #1565a8;
+  color: #ffffff;
+  border: none;
+  border-radius: 24px;
+  padding: 0.6rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.follow-new-btn:hover {
+  background: #0e4c82;
+}
+
+/* Formulario */
+.follow-form {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 1.75rem;
+  box-shadow: 0 2px 12px rgba(14, 76, 130, 0.08);
+  margin-bottom: 2rem;
+  max-width: 500px;
+}
+
+.follow-form-title {
+  color: #0e4c82;
+  margin: 0 0 1.2rem;
+}
+
+.follow-label {
+  display: block;
+  color: #34495e;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  margin-top: 1rem;
+}
+
+.follow-input {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1.5px solid #cfe4f5;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.follow-input:focus {
+  outline: none;
+  border-color: #1565a8;
+}
+
+.follow-submit-btn {
+  margin-top: 1.5rem;
+  width: 100%;
+  background: #22a06b;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.follow-submit-btn:hover {
+  background: #1a8a5a;
+}

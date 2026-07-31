@@ -32,3 +32,18 @@ export async function toggleFinishFollowUp(followUpId) {
   }
   return await response.json();
 }
+
+// Crea un nuevo seguimiento
+export async function createFollowUp(data) {
+  const response = await fetch(`${API_URL}/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    throw new Error('Error al crear el seguimiento');
+  }
+  return await response.json();
+}

@@ -1,0 +1,272 @@
+.follow-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+.follow-header {
+  margin-bottom: 1.5rem;
+}
+
+.follow-title {
+  color: #0e4c82;
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0 0 0.3rem;
+}
+
+.follow-subtitle {
+  color: #5b7387;
+  margin: 0;
+}
+
+/* Alerta de pendientes */
+.follow-alert {
+  background: #fef6e7;
+  border-left: 4px solid #e9a23b;
+  color: #8a5a1a;
+  padding: 0.9rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+/* Filtros */
+.follow-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 2rem;
+}
+
+.follow-filter-btn {
+  background: #ffffff;
+  color: #1565a8;
+  border: 1.5px solid #cfe4f5;
+  border-radius: 24px;
+  padding: 0.5rem 1.2rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.follow-filter-btn:hover {
+  border-color: #29abe2;
+  background: #f0f8fe;
+}
+
+.follow-filter-btn.active {
+  background: #1565a8;
+  color: #ffffff;
+  border-color: #1565a8;
+}
+
+/* Grilla de tarjetas */
+.follow-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.5rem;
+}
+
+.follow-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(14, 76, 130, 0.07);
+  transition: box-shadow 0.2s;
+}
+
+.follow-card:hover {
+  box-shadow: 0 6px 18px rgba(14, 76, 130, 0.13);
+}
+
+.follow-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.follow-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #29abe2, #1565a8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.follow-card-info {
+  flex: 1;
+}
+
+.follow-patient {
+  margin: 0;
+  color: #0e4c82;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.follow-datetime {
+  margin: 0.1rem 0 0;
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+/* Etiqueta de estado */
+.follow-status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.25rem 0.7rem;
+  border-radius: 20px;
+}
+
+.follow-status.pendiente {
+  background: #fdeceb;
+  color: #d9534f;
+}
+
+.follow-status.programado {
+  background: #e4f0fb;
+  color: #1565a8;
+}
+
+.follow-status.finalizado {
+  background: #eef1f4;
+  color: #7f8c8d;
+}
+
+.follow-obs {
+  color: #34495e;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin: 0 0 0.8rem;
+}
+
+.follow-next {
+  color: #5b7387;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.follow-empty {
+  color: #94a3b8;
+  font-style: italic;
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+}
+
+.follow-finish-btn {
+  margin-top: 1rem;
+  width: 100%;
+  background: #e4f0fb;
+  color: #1565a8;
+  border: 1.5px solid #cfe4f5;
+  border-radius: 8px;
+  padding: 0.6rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.follow-finish-btn:hover {
+  background: #1565a8;
+  color: #ffffff;
+  border-color: #1565a8;
+}
+
+/* Encabezado con botón */
+.follow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.follow-new-btn {
+  background: #1565a8;
+  color: #ffffff;
+  border: none;
+  border-radius: 24px;
+  padding: 0.6rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.follow-new-btn:hover {
+  background: #0e4c82;
+}
+
+/* Formulario */
+.follow-form {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 1.75rem;
+  box-shadow: 0 2px 12px rgba(14, 76, 130, 0.08);
+  margin-bottom: 2rem;
+  max-width: 500px;
+}
+
+.follow-form-title {
+  color: #0e4c82;
+  margin: 0 0 1.2rem;
+}
+
+.follow-label {
+  display: block;
+  color: #34495e;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  margin-top: 1rem;
+}
+
+.follow-input {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1.5px solid #cfe4f5;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.follow-input:focus {
+  outline: none;
+  border-color: #1565a8;
+}
+
+.follow-submit-btn {
+  margin-top: 1.5rem;
+  width: 100%;
+  background: #22a06b;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.follow-submit-btn:hover {
+  background: #1a8a5a;
+}

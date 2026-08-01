@@ -7,7 +7,7 @@ import RegisterPage from './pages/RegisterPage';
 import HomePlaceholderPage from './pages/HomePlaceholderPage';
 import AuthShell from './components/layout/AuthShell';
 import SignosPage from './pages/nurse/SignosPage';
-import SeguimientoPage from './pages/nurse/SeguimientoPage';
+// import SeguimientoPage from './pages/nurse/SeguimientoPage'; // reemplazada por Seguimiento
 import StockPage from './pages/nurse/StockPage';
 import GuardiaPage from './pages/nurse/GuardiaPage';
 import NewsAndPrevention from './pages/NewsAndPrevention';
@@ -34,12 +34,11 @@ function App() {
           <Route index element={<Navigate to={roleHome(rol)} replace />} />
           <Route element={<NurseRoute />}>
             <Route path="signos" element={<SignosPage />} />
-            <Route path="seguimiento" element={<SeguimientoPage />} />
+            <Route path="seguimiento" element={<Seguimiento />} />
             <Route path="stock" element={<StockPage />} />
             <Route path="guardia" element={<GuardiaPage />} />
           </Route>
           <Route path="inicio" element={<HomePlaceholderPage />} />
-          <Route path="seguimiento-simple" element={<Seguimiento />} />
         </Route>
       </Route>
 

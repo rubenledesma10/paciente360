@@ -1,24 +1,6 @@
 
-<<<<<<< HEAD
-
-Carga datos de prueba con todo lo que está integrado del equipo hasta ahora:
-User, Nurse, Patient, NewsAndPrevention, GuardPass, SignsAndSymptoms,
-PatientFollowUp, MedicalAppointment, Traceability.
-
-Todavía NO incluye Doctor, MedicalIndication, MedicalProduct, Specialty ni
-MovimientoStock (son de Rodri, todavía no están mergeadas). El "médico" acá
-es un User plano con rol=DOCTOR -> reemplazar por Doctor real cuando exista.
-Por el mismo motivo, id_doctor en MedicalAppointment e id_product en
-Traceability quedan sin completar (están comentados en esos modelos).
-
-Uso (parado en la carpeta back/, con el venv activado):
-    python seed.py
-"""
-from datetime import date, timedelta
-=======
 from datetime import date, timedelta, datetime
 
->>>>>>> 2dd79eb0c543ab4603125c315863def525be64d8
 from app import app
 from models.db import db
 from models.user import User
@@ -33,14 +15,8 @@ from models.medical_appointment import MedicalAppointment
 from models.traceability import Traceability
 from models.medical_product import MedicalProduct
 from models.stock_movement import StockMovement
-<<<<<<< HEAD
-from enums import RoleEnum
-from models.medical_indication import MedicalIndication
-
-=======
 from models.medical_indication import MedicalIndication
 from enums import RoleEnum, AppointmentStatusEnum
->>>>>>> 2dd79eb0c543ab4603125c315863def525be64d8
 
 
 def seed():
@@ -229,11 +205,7 @@ def seed():
         db.session.add_all([turno1, turno2, turno3])
         db.session.commit()
 
-<<<<<<< HEAD
-        # ---------- Indicaciones médicas (MedicalIndication) ----------
-=======
         # ---------- Indicaciones médicas ----------
->>>>>>> 2dd79eb0c543ab4603125c315863def525be64d8
         indicacion1 = MedicalIndication(
             id_patient=paciente1.id_user, id_doctor=medico.id_user,
             indication="Reposo relativo por 48hs",
@@ -288,18 +260,21 @@ def seed():
         # ---------- Movimientos de stock ----------
         movimiento1 = StockMovement(
             id_product=producto1.id_product,
+            id_nurse=enfermero1.id_user,
             type_movement="Entrada",
             quantity=150,
             date_time=datetime.utcnow() - timedelta(days=10),
         )
         movimiento2 = StockMovement(
             id_product=producto1.id_product,
+            id_nurse=enfermero1.id_user,
             type_movement="Salida",
             quantity=20,
             date_time=datetime.utcnow() - timedelta(days=2),
         )
         movimiento3 = StockMovement(
             id_product=producto2.id_product,
+            id_nurse=enfermero2.id_user,
             type_movement="Entrada",
             quantity=500,
             date_time=datetime.utcnow() - timedelta(days=15),
@@ -308,11 +283,7 @@ def seed():
         db.session.add_all([movimiento1, movimiento2, movimiento3])
         db.session.commit()
 
-<<<<<<< HEAD
-        # ---------- Trazabilidad ----------
-=======
         # ---------- Trazabilidad (ahora con id_product obligatorio) ----------
->>>>>>> 2dd79eb0c543ab4603125c315863def525be64d8
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
             id_product=producto1.id_product,

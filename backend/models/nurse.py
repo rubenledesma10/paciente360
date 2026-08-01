@@ -31,7 +31,13 @@ class Nurse(User):
         back_populates='nurse',
         cascade="all, delete-orphan"
     )
-    
+
+    stock_movements = db.relationship(
+        'StockMovement',
+        back_populates='nurse',
+        cascade="all, delete-orphan"
+    )
+
     def to_dict(self):
         return {
             'id_user': self.id_user,

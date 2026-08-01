@@ -43,7 +43,7 @@ def get_medical_history(patient_id):
     seguimientos = PatientFollowUp.query.filter_by(id_patient=patient_id).all()
     for f in seguimientos:
         eventos.append({
-            "fecha":f.date_and_time.isoformat() if f.date_and_time else None,
+            "fecha":f.date_time.isoformat() if f.date_time else None,
             "tipo":"Seguimiento",
             "id_nurse":f.id_nurse,
             "detalle":{

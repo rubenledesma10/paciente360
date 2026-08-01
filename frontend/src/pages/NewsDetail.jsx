@@ -1,54 +1,77 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { getNewsById } from '../services/newsService';
-import './NewsDetail.css';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Box, Button, Card, Chip, Typography } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { getNewsById } from '../api/news';
 
-function NewsDetail() {
-  const { id } = useParams(); // lee el id de la URL para la busqueda.
-  const [item, setItem] = useState(null); // la noticia arranca en null, hasta que la encontremos en la bd.
+export default function NewsDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [item, setItem] = useState(null);
 
   useEffect(() => {
     getNewsById(id)
-      .then((data) => setItem(data))
+      .then((res) => setItem(res.data))
       .catch((error) => console.error(error));
   }, [id]);
 
-  function formatDate(isoString) {
+  const formatDate = (isoString) => {
     if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleDateString('es-AR', {
+    return new Date(isoString).toLocaleDateString('es-AR', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
     });
-  }
+  };
 
-  // Mientras carga, mostramos un mensaje
   if (!item) {
     return (
-      <div className="detail-container">
-        <p>Cargando noticia, sea paciente...</p>
-      </div>
+      <Box sx={{ maxWidth: 760, mx: 'auto' }}>
+        <Typography color="#5b7387">Cargando noticia...</Typography>
+      </Box>
     );
   }
 
   return (
-    <div className="detail-container">
-      <Link to="/noticias" className="detail-back">
-        ← Volver a noticias
-      </Link>
-      <div className="detail-card">
-        <span
-          className={`news-category ${item.category === 'Prevención' ? 'prevencion' : 'otro'}`}
+    <Box sx={{ maxWidth: 760, mx: 'auto' }}>
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate('/noticias')}
+        sx={{ mb: 2, color: '#1565A8', fontWeight: 600 }}
+      >
+        Volver a noticias
+      </Button>
+
+      <Card sx={{ p: 4, borderRadius: 3 }}>
+        <Chip
+          label={item.category}
+          size="small"
+          sx={{
+            mb: 2,
+            fontWeight: 700,
+            bgcolor: item.category === 'Prevención' ? '#e4f5ee' : '#fdf1e0',
+            color: item.category === 'Prevención' ? '#1a8a5a' : '#c77f1a',
+          }}
+        />
+        <Typography
+          variant="h4"
+          fontWeight={800}
+          color="#0E4C82"
+          sx={{ mb: 1 }}
         >
-          {item.category}
-        </span>
-        <h1 className="detail-title">{item.title}</h1>
-        <p className="detail-date">{formatDate(item.date)}</p>
-        <p className="detail-content">{item.content}</p>
-      </div>
-    </div>
+          {item.title}
+        </Typography>
+        <Typography
+          variant="caption"
+          color="#94a3b8"
+          sx={{ display: 'block', mb: 3 }}
+        >
+          {formatDate(item.date)}
+        </Typography>
+        <Typography variant="body1" color="#334155" sx={{ lineHeight: 1.8 }}>
+          {item.content}
+        </Typography>
+      </Card>
+    </Box>
   );
 }
-
-export default NewsDetail;

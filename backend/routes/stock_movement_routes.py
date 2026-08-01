@@ -1,13 +1,18 @@
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import get_jwt_identity
 from datetime import datetime
 from models.db import db
 from models.stock_movement import StockMovement
 from models.medical_product import MedicalProduct
+from utils.role_required import role_required
+from enums import RoleEnum
 
 stock_movements_bp = Blueprint('stock_movements', __name__, url_prefix='/api/stock-movements')
 
+TIPOS_VALIDOS=['Entrada','Salida']
 
 @stock_movements_bp.route('/', methods=['POST'])
+@role_required(RoleEnum.NURSE)
 def create_stock_movement():
     try:
         if not request.is_json:
@@ -15,25 +20,49 @@ def create_stock_movement():
 
         data = request.get_json()
 
-        if not MedicalProduct.query.get(data.get('id_product')):
+        product = MedicalProduct.query.get(data.get('id_product'))
+        if not product:
             return jsonify({"msg": "Product not found"}), 404
+        tipo=data.get('type_movement')
+        if tipo not in TIPOS_VALIDOS:
+            return jsonify({"msg": f"Invalid type_movement. Valid types are: {TIPOS_VALIDOS}"}), 400
+        
+        cantidad=data.get('quantity')
+        if not isinstance(cantidad, int) or cantidad <= 0:
+            return jsonify({"msg": "Invalid quantity. It must be a positive integer."}), 400
+
+        if tipo == 'Salida' and cantidad > product.current_stock:
+            return jsonify({
+                "msg": f"Stock insuficiente. Disponible: {product.current_stock}, solicitado: {cantidad}"
+            }), 400
+
+        id_nurse_logueado = int(get_jwt_identity())
 
         new_movement = StockMovement(
             id_product=data.get('id_product'),
-            type_movement=data.get('type_movement'),
-            quantity=data.get('quantity'),
+            id_nurse=id_nurse_logueado,
+            type_movement=tipo,
+            quantity=cantidad,
             date_time=datetime.fromisoformat(data.get('date_time')) if data.get('date_time') else datetime.utcnow()
         )
         db.session.add(new_movement)
+        
+
+        if tipo == 'Entrada':
+            product.current_stock += cantidad
+
+        else:
+            product.current_stock = max(0,product.current_stock - cantidad)
         db.session.commit()
 
-        return jsonify({"msg": "Stock movement created successfully", "stock_movement_id": new_movement.id_stock_movement}), 201
+        return jsonify({"msg": "Stock movement created successfully", "stock_movement_id": new_movement.id_stock_movement, "current_stock": product.current_stock}), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error creating stock movement", "error": str(e)}), 500
 
 
 @stock_movements_bp.route('/', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def get_stock_movements():
     try:
         movements = StockMovement.query.all()
@@ -43,6 +72,7 @@ def get_stock_movements():
 
 
 @stock_movements_bp.route('/<int:movement_id>', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def get_stock_movement(movement_id):
     try:
         movement = StockMovement.query.get(movement_id)
@@ -54,6 +84,7 @@ def get_stock_movement(movement_id):
 
 
 @stock_movements_bp.route('/product/<int:product_id>', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def get_stock_movements_by_product(product_id):
     try:
         movements = StockMovement.query.filter_by(id_product=product_id).all()
@@ -63,26 +94,24 @@ def get_stock_movements_by_product(product_id):
 
 
 @stock_movements_bp.route('/<int:movement_id>', methods=['PUT'])
+@role_required(RoleEnum.NURSE) #solo permite editar date_time. si se edita despues de que se haya hecho un movimiento, no se actualiza el stock. Se podria hacer que si se edita la cantidad, se actualice el stock, pero eso es mas complejo y no lo implemento por ahora
 def update_stock_movement(movement_id):
     try:
         movement = StockMovement.query.get(movement_id)
         if not movement:
             return jsonify({"msg": "Stock movement not found"}), 404
 
+        id_nurse_logueado = int(get_jwt_identity())
+
+        if movement.id_nurse != id_nurse_logueado:
+            return jsonify({"msg": "Unauthorized. You can only edit your own stock movements."}), 403
+
         if not request.is_json:
             return jsonify({"msg": "Missing JSON in request"}), 400
 
         data = request.get_json()
 
-        if 'id_product' in data:
-            if not MedicalProduct.query.get(data.get('id_product')):
-                return jsonify({"msg": "Product not found"}), 404
-            movement.id_product = data.get('id_product')
-
-        if 'type_movement' in data:
-            movement.type_movement = data.get('type_movement')
-        if 'quantity' in data:
-            movement.quantity = data.get('quantity')
+        
         if 'date_time' in data:
             movement.date_time = datetime.fromisoformat(data.get('date_time')) if data.get('date_time') else None
 
@@ -94,11 +123,23 @@ def update_stock_movement(movement_id):
 
 
 @stock_movements_bp.route('/<int:movement_id>', methods=['DELETE'])
+@role_required(RoleEnum.NURSE)
 def delete_stock_movement(movement_id):
     try:
         movement = StockMovement.query.get(movement_id)
         if not movement:
             return jsonify({"msg": "Stock movement not found"}), 404
+
+        id_nurse_logueado = int(get_jwt_identity())
+        if movement.id_nurse != id_nurse_logueado:
+            return jsonify({"msg": "Unauthorized. You can only delete your own stock movements."}), 403
+
+        product = MedicalProduct.query.get(movement.id_product)
+        if product:
+            if movement.type_movement == 'Entrada':
+                product.current_stock = max(0, product.current_stock - movement.quantity)
+            else:
+                product.current_stock += movement.quantity
 
         db.session.delete(movement)
         db.session.commit()

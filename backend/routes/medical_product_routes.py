@@ -19,6 +19,18 @@ def create_medical_product():
         if expiration_date and expiration_date < date.today():
                 return jsonify({"msg": "La fecha de vencimiento no puede ser anterior a hoy"}), 400
 
+        existing_product = MedicalProduct.query.filter_by(
+            name_product=data.get('name_product'),
+            expiration_date=expiration_date,
+            batch_number=data.get('batch_number'),
+            current_stock=data.get('current_stock', 0),
+            minimum_stock_level=data.get('minimum_stock_level', 0),
+            type_product=data.get('type_product')
+        ).first()
+
+        if existing_product:
+            return jsonify({"msg": "Medical product already exists"}), 400
+
         new_product = MedicalProduct(
             name_product=data.get('name_product'),
             expiration_date=expiration_date,

@@ -23,6 +23,11 @@ def create_follow_up():
         if not Patient.query.get(data.get('id_patient')):
             return jsonify({"msg": "Patient not found"}), 404
 
+
+        next_check_up = date.fromisoformat(data.get('next_check_up')) if data.get('next_check_up') else None
+        if next_check_up and next_check_up < date.today():
+            return jsonify({"msg": "El próximo control no puede ser una fecha anterior a hoy"}), 400
+
         id_nurse_logueado = int(get_jwt_identity())
         if not Nurse.query.get(id_nurse_logueado):
             return jsonify({"msg": "Nurse not found"}), 404
@@ -31,7 +36,7 @@ def create_follow_up():
             id_patient=data.get('id_patient'),
             id_nurse=id_nurse_logueado,
             observations=data.get('observations'),
-            next_check_up=date.fromisoformat(data.get('next_check_up')) if data.get('next_check_up') else None,
+            next_check_up=next_check_up,
             finish=data.get('finish', False)
         )
         db.session.add(new_follow_up)
@@ -132,7 +137,10 @@ def update_follow_up(follow_up_id):
         if 'observations' in data:
             follow_up.observations = data.get('observations')
         if 'next_check_up' in data:
-            follow_up.next_check_up = date.fromisoformat(data.get('next_check_up')) if data.get('next_check_up') else None
+            nueva_fecha = date.fromisoformat(data.get('next_check_up')) if data.get('next_check_up') else None
+            if nueva_fecha and nueva_fecha < date.today():
+                return jsonify({"msg": "El próximo control no puede ser una fecha anterior a hoy"}), 400
+            follow_up.next_check_up = nueva_fecha
         if 'finish' in data:
             follow_up.finish = data.get('finish')
 

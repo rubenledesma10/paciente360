@@ -14,9 +14,14 @@ def create_medical_product():
 
         data = request.get_json()
 
+        expiration_date = date.fromisoformat(data.get('expiration_date')) if data.get('expiration_date') else None
+
+        if expiration_date and expiration_date < date.today():
+                return jsonify({"msg": "La fecha de vencimiento no puede ser anterior a hoy"}), 400
+
         new_product = MedicalProduct(
             name_product=data.get('name_product'),
-            expiration_date=date.fromisoformat(data.get('expiration_date')) if data.get('expiration_date') else None,
+            expiration_date=expiration_date,
             batch_number=data.get('batch_number'),
             current_stock=data.get('current_stock', 0),
             minimum_stock_level=data.get('minimum_stock_level', 0),
@@ -66,7 +71,10 @@ def update_medical_product(product_id):
         if 'name_product' in data:
             product.name_product = data.get('name_product')
         if 'expiration_date' in data:
-            product.expiration_date = date.fromisoformat(data.get('expiration_date')) if data.get('expiration_date') else None
+            nueva_fecha = date.fromisoformat(data.get('expiration_date')) if data.get('expiration_date') else None
+            if nueva_fecha and nueva_fecha < date.today():
+                return jsonify({"msg": "La fecha de vencimiento no puede ser anterior a hoy"}), 400
+            product.expiration_date = nueva_fecha
         if 'batch_number' in data:
             product.batch_number = data.get('batch_number')
         if 'current_stock' in data:

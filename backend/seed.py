@@ -164,11 +164,38 @@ def seed():
             record_type="Urgencia",
         )
 
-        seguimiento1 = PatientFollowUp(
+        # SEGUIMIENTOS: 1 de cada estado para probar la API
+        
+        # 1. Programado (SCHEDULED): Para dentro de 10 días
+        seguimiento_programado = PatientFollowUp(
             id_patient=paciente3.id_user, id_nurse=enfermero1.id_user,
             observations="Buena evolución post control de presión",
             next_check_up=date.today() + timedelta(days=10),
             finish=False,
+        )
+        
+        # 2. Activo (ACTIVE): Para HOY
+        seguimiento_activo = PatientFollowUp(
+            id_patient=paciente1.id_user, id_nurse=enfermero2.id_user,
+            observations="Requiere control de glucemia urgente",
+            next_check_up=date.today(),
+            finish=False,
+        )
+
+        # 3. Pendiente/Vencido (PENDING): Era para ayer y no se finalizó
+        seguimiento_vencido = PatientFollowUp(
+            id_patient=paciente2.id_user, id_nurse=enfermero1.id_user,
+            observations="Paciente no se presentó al control en sala",
+            next_check_up=date.today() - timedelta(days=1),
+            finish=False,
+        )
+
+        # 4. Finalizado (FINISHED): Ya se completó la semana pasada
+        seguimiento_finalizado = PatientFollowUp(
+            id_patient=paciente1.id_user, id_nurse=enfermero3.id_user,
+            observations="Tratamiento completado con éxito. Alta de control.",
+            next_check_up=date.today() - timedelta(days=7),
+            finish=True,
         )
 
         pase1 = GuardPass(
@@ -176,7 +203,11 @@ def seed():
             notes="Paciente de sala 2 con control de glucemia pendiente para la mañana.",
         )
 
-        db.session.add_all([signo1, signo2, seguimiento1, pase1])
+        db.session.add_all([
+            signo1, signo2, 
+            seguimiento_programado, seguimiento_activo, seguimiento_vencido, seguimiento_finalizado, 
+            pase1
+        ])
         db.session.commit()
 
         # ---------- Turnos (ahora con id_doctor obligatorio) ----------

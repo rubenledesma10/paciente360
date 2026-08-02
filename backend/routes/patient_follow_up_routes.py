@@ -6,7 +6,7 @@ from models.patient_follow_up import PatientFollowUp
 from models.patient import Patient
 from models.nurse import Nurse
 from utils.role_required import role_required
-from enums import RoleEnum
+from enums import RoleEnum, FollowUpStatusEnum
 
 follow_ups_bp = Blueprint('follow_ups', __name__, url_prefix='/api/follow-ups')
 
@@ -191,3 +191,37 @@ def toggle_finish(follow_up_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error toggling follow-up status"}), 500
+
+
+@follow_ups_bp.route('/filter', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+def filter_follow_ups():
+    status_param = request.args.get('status')
+    
+    if not status_param:
+        return jsonify({"msg": "Falta el parámetro 'status'"}), 400
+
+    try:
+        today = date.today()
+        query = PatientFollowUp.query
+
+        if status_param == FollowUpStatusEnum.ACTIVE.value:
+            query = query.filter(PatientFollowUp.finish == False, PatientFollowUp.next_check_up == today)
+            
+        elif status_param == FollowUpStatusEnum.PENDING.value:
+            query = query.filter(PatientFollowUp.finish == False, PatientFollowUp.next_check_up != None, PatientFollowUp.next_check_up < today)
+            
+        elif status_param == FollowUpStatusEnum.SCHEDULED.value:
+            query = query.filter(PatientFollowUp.finish == False, PatientFollowUp.next_check_up != None, PatientFollowUp.next_check_up > today)
+            
+        elif status_param == FollowUpStatusEnum.FINISHED.value:
+            query = query.filter(PatientFollowUp.finish == True)
+            
+        else:
+            return jsonify({"msg": "Estado no válido."}), 400
+
+        results = query.all()
+        return jsonify([f.to_dict() for f in results]), 200
+
+    except Exception as e:
+        return jsonify({"msg": "Error fetching follow-ups", "error": str(e)}), 500

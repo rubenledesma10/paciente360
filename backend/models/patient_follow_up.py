@@ -1,6 +1,6 @@
 from datetime import datetime, date
 from models.db import db
-
+from enums import FollowUpStatusEnum
 
 class PatientFollowUp(db.Model):
     __tablename__ = 'patient_follow_up'
@@ -17,11 +17,21 @@ class PatientFollowUp(db.Model):
 
     #Function to determinate the status of control/follow up the patient
     def get_status(self):
+
         if self.finish:
-            return "Finalizado"
-        if self.next_check_up and self.next_check_up <= date.today():
-            return "Pendiente"
-        return "Programado"
+            return FollowUpStatusEnum.FINISHED.value
+ 
+        if self.next_check_up is None:
+
+            return FollowUpStatusEnum.SCHEDULED.value
+ 
+        hoy = date.today()
+        if self.next_check_up == hoy:
+            return FollowUpStatusEnum.ACTIVE.value
+        elif self.next_check_up < hoy:
+            return FollowUpStatusEnum.PENDING.value
+        else:
+            return FollowUpStatusEnum.SCHEDULED.value
     
     def to_dict(self):
         return {

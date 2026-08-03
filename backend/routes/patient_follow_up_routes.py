@@ -23,7 +23,6 @@ def create_follow_up():
         if not Patient.query.get(data.get('id_patient')):
             return jsonify({"msg": "Patient not found"}), 404
 
-
         next_check_up = date.fromisoformat(data.get('next_check_up')) if data.get('next_check_up') else None
         if next_check_up and next_check_up < date.today():
             return jsonify({"msg": "El próximo control no puede ser una fecha anterior a hoy"}), 400
@@ -90,7 +89,7 @@ def get_pending_follow_ups():
         pending = PatientFollowUp.query.filter(
             PatientFollowUp.finish == False,
             PatientFollowUp.next_check_up != None,
-            PatientFollowUp.next_check_up <= today
+            PatientFollowUp.next_check_up < today
         ).all()
         return jsonify([f.to_dict() for f in pending]), 200
     except Exception as e:
@@ -108,7 +107,7 @@ def get_my_pending_follow_ups():
         pending = PatientFollowUp.query.filter(
             PatientFollowUp.finish == False,
             PatientFollowUp.next_check_up != None,
-            PatientFollowUp.next_check_up <= today,
+            PatientFollowUp.next_check_up < today,
             PatientFollowUp.id_nurse == id_nurse_logueado
         ).all()
         return jsonify([f.to_dict() for f in pending]), 200
@@ -123,7 +122,6 @@ def update_follow_up(follow_up_id):
         follow_up = PatientFollowUp.query.get(follow_up_id)
         if not follow_up:
             return jsonify({"msg": "Follow-up not found"}), 404
-
 
         id_nurse_logueado = int(get_jwt_identity())
         if follow_up.id_nurse != id_nurse_logueado:
@@ -160,9 +158,6 @@ def delete_follow_up(follow_up_id):
         if not follow_up:
             return jsonify({"msg": "Follow-up not found"}), 404
 
-        id_nurse_logueado = int(get_jwt_identity())
-        if follow_up.id_nurse != id_nurse_logueado:
-            return jsonify({"msg": "Solo el enfermero que registró este seguimiento puede eliminarlo"}), 403
 
         db.session.delete(follow_up)
         db.session.commit()
@@ -197,7 +192,7 @@ def toggle_finish(follow_up_id):
 @role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def filter_follow_ups():
     status_param = request.args.get('status')
-    
+
     if not status_param:
         return jsonify({"msg": "Falta el parámetro 'status'"}), 400
 
@@ -207,16 +202,16 @@ def filter_follow_ups():
 
         if status_param == FollowUpStatusEnum.ACTIVE.value:
             query = query.filter(PatientFollowUp.finish == False, PatientFollowUp.next_check_up == today)
-            
+
         elif status_param == FollowUpStatusEnum.PENDING.value:
             query = query.filter(PatientFollowUp.finish == False, PatientFollowUp.next_check_up != None, PatientFollowUp.next_check_up < today)
-            
+
         elif status_param == FollowUpStatusEnum.SCHEDULED.value:
             query = query.filter(PatientFollowUp.finish == False, PatientFollowUp.next_check_up != None, PatientFollowUp.next_check_up > today)
-            
+
         elif status_param == FollowUpStatusEnum.FINISHED.value:
             query = query.filter(PatientFollowUp.finish == True)
-            
+
         else:
             return jsonify({"msg": "Estado no válido."}), 400
 

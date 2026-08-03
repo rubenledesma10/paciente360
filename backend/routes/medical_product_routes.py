@@ -2,11 +2,14 @@ from flask import Blueprint, request, jsonify
 from datetime import date
 from models.db import db
 from models.medical_product import MedicalProduct
+from utils.role_required import role_required
+from enums import RoleEnum
 
 medical_products_bp = Blueprint('medical_products', __name__, url_prefix='/api/medical-products')
 
 
 @medical_products_bp.route('/', methods=['POST'])
+@role_required(RoleEnum.NURSE)
 def create_medical_product():
     try:
         if not request.is_json:
@@ -49,6 +52,7 @@ def create_medical_product():
 
 
 @medical_products_bp.route('/', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def get_medical_products():
     try:
         products = MedicalProduct.query.all()
@@ -58,6 +62,7 @@ def get_medical_products():
 
 
 @medical_products_bp.route('/<int:product_id>', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def get_medical_product(product_id):
     try:
         product = MedicalProduct.query.get(product_id)
@@ -69,6 +74,7 @@ def get_medical_product(product_id):
 
 
 @medical_products_bp.route('/<int:product_id>', methods=['PUT'])
+@role_required(RoleEnum.NURSE)
 def update_medical_product(product_id):
     try:
         product = MedicalProduct.query.get(product_id)
@@ -104,6 +110,7 @@ def update_medical_product(product_id):
 
 
 @medical_products_bp.route('/<int:product_id>', methods=['DELETE'])
+@role_required(RoleEnum.NURSE)
 def delete_medical_product(product_id):
     try:
         product = MedicalProduct.query.get(product_id)
@@ -119,6 +126,7 @@ def delete_medical_product(product_id):
 
 
 @medical_products_bp.route('/search', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def search_medical_products():
     try:
         query = request.args.get('query', '')

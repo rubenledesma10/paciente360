@@ -1,4 +1,3 @@
-
 from datetime import date, timedelta, datetime
 
 from app import app
@@ -164,11 +163,30 @@ def seed():
             record_type="Urgencia",
         )
 
-        seguimiento1 = PatientFollowUp(
+        # ---------- SEGUIMIENTOS: 4 Casos para probar los filtros ----------
+        seguimiento_programado = PatientFollowUp(
             id_patient=paciente3.id_user, id_nurse=enfermero1.id_user,
             observations="Buena evolución post control de presión",
             next_check_up=date.today() + timedelta(days=10),
             finish=False,
+        )
+        seguimiento_activo = PatientFollowUp(
+            id_patient=paciente1.id_user, id_nurse=enfermero2.id_user,
+            observations="Requiere control de glucemia urgente",
+            next_check_up=date.today(),
+            finish=False,
+        )
+        seguimiento_vencido = PatientFollowUp(
+            id_patient=paciente2.id_user, id_nurse=enfermero1.id_user,
+            observations="Paciente no se presentó al control en sala",
+            next_check_up=date.today() - timedelta(days=1),
+            finish=False,
+        )
+        seguimiento_finalizado = PatientFollowUp(
+            id_patient=paciente1.id_user, id_nurse=enfermero3.id_user,
+            observations="Tratamiento completado con éxito. Alta de control.",
+            next_check_up=date.today() - timedelta(days=7),
+            finish=True,
         )
 
         pase1 = GuardPass(
@@ -176,7 +194,11 @@ def seed():
             notes="Paciente de sala 2 con control de glucemia pendiente para la mañana.",
         )
 
-        db.session.add_all([signo1, signo2, seguimiento1, pase1])
+        db.session.add_all([
+            signo1, signo2, 
+            seguimiento_programado, seguimiento_activo, seguimiento_vencido, seguimiento_finalizado, 
+            pase1
+        ])
         db.session.commit()
 
         # ---------- Turnos (ahora con id_doctor obligatorio) ----------
@@ -220,8 +242,6 @@ def seed():
             id_patient=paciente3.id_user, id_doctor=medico.id_user,
             indication="Dieta hiposódica",
             treatment="Enalapril 10mg cada 24hs",
-            # Fecha vieja a propósito, para poder testear en Postman el caso
-            # "ya pasaron los 5 minutos" sin tener que esperar de verdad.
             created_at=datetime.utcnow() - timedelta(minutes=10),
         )
 
@@ -233,7 +253,7 @@ def seed():
             name_product="Ibuprofeno 400mg",
             expiration_date=date(2027, 3, 1),
             batch_number="LOTE-2201",
-            current_stock=150,
+            current_stock=150, # Quedan 150 (porque entraron 170 y se usaron 20)
             minimum_stock_level=30,
             type_product="Medicamento",
         )
@@ -253,41 +273,47 @@ def seed():
             minimum_stock_level=20,
             type_product="Vacuna",
         )
-
         db.session.add_all([producto1, producto2, producto3])
         db.session.commit()
 
-        # ---------- Movimientos de stock ----------
-        movimiento1 = StockMovement(
+        # ---------- Movimientos de stock (Entradas Iniciales) ----------
+        movimiento_entrada1 = StockMovement(
             id_product=producto1.id_product,
             id_nurse=enfermero1.id_user,
             type_movement="Entrada",
-            quantity=150,
+            quantity=170, # Entran 170 unidades a la clínica
             date_time=datetime.utcnow() - timedelta(days=10),
         )
-        movimiento2 = StockMovement(
-            id_product=producto1.id_product,
-            id_nurse=enfermero1.id_user,
-            type_movement="Salida",
-            quantity=20,
-            date_time=datetime.utcnow() - timedelta(days=2),
-        )
-        movimiento3 = StockMovement(
+        movimiento_entrada2 = StockMovement(
             id_product=producto2.id_product,
             id_nurse=enfermero2.id_user,
             type_movement="Entrada",
             quantity=500,
             date_time=datetime.utcnow() - timedelta(days=15),
         )
-
-        db.session.add_all([movimiento1, movimiento2, movimiento3])
+        db.session.add_all([movimiento_entrada1, movimiento_entrada2])
         db.session.commit()
 
-        # ---------- Trazabilidad (ahora con id_product obligatorio) ----------
+        # ---------- Trazabilidad y Movimiento de Salida (Automatizado) ----------
+        # 1. Se crea el movimiento de salida por lo que se le da al paciente
+        movimiento_salida = StockMovement(
+            id_product=producto1.id_product,
+            id_nurse=enfermero1.id_user,
+            type_movement="Salida",
+            quantity=20, # Salen 20 unidades para el paciente (170 - 20 = 150 stock final)
+            date_time=datetime.utcnow() - timedelta(days=2),
+        )
+        db.session.add(movimiento_salida)
+        db.session.commit()
+
+        # 2. Se registra la trazabilidad enlazada a ese movimiento de salida
         trazabilidad1 = Traceability(
             id_patient=paciente1.id_user,
             id_product=producto1.id_product,
             id_nurse=enfermero1.id_user,
+            quantity=20,
+            id_stock_movement=movimiento_salida.id_stock_movement, # Enlace BD
+            date_of_use=datetime.utcnow() - timedelta(days=2),
         )
         db.session.add(trazabilidad1)
         db.session.commit()
@@ -315,20 +341,22 @@ def seed():
         db.session.add_all([noticia1, noticia2, noticia3])
         db.session.commit()
 
-        print("Seed completado:")
+        print("==================================================")
+        print("✅ Seed completado exitosamente:")
+        print("==================================================")
         print(f"  - Médico: {medico.username} (id={medico.id_user})")
         print(f"  - Administrativo: {administrativo.username} (id={administrativo.id_user})")
-        print(f"  - Pacientes: {paciente1.username} (id={paciente1.id_user}), {paciente2.username} (id={paciente2.id_user}), {paciente3.username} (id={paciente3.id_user})")
-        print(f"  - Enfermeros: {enfermero1.username} (id={enfermero1.id_user}), {enfermero2.username} (id={enfermero2.id_user}), {enfermero3.username} (id={enfermero3.id_user})")
+        print(f"  - Pacientes: {paciente1.username}, {paciente2.username}, {paciente3.username}")
+        print(f"  - Enfermeros: {enfermero1.username}, {enfermero2.username}, {enfermero3.username}")
         print(f"  - Signos y síntomas: 2 registros")
-        print(f"  - Seguimiento: 1 registro")
+        print(f"  - Seguimientos: 4 registros (1 Activo, 1 Pendiente, 1 Programado, 1 Finalizado)")
         print(f"  - Pase de guardia: 1 registro")
-        print(f"  - Turnos: 3 (uno por cada estado: reservado, en espera, atendido)")
+        print(f"  - Turnos: 3 (reservado, en espera, atendido)")
         print(f"  - Indicaciones médicas: 3 registros")
         print(f"  - Productos médicos: 3 registros")
-        print(f"  - Movimientos de stock: 3 registros")
-        print(f"  - Trazabilidad: 1 registro (ligado a {producto1.name_product})")
-        print(f"  - Noticias: {noticia1.title} | {noticia2.title} | {noticia3.title}")
+        print(f"  - Movimientos de stock: 3 registros (2 Entradas Iniciales, 1 Salida)")
+        print(f"  - Trazabilidad: 1 registro automatizado (Vinculado al mov. de salida de {producto1.name_product})")
+        print(f"  - Noticias: 3 registros")
 
 
 if __name__ == "__main__":

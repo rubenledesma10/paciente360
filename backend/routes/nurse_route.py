@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import date
 from models.db import db
 from models.user import User
+from models.nurse import Nurse
 from werkzeug.utils import secure_filename
 import os
 
@@ -73,7 +74,7 @@ def create_nurse():
 @nurses_bp.route('/', methods=['GET'])
 def get_nurses():
     try:
-        nurses = User.query.all()
+        nurses = Nurse.query.all()
         return jsonify([nurse.to_dict() for nurse in nurses]), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching nurses"}), 500

@@ -2,11 +2,14 @@ from flask import Blueprint, request, jsonify
 from datetime import date
 from models.db import db
 from models.medical_product import MedicalProduct
+from utils.role_required import role_required
+from enums import RoleEnum
 
 medical_products_bp = Blueprint('medical_products', __name__, url_prefix='/api/medical-products')
 
 
 @medical_products_bp.route('/', methods=['POST'])
+@role_required(RoleEnum.NURSE)
 def create_medical_product():
     try:
         if not request.is_json:
@@ -14,9 +17,26 @@ def create_medical_product():
 
         data = request.get_json()
 
+        expiration_date = date.fromisoformat(data.get('expiration_date')) if data.get('expiration_date') else None
+
+        if expiration_date and expiration_date < date.today():
+                return jsonify({"msg": "La fecha de vencimiento no puede ser anterior a hoy"}), 400
+
+        existing_product = MedicalProduct.query.filter_by(
+            name_product=data.get('name_product'),
+            expiration_date=expiration_date,
+            batch_number=data.get('batch_number'),
+            current_stock=data.get('current_stock', 0),
+            minimum_stock_level=data.get('minimum_stock_level', 0),
+            type_product=data.get('type_product')
+        ).first()
+
+        if existing_product:
+            return jsonify({"msg": "Medical product already exists"}), 400
+
         new_product = MedicalProduct(
             name_product=data.get('name_product'),
-            expiration_date=date.fromisoformat(data.get('expiration_date')) if data.get('expiration_date') else None,
+            expiration_date=expiration_date,
             batch_number=data.get('batch_number'),
             current_stock=data.get('current_stock', 0),
             minimum_stock_level=data.get('minimum_stock_level', 0),
@@ -32,6 +52,7 @@ def create_medical_product():
 
 
 @medical_products_bp.route('/', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def get_medical_products():
     try:
         products = MedicalProduct.query.all()
@@ -41,6 +62,7 @@ def get_medical_products():
 
 
 @medical_products_bp.route('/<int:product_id>', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def get_medical_product(product_id):
     try:
         product = MedicalProduct.query.get(product_id)
@@ -52,6 +74,7 @@ def get_medical_product(product_id):
 
 
 @medical_products_bp.route('/<int:product_id>', methods=['PUT'])
+@role_required(RoleEnum.NURSE)
 def update_medical_product(product_id):
     try:
         product = MedicalProduct.query.get(product_id)
@@ -66,7 +89,10 @@ def update_medical_product(product_id):
         if 'name_product' in data:
             product.name_product = data.get('name_product')
         if 'expiration_date' in data:
-            product.expiration_date = date.fromisoformat(data.get('expiration_date')) if data.get('expiration_date') else None
+            nueva_fecha = date.fromisoformat(data.get('expiration_date')) if data.get('expiration_date') else None
+            if nueva_fecha and nueva_fecha < date.today():
+                return jsonify({"msg": "La fecha de vencimiento no puede ser anterior a hoy"}), 400
+            product.expiration_date = nueva_fecha
         if 'batch_number' in data:
             product.batch_number = data.get('batch_number')
         if 'current_stock' in data:
@@ -84,6 +110,7 @@ def update_medical_product(product_id):
 
 
 @medical_products_bp.route('/<int:product_id>', methods=['DELETE'])
+@role_required(RoleEnum.NURSE)
 def delete_medical_product(product_id):
     try:
         product = MedicalProduct.query.get(product_id)
@@ -99,6 +126,7 @@ def delete_medical_product(product_id):
 
 
 @medical_products_bp.route('/search', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def search_medical_products():
     try:
         query = request.args.get('query', '')

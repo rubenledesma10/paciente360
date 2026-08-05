@@ -17,3 +17,9 @@ class AppointmentStatusEnum(enum.Enum):
     EN_ESPERA = 'En espera'      
     ATENDIDO = 'Atendido'        
     CANCELADO = 'Cancelado'  
+
+class FollowUpStatusEnum(enum.Enum):
+    ACTIVE = "active"
+    PENDING = "pending"
+    SCHEDULED = "scheduled"
+    FINISHED = "finished"

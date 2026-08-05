@@ -4,6 +4,7 @@ from datetime import datetime
 from models.db import db
 from models.stock_movement import StockMovement
 from models.medical_product import MedicalProduct
+from models.traceability import Traceability
 from utils.role_required import role_required
 from enums import RoleEnum
 
@@ -133,6 +134,14 @@ def delete_stock_movement(movement_id):
         id_nurse_logueado = int(get_jwt_identity())
         if movement.id_nurse != id_nurse_logueado:
             return jsonify({"msg": "Unauthorized. You can only delete your own stock movements."}), 403
+
+        
+        trazabilidad_vinculada = Traceability.query.filter_by(id_stock_movement=movement.id_stock_movement).first()
+        if trazabilidad_vinculada:
+            return jsonify({
+                "msg": "Este movimiento pertenece a una trazabilidad. Borrá la trazabilidad (traceability_id: "
+                       f"{trazabilidad_vinculada.id_traceability}) en su lugar, eso revierte el stock automáticamente."
+            }), 400
 
         product = MedicalProduct.query.get(movement.id_product)
         if product:

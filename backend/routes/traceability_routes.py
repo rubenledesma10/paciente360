@@ -5,6 +5,7 @@ from models.db import db
 from models.traceability import Traceability
 from models.patient import Patient
 from models.medical_product import MedicalProduct
+from models.stock_movement import StockMovement
 from utils.role_required import role_required
 from enums import RoleEnum
 
@@ -20,36 +21,45 @@ def create_traceability():
 
         data = request.get_json()
 
+        product=MedicalProduct.query.get(data.get('id_product'))
+        if not product:
+            return jsonify({"msg": "Product not found"}), 404
+
         # Validamos que el paciente exista
         if not Patient.query.get(data.get('id_patient')):
             return jsonify({"msg": "Patient not found"}), 404
 
-        product = MedicalProduct.query.get(data.get('id_product'))
-        if not product:
-            return jsonify({"msg": "Product not found"}), 404
 
-        cantidad = data.get('quantity')
-        if not isinstance(cantidad, int) or cantidad <= 0:
-            return jsonify({"msg": "Invalid quantity. It must be a positive integer."}), 400
+        quantity=data.get('quantity', 1)
+        if not isinstance(quantity, int) or quantity <= 0:
+            return jsonify({"msg": "Quantity must be a positive integer"}), 400
 
-        if cantidad > product.current_stock:
-            return jsonify({
-                "msg": f"Stock insuficiente. Disponible: {product.current_stock}, solicitado: {cantidad}"
-            }), 400
+        if quantity > product.current_stock:
+            return jsonify({"msg": "Insufficient stock for the product"}), 400
 
         id_nurse_logueado=int(get_jwt_identity())
+
+        movimiento = StockMovement(
+            id_product=product.id_product,
+            id_nurse=id_nurse_logueado,
+            type_movement='Salida',
+            quantity=quantity,
+            date_time=datetime.utcnow(),
+        )
+        db.session.add(movimiento)
+        db.session.flush()  # para tener movimiento.id_stock_movement antes del commit
+ 
+        product.current_stock -= quantity
 
         new_traceability = Traceability(
             id_patient=data.get('id_patient'),
             id_product=data.get('id_product'),
             id_nurse=id_nurse_logueado,
-            quantity=cantidad,
+            quantity=quantity,
+            id_stock_movement=movimiento.id_stock_movement,
             date_of_use=datetime.fromisoformat(data.get('date_of_use')) if data.get('date_of_use') else datetime.utcnow()
         )
         db.session.add(new_traceability)
-
-        product.current_stock = max(0, product.current_stock - cantidad)
-
         db.session.commit()
 
         return jsonify({"msg": "Traceability created successfully", "traceability_id": new_traceability.id_traceability}), 201
@@ -141,9 +151,15 @@ def delete_traceability(traceability_id):
         if traceability.id_nurse!=id_nurse_logueado:
             return jsonify({"msg":"Only the nurse who recorded this traceability can edit it."}),403
 
-        product = MedicalProduct.query.get(traceability.id_product)
+        product=MedicalProduct.query.get(traceability.id_product)
         if product:
             product.current_stock += traceability.quantity
+
+        if traceability.id_stock_movement:
+            stock_movement = StockMovement.query.get(traceability.id_stock_movement)
+            if stock_movement:
+                db.session.delete(stock_movement)
+
 
         db.session.delete(traceability)
         db.session.commit()

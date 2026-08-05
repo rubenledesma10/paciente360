@@ -1,5 +1,7 @@
+from datetime import date
 from models.db import db
 
+DIAS_PARA_POR_VENCER=7
 
 class MedicalProduct(db.Model):
     __tablename__ = 'medical_product'
@@ -15,6 +17,19 @@ class MedicalProduct(db.Model):
     stock_movements = db.relationship('StockMovement', back_populates='product', cascade="all, delete-orphan")
 
     def to_dict(self):
+
+        hoy=date.today()
+        sin_stock=self.current_stock == 0
+        stock_bajo=0<self.current_stock<=self.minimum_stock_level
+        vencido=bool(self.expiration_date and self.expiration_date < hoy)
+
+        por_vencer = bool(
+            self.expiration_date
+            and not vencido
+            and (self.expiration_date - hoy).days <= DIAS_PARA_POR_VENCER
+        )
+
+
         return {
             'id_product': self.id_product,
             'name_product': self.name_product,
@@ -22,5 +37,9 @@ class MedicalProduct(db.Model):
             'batch_number': self.batch_number,
             'current_stock': self.current_stock,
             'minimum_stock_level': self.minimum_stock_level,
-            'type_product': self.type_product
+            'type_product': self.type_product,
+            'sin_stock':sin_stock,
+            'stock_bajo':stock_bajo,
+            'vencido':vencido,
+            'por_vencer':por_vencer
         }

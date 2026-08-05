@@ -27,7 +27,8 @@ def get_medical_history(patient_id):
     signos = SignsAndSymptoms.query.filter_by(id_patient=patient_id).all()
     for s in signos:
         eventos.append({
-            "fecha":s.date_and_time.isoformat() if s.date_and_time else None,
+            "id": s.id_signs_and_symptoms,
+            "fecha": (s.date_and_time.isoformat() + 'Z') if s.date_and_time else None,
             "tipo":"Signos y Síntomas",
             "id_nurse":s.id_nurse,
             "detalle":{
@@ -43,7 +44,8 @@ def get_medical_history(patient_id):
     seguimientos = PatientFollowUp.query.filter_by(id_patient=patient_id).all()
     for f in seguimientos:
         eventos.append({
-            "fecha":f.date_time.isoformat() if f.date_time else None,
+            "id": f.id_follow_up,
+            "fecha": (f.date_time.isoformat() + 'Z') if f.date_time else None,
             "tipo":"Seguimiento",
             "id_nurse":f.id_nurse,
             "detalle":{
@@ -56,7 +58,8 @@ def get_medical_history(patient_id):
     indicaciones = MedicalIndication.query.filter_by(id_patient=patient_id).all()
     for i in indicaciones:
         eventos.append({
-            "fecha": i.created_at.isoformat() if i.created_at else None,
+            "id": i.id_medical_indication,
+            "fecha": (i.created_at.isoformat() + 'Z') if i.created_at else None,
             "tipo":"Indicación Médica",
             "id_doctor":i.id_doctor,
             "detalle":{

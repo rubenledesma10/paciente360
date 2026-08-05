@@ -27,8 +27,8 @@ class Traceability(db.Model):
             'id_nurse': self.id_nurse,
             'quantity': self.quantity,
             'id_stock_movement': self.id_stock_movement,
-            'date_of_use': self.date_of_use.isoformat() if self.date_of_use else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'date_of_use': (self.date_of_use.isoformat() + 'Z') if self.date_of_use else None,
+            'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
             'product_name': self.product.name_product if self.product else None,
             'batch_number': self.product.batch_number if self.product else None,
             'expiration_date': self.product.expiration_date.isoformat() if self.product and self.product.expiration_date else None

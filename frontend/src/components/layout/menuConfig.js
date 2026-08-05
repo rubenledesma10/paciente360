@@ -4,6 +4,7 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import HomeIcon from '@mui/icons-material/Home';
 import NewspaperIcon from '@mui/icons-material/Newspaper'; // ← nuevo
+import HistoryIcon from '@mui/icons-material/History';
 
 export const NURSE_MENU = [
   {
@@ -37,6 +38,21 @@ export const PATIENT_MENU = [
   },
 ];
 
+export const DOCTOR_MENU = [
+  {
+    id: 'indicaciones',
+    label: 'Indicaciones médicas',
+    icon: AssignmentIcon,
+    path: '/indicaciones',
+  },
+  {
+    id: 'historia-clinica',
+    label: 'Historia clínica',
+    icon: HistoryIcon,
+    path: '/historia-clinica',
+  },
+];
+
 export const DEFAULT_MENU = [
   { id: 'inicio', label: 'Inicio', icon: HomeIcon, path: '/inicio' },
 ];
@@ -51,6 +67,7 @@ export const ROLE_LABELS = {
 export function menuForRole(rol) {
   if (rol === 'Nurse') return NURSE_MENU;
   if (rol === 'Patient') return PATIENT_MENU; // ← nuevo
+  if (rol === 'Doctor') return DOCTOR_MENU;
   return DEFAULT_MENU;
 }
 

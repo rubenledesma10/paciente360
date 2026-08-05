@@ -96,11 +96,11 @@ def update_medical_indication(indication_id):
 
         id_doctor_logueado=int(get_jwt_identity())
         if indication.id_doctor != id_doctor_logueado:
-            return jsonify({"msg":"Only the physician who recorded this order can edit it."})
+            return jsonify({"msg":"Only the physician who recorded this order can edit it."}), 403
 
         limit = indication.created_at + timedelta(minutes=5)
         if datetime.utcnow()>limit:
-            return jsonify({"msg":"An instruction cannot be edited more than 5 minutes after its creation."})
+            return jsonify({"msg":"An instruction cannot be edited more than 5 minutes after its creation."}), 403
         
         if not request.is_json:
             return jsonify({"msg":"Missing JSON in request"}),400

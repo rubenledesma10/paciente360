@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch, Controller } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
+import dayjs from 'dayjs'
 import {
   Alert,
   Box,
@@ -49,13 +50,26 @@ const movementSchema = yup.object({
 const traceSchema = yup.object({
   id_patient: yup.number().typeError('Elegí un paciente').required(),
   id_product: yup.number().typeError('Elegí un producto').required(),
+  quantity: yup
+    .number()
+    .typeError('Ingresá la cantidad')
+    .positive('La cantidad debe ser mayor a 0')
+    .integer('Debe ser un número entero')
+    .required('Ingresá la cantidad'),
 })
 
 const productSchema = yup.object({
   name_product: yup.string().required('Ingresá el nombre del producto'),
   type_product: yup.string().nullable(),
   batch_number: yup.string().nullable(),
-  expiration_date: yup.string().nullable(),
+  expiration_date: yup
+    .string()
+    .nullable()
+    .test(
+      'not-expired',
+      'La fecha de vencimiento no puede ser anterior a hoy',
+      (value) => !value || value >= dayjs().format('YYYY-MM-DD'),
+    ),
   current_stock: yup
     .number()
     .typeError('Ingresá el stock inicial')
@@ -81,6 +95,9 @@ export default function StockPage() {
   const [traceError, setTraceError] = useState('')
   const [productOpen, setProductOpen] = useState(false)
   const [productError, setProductError] = useState('')
+  const [highlightedProductId, setHighlightedProductId] = useState(null)
+  const [duplicateNotice, setDuplicateNotice] = useState('')
+  const productRowRefs = useRef({})
 
   const movForm = useForm({
     resolver: yupResolver(movementSchema),
@@ -147,6 +164,19 @@ export default function StockPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (highlightedProductId == null) return
+    productRowRefs.current[highlightedProductId]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+    const timeoutId = setTimeout(() => {
+      setHighlightedProductId(null)
+      setDuplicateNotice('')
+    }, 4000)
+    return () => clearTimeout(timeoutId)
+  }, [highlightedProductId])
+
   const lowStock = useMemo(
     () => products.filter((p) => p.current_stock <= p.minimum_stock_level),
     [products],
@@ -168,7 +198,7 @@ export default function StockPage() {
 
   const openTraceDialog = () => {
     setTraceError('')
-    traceForm.reset({ id_patient: '', id_product: '' })
+    traceForm.reset({ id_patient: '', id_product: '', quantity: 1 })
     setTraceOpen(true)
   }
 
@@ -215,6 +245,19 @@ export default function StockPage() {
 
   const onProductSubmit = async (values) => {
     setProductError('')
+    const normalizedName = values.name_product.trim().toLowerCase()
+    const duplicate = products.find(
+      (p) => p.name_product.trim().toLowerCase() === normalizedName,
+    )
+    if (duplicate) {
+      setProductOpen(false)
+      setTab('inv')
+      setDuplicateNotice(
+        `Ya existe "${duplicate.name_product}" en el inventario. Te mostramos su fila abajo.`,
+      )
+      setHighlightedProductId(duplicate.id_product)
+      return
+    }
     try {
       await createMedicalProduct({
         ...values,
@@ -265,6 +308,7 @@ export default function StockPage() {
       </Box>
 
       {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
+      {duplicateNotice && <Alert severity="info" sx={{ mb: 2 }}>{duplicateNotice}</Alert>}
       {lowStock.length > 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           Stock bajo: {lowStock.map((p) => p.name_product).join(', ')}
@@ -295,7 +339,17 @@ export default function StockPage() {
               {products.map((p) => {
                 const low = p.current_stock <= p.minimum_stock_level
                 return (
-                  <TableRow key={p.id_product}>
+                  <TableRow
+                    key={p.id_product}
+                    ref={(el) => {
+                      productRowRefs.current[p.id_product] = el
+                    }}
+                    sx={{
+                      backgroundColor:
+                        highlightedProductId === p.id_product ? 'action.selected' : undefined,
+                      transition: 'background-color 0.3s',
+                    }}
+                  >
                     <TableCell sx={{ fontWeight: 600 }}>{p.name_product}</TableCell>
                     <TableCell><Chip size="small" label={p.type_product || '—'} /></TableCell>
                     <TableCell sx={{ color: low ? paletteRaw.danger : 'inherit', fontWeight: 700 }}>
@@ -353,6 +407,7 @@ export default function StockPage() {
               <TableRow>
                 <TableCell>Paciente</TableCell>
                 <TableCell>Producto</TableCell>
+                <TableCell>Cantidad</TableCell>
                 <TableCell>Lote</TableCell>
                 <TableCell>Vence</TableCell>
                 <TableCell>Fecha de uso</TableCell>
@@ -365,6 +420,7 @@ export default function StockPage() {
                   <TableRow key={t.id_traceability}>
                     <TableCell sx={{ fontWeight: 600 }}>{patientName(t.id_patient)}</TableCell>
                     <TableCell>{productName(t.id_product)}</TableCell>
+                    <TableCell>{t.quantity}</TableCell>
                     <TableCell><Chip size="small" label={product?.batch_number || '—'} /></TableCell>
                     <TableCell>{formatDate(product?.expiration_date)}</TableCell>
                     <TableCell sx={{ color: paletteRaw.gray }}>{formatDateTime(t.date_of_use)}</TableCell>
@@ -476,6 +532,14 @@ export default function StockPage() {
                 </TextField>
               )}
             />
+            <TextField
+              label="Cantidad (cajas)"
+              type="number"
+              fullWidth
+              {...traceForm.register('quantity')}
+              error={!!traceForm.formState.errors.quantity}
+              helperText={traceForm.formState.errors.quantity?.message}
+            />
             {selectedTraceProduct && (
               <Alert severity="info">
                 Lote {selectedTraceProduct.batch_number || '—'} · Vence{' '}
@@ -521,8 +585,13 @@ export default function StockPage() {
               label="Fecha de vencimiento"
               type="date"
               fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: { min: dayjs().format('YYYY-MM-DD') },
+              }}
               {...productForm.register('expiration_date')}
+              error={!!productForm.formState.errors.expiration_date}
+              helperText={productForm.formState.errors.expiration_date?.message}
             />
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField

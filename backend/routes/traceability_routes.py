@@ -24,8 +24,18 @@ def create_traceability():
         if not Patient.query.get(data.get('id_patient')):
             return jsonify({"msg": "Patient not found"}), 404
 
-        if not MedicalProduct.query.get(data.get('id_product')):
+        product = MedicalProduct.query.get(data.get('id_product'))
+        if not product:
             return jsonify({"msg": "Product not found"}), 404
+
+        cantidad = data.get('quantity')
+        if not isinstance(cantidad, int) or cantidad <= 0:
+            return jsonify({"msg": "Invalid quantity. It must be a positive integer."}), 400
+
+        if cantidad > product.current_stock:
+            return jsonify({
+                "msg": f"Stock insuficiente. Disponible: {product.current_stock}, solicitado: {cantidad}"
+            }), 400
 
         id_nurse_logueado=int(get_jwt_identity())
 
@@ -33,9 +43,13 @@ def create_traceability():
             id_patient=data.get('id_patient'),
             id_product=data.get('id_product'),
             id_nurse=id_nurse_logueado,
+            quantity=cantidad,
             date_of_use=datetime.fromisoformat(data.get('date_of_use')) if data.get('date_of_use') else datetime.utcnow()
         )
         db.session.add(new_traceability)
+
+        product.current_stock = max(0, product.current_stock - cantidad)
+
         db.session.commit()
 
         return jsonify({"msg": "Traceability created successfully", "traceability_id": new_traceability.id_traceability}), 201
@@ -126,6 +140,10 @@ def delete_traceability(traceability_id):
         id_nurse_logueado=int(get_jwt_identity())
         if traceability.id_nurse!=id_nurse_logueado:
             return jsonify({"msg":"Only the nurse who recorded this traceability can edit it."}),403
+
+        product = MedicalProduct.query.get(traceability.id_product)
+        if product:
+            product.current_stock += traceability.quantity
 
         db.session.delete(traceability)
         db.session.commit()

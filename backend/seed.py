@@ -288,6 +288,7 @@ def seed():
             id_patient=paciente1.id_user,
             id_product=producto1.id_product,
             id_nurse=enfermero1.id_user,
+            quantity=2,
         )
         db.session.add(trazabilidad1)
         db.session.commit()

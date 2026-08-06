@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
@@ -35,6 +35,11 @@ const TIPO_COLOR = {
   Seguimiento: 'info',
   'Indicación Médica': 'primary',
 }
+
+const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
 
 const schema = yup.object({
   indication: yup.string().required('Ingresá la indicación'),
@@ -73,6 +78,9 @@ export default function HistoriaClinicaPage() {
   const [patients, setPatients] = useState([])
   const [selectedPatient, setSelectedPatient] = useState('')
   const [events, setEvents] = useState([])
+  const [filterYear, setFilterYear] = useState('')
+  const [filterMonth, setFilterMonth] = useState('')
+  const [filterDay, setFilterDay] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [open, setOpen] = useState(false)
@@ -118,8 +126,30 @@ export default function HistoriaClinicaPage() {
     const value = e.target.value
     setSelectedPatient(value)
     setEvents([])
+    setFilterYear('')
+    setFilterMonth('')
+    setFilterDay('')
     if (value) loadHistory(value)
   }
+
+  const yearOptions = useMemo(() => {
+    const years = new Set(
+      events.filter((e) => e.fecha).map((e) => dayjs(e.fecha).year())
+    )
+    return [...years].sort((a, b) => b - a)
+  }, [events])
+
+  const filteredEvents = useMemo(() => {
+    if (!filterYear && !filterMonth && !filterDay) return events
+    return events.filter((evento) => {
+      if (!evento.fecha) return false
+      const d = dayjs(evento.fecha)
+      if (filterYear && d.year() !== Number(filterYear)) return false
+      if (filterMonth && d.month() + 1 !== Number(filterMonth)) return false
+      if (filterDay && d.date() !== Number(filterDay)) return false
+      return true
+    })
+  }, [events, filterYear, filterMonth, filterDay])
 
   const isEditable = (evento) =>
     evento.tipo === 'Indicación Médica' &&
@@ -208,6 +238,53 @@ export default function HistoriaClinicaPage() {
         ))}
       </TextField>
 
+      {selectedPatient && (
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+          <TextField
+            select
+            label="Año"
+            value={filterYear}
+            onChange={(e) => setFilterYear(e.target.value)}
+            sx={{ minWidth: 140 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            {yearOptions.map((year) => (
+              <MenuItem key={year} value={year}>
+                {year}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Mes"
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            sx={{ minWidth: 160 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            {MESES.map((mes, index) => (
+              <MenuItem key={mes} value={index + 1}>
+                {mes}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Día"
+            value={filterDay}
+            onChange={(e) => setFilterDay(e.target.value)}
+            sx={{ minWidth: 120 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+              <MenuItem key={day} value={day}>
+                {day}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
+      )}
+
       {!selectedPatient && (
         <Typography color={paletteRaw.gray}>
           Elegí un paciente para ver su historia clínica.
@@ -220,8 +297,14 @@ export default function HistoriaClinicaPage() {
         </Typography>
       )}
 
+      {selectedPatient && !loading && events.length > 0 && filteredEvents.length === 0 && (
+        <Typography color={paletteRaw.gray}>
+          No hay registros para el período seleccionado.
+        </Typography>
+      )}
+
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {events.map((evento) => {
+        {filteredEvents.map((evento) => {
           const editable = isEditable(evento)
           return (
             <Card key={`${evento.tipo}-${evento.id}`} sx={{ p: 2.5 }}>

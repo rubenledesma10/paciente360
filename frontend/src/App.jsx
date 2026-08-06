@@ -6,6 +6,7 @@ import PatientRoute from './routes/PatientRoute'; // ← nuevo
 import DoctorRoute from './routes/DoctorRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import RecuperarCuentaPage from './pages/RecuperarCuentaPage';
 import HomePlaceholderPage from './pages/HomePlaceholderPage';
 import AuthShell from './components/layout/AuthShell';
 import SignosPage from './pages/nurse/SignosPage';
@@ -27,6 +28,7 @@ function App() {
       <Route element={<PublicOnlyRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/recuperar-cuenta" element={<RecuperarCuentaPage />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>

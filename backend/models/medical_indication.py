@@ -19,5 +19,6 @@ class MedicalIndication(db.Model):
             'id_patient': self.id_patient,
             'id_doctor': self.id_doctor,
             'indication': self.indication,
-            'treatment': self.treatment
+            'treatment': self.treatment,
+            'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None
         }

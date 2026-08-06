@@ -7,12 +7,16 @@ import {
   Alert,
   Box,
   Button,
+  IconButton,
+  InputAdornment,
   Link,
   Paper,
   TextField,
   Typography,
 } from '@mui/material'
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { useAuth } from '../context/useAuth'
 import { roleHome } from '../utils/roleHome'
 import { gradients, paletteRaw } from '../theme/theme'
@@ -27,6 +31,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const {
     register,
@@ -101,12 +106,28 @@ export default function LoginPage() {
             />
             <TextField
               label="Contraseña"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               fullWidth
               margin="normal"
               {...register('password')}
               error={!!errors.password}
               helperText={errors.password?.message}
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword((v) => !v)}
+                        edge="end"
+                        size="small"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
             />
             <Button
               type="submit"
@@ -118,6 +139,11 @@ export default function LoginPage() {
             >
               {submitting ? 'Ingresando…' : 'Ingresar'}
             </Button>
+            <Typography variant="body2" align="center" sx={{ mt: 1.5 }}>
+              <Link component={RouterLink} to="/recuperar-cuenta">
+                ¿Olvidaste tu usuario o contraseña?
+              </Link>
+            </Typography>
             <Typography variant="body2" align="center" sx={{ mt: 2 }} color={paletteRaw.gray}>
               ¿Sos paciente y no tenés cuenta?{' '}
               <Link component={RouterLink} to="/register">

@@ -3,8 +3,10 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import PublicOnlyRoute from './routes/PublicOnlyRoute';
 import NurseRoute from './routes/NurseRoute';
 import PatientRoute from './routes/PatientRoute'; // ← nuevo
+import DoctorRoute from './routes/DoctorRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import RecuperarCuentaPage from './pages/RecuperarCuentaPage';
 import HomePlaceholderPage from './pages/HomePlaceholderPage';
 import AuthShell from './components/layout/AuthShell';
 import SignosPage from './pages/nurse/SignosPage';
@@ -13,6 +15,8 @@ import GuardiaPage from './pages/nurse/GuardiaPage';
 import NewsAndPrevention from './pages/NewsAndPrevention';
 import NewsDetail from './pages/NewsDetail';
 import Seguimiento from './pages/Seguimiento';
+import IndicacionesPage from './pages/doctor/IndicacionesPage';
+import HistoriaClinicaPage from './pages/doctor/HistoriaClinicaPage';
 import { useAuth } from './context/useAuth';
 import { roleHome } from './utils/roleHome';
 
@@ -24,6 +28,7 @@ function App() {
       <Route element={<PublicOnlyRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/recuperar-cuenta" element={<RecuperarCuentaPage />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>
@@ -41,6 +46,12 @@ function App() {
           <Route element={<PatientRoute />}>
             <Route path="noticias" element={<NewsAndPrevention />} />
             <Route path="noticias/:id" element={<NewsDetail />} />
+          </Route>
+
+          {/* Rutas del médico */}
+          <Route element={<DoctorRoute />}>
+            <Route path="indicaciones" element={<IndicacionesPage />} />
+            <Route path="historia-clinica" element={<HistoriaClinicaPage />} />
           </Route>
 
           <Route path="inicio" element={<HomePlaceholderPage />} />

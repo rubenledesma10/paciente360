@@ -14,6 +14,6 @@ class GuardPass(db.Model):
         return {
             'id_guard_pass': self.id_guard_pass,
             'id_nurse': self.id_nurse,
-            'rotation': self.rotation.isoformat() if self.rotation else None,
+            'rotation': (self.rotation.isoformat() + 'Z') if self.rotation else None,
             'notes': self.notes
         }

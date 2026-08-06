@@ -25,7 +25,7 @@ class SignsAndSymptoms(db.Model):
             'temperature': self.temperature,
             'blood_pressure': self.blood_pressure,
             'observations': self.observations,
-            'date_and_time': self.date_and_time.isoformat() if self.date_and_time else None,
+            'date_and_time': (self.date_and_time.isoformat() + 'Z') if self.date_and_time else None,
             'signs': self.signs,
             'symptoms': self.symptoms,
             'record_type': self.record_type

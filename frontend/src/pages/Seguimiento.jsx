@@ -26,15 +26,42 @@ import {
   toggleFollowUpFinish,
 } from '../api/followUps';
 import { useAuth } from '../context/useAuth';
+import MedicalHistoryDialog from '../components/MedicalHistoryDialog';
 
-// Validación del formulario
+// Fecha de hoy en formato YYYY-MM-DD (para validar el mínimo del formulario)
+const today = new Date().toISOString().split('T')[0];
+
+// Validación: el próximo control no puede ser una fecha pasada (Item 1)
 const schema = yup.object({
   id_patient: yup.number().typeError('Elegí un paciente').required(),
   observations: yup.string().required('Ingresá las observaciones'),
-  next_check_up: yup.string().nullable(),
+  next_check_up: yup
+    .string()
+    .nullable()
+    .test(
+      'no-pasado',
+      'El próximo control no puede ser una fecha pasada',
+      (value) => !value || value >= today,
+    ),
 });
 
-const FILTERS = ['Activos', 'Pendiente', 'Programado', 'Finalizado', 'Todos'];
+// Traducción de los estados (inglés del backend -> español para el usuario)
+const STATUS_LABELS = {
+  active: 'Hoy',
+  pending: 'Pendiente',
+  scheduled: 'Programado',
+  finished: 'Finalizado',
+};
+
+// Filtros: cada uno con su clave interna y su etiqueta visible
+const FILTERS = [
+  { key: 'activos', label: 'Activos' },
+  { key: 'active', label: 'Hoy' },
+  { key: 'pending', label: 'Pendientes' },
+  { key: 'scheduled', label: 'Programados' },
+  { key: 'finished', label: 'Finalizados' },
+  { key: 'todos', label: 'Todos' },
+];
 
 export default function Seguimiento() {
   const { userId } = useAuth();
@@ -43,7 +70,9 @@ export default function Seguimiento() {
   const [loadError, setLoadError] = useState('');
   const [open, setOpen] = useState(false);
   const [formError, setFormError] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('Activos');
+  const [selectedFilter, setSelectedFilter] = useState('activos');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyPatient, setHistoryPatient] = useState({ id: null, name: '' });
 
   const {
     register,
@@ -53,13 +82,11 @@ export default function Seguimiento() {
     formState: { errors, isSubmitting },
   } = useForm({ resolver: yupResolver(schema) });
 
-  // Busca el nombre del paciente por id (por si el backend no lo trae)
   const patientName = (id) => {
     const p = patients.find((x) => x.id_user === id);
     return p ? `${p.first_name} ${p.last_name}` : '—';
   };
 
-  // Trae seguimientos y pacientes
   const loadAll = async () => {
     setLoadError('');
     try {
@@ -84,7 +111,6 @@ export default function Seguimiento() {
     setOpen(true);
   };
 
-  // Crea un seguimiento
   const onSubmit = async (values) => {
     setFormError('');
     try {
@@ -106,7 +132,6 @@ export default function Seguimiento() {
     }
   };
 
-  // Marca finalizado / reabre
   const toggle = async (id) => {
     try {
       await toggleFollowUpFinish(id);
@@ -116,35 +141,29 @@ export default function Seguimiento() {
     }
   };
 
-  // Estado calculado de cada seguimiento (por si el backend no manda 'status')
-  const getStatus = (fu) => {
-    if (fu.status) return fu.status; // si el backend ya lo trae, lo usamos
-    if (fu.finish) return 'Finalizado';
-    if (fu.next_check_up && new Date(fu.next_check_up) <= new Date())
-      return 'Pendiente';
-    return 'Programado';
+  const openHistory = (patientId, name) => {
+    setHistoryPatient({ id: patientId, name });
+    setHistoryOpen(true);
   };
 
-  // Filtra según el filtro seleccionado
+  // Filtra según el filtro seleccionado (usando el status en inglés del backend)
   const filteredRows = rows.filter((fu) => {
-    const status = getStatus(fu);
-    if (selectedFilter === 'Todos') return true;
-    if (selectedFilter === 'Activos') {
-      return status === 'Pendiente' || status === 'Programado';
+    if (selectedFilter === 'todos') return true;
+    if (selectedFilter === 'activos') {
+      return fu.status !== 'finished';
     }
-    return status === selectedFilter;
+    return fu.status === selectedFilter;
   });
 
-  // Cuenta pendientes para la alerta
-  const pendingCount = rows.filter(
-    (fu) => getStatus(fu) === 'Pendiente',
-  ).length;
+  // Cuenta los pendientes (vencidos) para la alerta
+  const pendingCount = rows.filter((fu) => fu.status === 'pending').length;
 
   // Color del chip según estado
   const statusColor = (status) => {
-    if (status === 'Pendiente') return 'error';
-    if (status === 'Programado') return 'info';
-    return 'default'; // Finalizado
+    if (status === 'pending') return 'error';
+    if (status === 'active') return 'warning';
+    if (status === 'scheduled') return 'info';
+    return 'default';
   };
 
   return (
@@ -190,11 +209,11 @@ export default function Seguimiento() {
       <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (
           <Chip
-            key={f}
-            label={f}
-            onClick={() => setSelectedFilter(f)}
-            color={selectedFilter === f ? 'primary' : 'default'}
-            variant={selectedFilter === f ? 'filled' : 'outlined'}
+            key={f.key}
+            label={f.label}
+            onClick={() => setSelectedFilter(f.key)}
+            color={selectedFilter === f.key ? 'primary' : 'default'}
+            variant={selectedFilter === f.key ? 'filled' : 'outlined'}
             sx={{ fontWeight: 600 }}
           />
         ))}
@@ -203,8 +222,11 @@ export default function Seguimiento() {
       {/* Lista de seguimientos */}
       <Grid container spacing={2}>
         {filteredRows.map((fu) => {
-          const status = getStatus(fu);
           const name = fu.patient_name || patientName(fu.id_patient);
+          const statusLabel = STATUS_LABELS[fu.status] || fu.status;
+          const isMine = fu.id_nurse === userId;
+          const canFinish =
+            isMine && (fu.status === 'pending' || fu.status === 'active');
           return (
             <Grid key={fu.id_follow_up} size={{ xs: 12, md: 6 }}>
               <Card sx={{ p: 2.5 }}>
@@ -234,12 +256,20 @@ export default function Seguimiento() {
                           ? new Date(fu.date_time).toLocaleString('es-AR')
                           : ''}
                       </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ mt: 0.5, display: 'block' }}
+                        color="#5b7387"
+                      >
+                        Atendido por: {fu.nurse_name || '—'}
+                        {isMine && ' (vos)'}
+                      </Typography>
                     </Box>
                   </Box>
                   <Chip
                     size="small"
-                    label={status}
-                    color={statusColor(status)}
+                    label={statusLabel}
+                    color={statusColor(fu.status)}
                   />
                 </Box>
 
@@ -259,16 +289,24 @@ export default function Seguimiento() {
                   </Typography>
                 )}
 
-                {status !== 'Finalizado' && (
+                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {canFinish && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => toggle(fu.id_follow_up)}
+                    >
+                      Marcar finalizado
+                    </Button>
+                  )}
                   <Button
                     size="small"
-                    variant="outlined"
-                    sx={{ mt: 2 }}
-                    onClick={() => toggle(fu.id_follow_up)}
+                    variant="text"
+                    onClick={() => openHistory(fu.id_patient, name)}
                   >
-                    Marcar finalizado
+                    Ver historia clínica
                   </Button>
-                )}
+                </Box>
               </Card>
             </Grid>
           );
@@ -326,8 +364,13 @@ export default function Seguimiento() {
             <TextField
               label="Próximo control"
               type="date"
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: { min: today },
+              }}
               {...register('next_check_up')}
+              error={!!errors.next_check_up}
+              helperText={errors.next_check_up?.message}
             />
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -338,6 +381,14 @@ export default function Seguimiento() {
           </DialogActions>
         </Box>
       </Dialog>
+
+      {/* Modal de historia clínica */}
+      <MedicalHistoryDialog
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        patientId={historyPatient.id}
+        patientName={historyPatient.name}
+      />
     </Box>
   );
 }

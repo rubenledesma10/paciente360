@@ -26,6 +26,7 @@ import {
   toggleFollowUpFinish,
 } from '../api/followUps';
 import { useAuth } from '../context/useAuth';
+import MedicalHistoryDialog from '../components/MedicalHistoryDialog';
 
 // Fecha de hoy en formato YYYY-MM-DD (para validar el mínimo del formulario)
 const today = new Date().toISOString().split('T')[0];
@@ -70,6 +71,8 @@ export default function Seguimiento() {
   const [open, setOpen] = useState(false);
   const [formError, setFormError] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('activos');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyPatient, setHistoryPatient] = useState({ id: null, name: '' });
 
   const {
     register,
@@ -138,11 +141,15 @@ export default function Seguimiento() {
     }
   };
 
+  const openHistory = (patientId, name) => {
+    setHistoryPatient({ id: patientId, name });
+    setHistoryOpen(true);
+  };
+
   // Filtra según el filtro seleccionado (usando el status en inglés del backend)
   const filteredRows = rows.filter((fu) => {
     if (selectedFilter === 'todos') return true;
     if (selectedFilter === 'activos') {
-      // Activos = todo lo que no está finalizado
       return fu.status !== 'finished';
     }
     return fu.status === selectedFilter;
@@ -153,10 +160,10 @@ export default function Seguimiento() {
 
   // Color del chip según estado
   const statusColor = (status) => {
-    if (status === 'pending') return 'error'; // vencido -> rojo
-    if (status === 'active') return 'warning'; // hoy -> naranja
-    if (status === 'scheduled') return 'info'; // futuro -> azul
-    return 'default'; // finished -> gris
+    if (status === 'pending') return 'error';
+    if (status === 'active') return 'warning';
+    if (status === 'scheduled') return 'info';
+    return 'default';
   };
 
   return (
@@ -217,7 +224,6 @@ export default function Seguimiento() {
         {filteredRows.map((fu) => {
           const name = fu.patient_name || patientName(fu.id_patient);
           const statusLabel = STATUS_LABELS[fu.status] || fu.status;
-          // El botón aparece solo si el control es hoy o está vencido (Item 2)
           const canFinish = fu.status === 'pending' || fu.status === 'active';
           return (
             <Grid key={fu.id_follow_up} size={{ xs: 12, md: 6 }}>
@@ -273,16 +279,24 @@ export default function Seguimiento() {
                   </Typography>
                 )}
 
-                {canFinish && (
+                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {canFinish && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => toggle(fu.id_follow_up)}
+                    >
+                      Marcar finalizado
+                    </Button>
+                  )}
                   <Button
                     size="small"
-                    variant="outlined"
-                    sx={{ mt: 2 }}
-                    onClick={() => toggle(fu.id_follow_up)}
+                    variant="text"
+                    onClick={() => openHistory(fu.id_patient, name)}
                   >
-                    Marcar finalizado
+                    Ver historia clínica
                   </Button>
-                )}
+                </Box>
               </Card>
             </Grid>
           );
@@ -357,6 +371,14 @@ export default function Seguimiento() {
           </DialogActions>
         </Box>
       </Dialog>
+
+      {/* Modal de historia clínica */}
+      <MedicalHistoryDialog
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        patientId={historyPatient.id}
+        patientName={historyPatient.name}
+      />
     </Box>
   );
 }

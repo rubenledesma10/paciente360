@@ -224,7 +224,9 @@ export default function Seguimiento() {
         {filteredRows.map((fu) => {
           const name = fu.patient_name || patientName(fu.id_patient);
           const statusLabel = STATUS_LABELS[fu.status] || fu.status;
-          const canFinish = fu.status === 'pending' || fu.status === 'active';
+          const isMine = fu.id_nurse === userId;
+          const canFinish =
+            isMine && (fu.status === 'pending' || fu.status === 'active');
           return (
             <Grid key={fu.id_follow_up} size={{ xs: 12, md: 6 }}>
               <Card sx={{ p: 2.5 }}>
@@ -253,6 +255,14 @@ export default function Seguimiento() {
                         {fu.date_time
                           ? new Date(fu.date_time).toLocaleString('es-AR')
                           : ''}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ mt: 0.5, display: 'block' }}
+                        color="#5b7387"
+                      >
+                        Atendido por: {fu.nurse_name || '—'}
+                        {isMine && ' (vos)'}
                       </Typography>
                     </Box>
                   </Box>

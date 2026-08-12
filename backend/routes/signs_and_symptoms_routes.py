@@ -2,12 +2,13 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity
 from models.db import db
 from models.signs_and_symptoms import SignsAndSymptoms
+from models.medical_appointment import MedicalAppointment
 from utils.role_required import role_required
-from enums import RoleEnum
+from enums import RoleEnum, AppointmentStatusEnum
 from models.nurse import Nurse
 from models.user import User
 from models.patient import Patient
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 signs_and_symptoms_bp = Blueprint('signs_and_symptoms', __name__, url_prefix='/api/signs_and_symptoms')
 
@@ -45,7 +46,36 @@ def create_signs_and_symptoms():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-    
+
+@signs_and_symptoms_bp.route('/waiting-patients', methods=['GET']) #pacientes del dia con estado en espera
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+def get_waiting_patients():
+    try:
+        hoy = date.today()
+        turnos_en_espera = MedicalAppointment.query.filter(
+            MedicalAppointment.date == hoy,
+            MedicalAppointment.status == AppointmentStatusEnum.EN_ESPERA
+        ).order_by(MedicalAppointment.hour.asc()).all()
+ 
+        resultado = []
+        for turno in turnos_en_espera:
+            paciente = turno.patient
+            if not paciente:
+                continue
+            resultado.append({
+                "appointment_id": turno.id_medical_appointment,
+                "id_patient": paciente.id_user,
+                "patient_name": f"{paciente.first_name} {paciente.last_name}",
+                "dni": paciente.dni,
+                "hour": turno.hour,
+                "id_doctor": turno.id_doctor,
+                "reason": turno.reason,
+            })
+ 
+        return jsonify(resultado), 200
+    except Exception as e:
+        return jsonify({"msg": "Error fetching waiting patients", "error": str(e)}), 500
+
 @signs_and_symptoms_bp.route('/<int:id_signs_and_symptoms>', methods=['GET'])
 @role_required(RoleEnum.NURSE)
 def get_signs_and_symptoms(id_signs_and_symptoms):

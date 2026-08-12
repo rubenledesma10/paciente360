@@ -59,11 +59,12 @@ def create_medical_product():
         if current_stock_inicial > 0:
             id_nurse_logueado=int(get_jwt_identity())
             movimiento_inicial = StockMovement(
-                product_id=new_product.id_product,
+                id_product=new_product.id_product,
                 id_nurse=id_nurse_logueado,
                 type_movement='Entrada',
                 quantity=current_stock_inicial,
             )
+        db.session.add(movimiento_inicial)
         db.session.commit()
 
         return jsonify({"msg": "Medical product created successfully", "product_id": new_product.id_product}), 201

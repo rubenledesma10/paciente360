@@ -138,6 +138,11 @@ def update_medical_product(product_id):
             return jsonify({"msg": "Missing JSON in request"}), 400
  
         data = request.get_json()
+
+        if 'batch_number' in data:
+            return jsonify({"msg": "El numero de lote no puede editarse. Si lo cargaste mal, elimina el producto y volvelo a crear."}), 400
+        if 'current_stock' in data:
+            return jsonify({"msg": "El stock no puede editarse directamente. Usa un movimiento de stock (Entrada/Salida) o una trazabilidad."}), 400
  
         if 'name_product' in data:
             product.name_product = data.get('name_product')
@@ -146,18 +151,6 @@ def update_medical_product(product_id):
             if nueva_fecha and nueva_fecha < date.today():
                 return jsonify({"msg": "La fecha de vencimiento no puede ser anterior a hoy"}), 400
             product.expiration_date = nueva_fecha
-        if 'batch_number' in data:
-            nuevo_lote = data.get('batch_number')
-            if nuevo_lote:
-                lote_existente = MedicalProduct.query.filter(
-                    MedicalProduct.batch_number == nuevo_lote,
-                    MedicalProduct.id_product != product_id
-                ).first()
-                if lote_existente:
-                    return jsonify({"msg": f"Ya existe un producto registrado con el lote '{nuevo_lote}'"}), 400
-            product.batch_number = nuevo_lote
-        if 'current_stock' in data:
-            product.current_stock = data.get('current_stock')
         if 'minimum_stock_level' in data:
             product.minimum_stock_level = data.get('minimum_stock_level')
         if 'type_product' in data:

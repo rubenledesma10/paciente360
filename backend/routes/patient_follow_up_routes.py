@@ -5,8 +5,9 @@ from models.db import db
 from models.patient_follow_up import PatientFollowUp
 from models.patient import Patient
 from models.nurse import Nurse
+from models.medical_appointment import MedicalAppointment
 from utils.role_required import role_required
-from enums import RoleEnum, FollowUpStatusEnum
+from enums import RoleEnum, FollowUpStatusEnum, AppointmentStatusEnum
 
 follow_ups_bp = Blueprint('follow_ups', __name__, url_prefix='/api/follow-ups')
 
@@ -22,6 +23,16 @@ def create_follow_up():
 
         if not Patient.query.get(data.get('id_patient')):
             return jsonify({"msg": "Patient not found"}), 404
+
+
+        atencion_hoy=MedicalAppointment.query.filter_by(
+            id_patient=data.get('id_patient'),
+            date=date.today(),
+            status=AppointmentStatusEnum.ATENDIDO
+        ).first()
+
+        if not atencion_hoy:
+            return jsonify({"msg": "No se puede crear un seguimiento sin una atención médica registrada para hoy"}), 400
 
         next_check_up = date.fromisoformat(data.get('next_check_up')) if data.get('next_check_up') else None
         if next_check_up and next_check_up < date.today():

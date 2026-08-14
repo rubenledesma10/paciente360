@@ -1,9 +1,8 @@
-import { useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Avatar,
-  Badge,
   Box,
   Drawer,
   IconButton,
@@ -13,30 +12,30 @@ import {
   ListItemText,
   Toolbar,
   Typography,
-} from '@mui/material'
-import MenuIcon from '@mui/icons-material/Menu'
-import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
-import LogoutIcon from '@mui/icons-material/Logout'
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital'
-import { useAuth } from '../../context/useAuth'
-import { menuForRole, routeTitle, ROLE_LABELS } from './menuConfig'
-import { paletteRaw } from '../../theme/theme'
+} from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import LogoutIcon from '@mui/icons-material/Logout';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import { useAuth } from '../../context/useAuth';
+import { menuForRole, routeTitle, ROLE_LABELS } from './menuConfig';
+import { paletteRaw } from '../../theme/theme';
+import NotificationsBell from '../NotificationsBell';
 
-const DRAWER_WIDTH = 260
+const DRAWER_WIDTH = 260;
 
 export default function AuthShell() {
-  const { rol, nombre, logout } = useAuth()
-  const location = useLocation()
-  const navigate = useNavigate()
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const { rol, nombre, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const menu = menuForRole(rol)
-  const roleLabel = ROLE_LABELS[rol] || rol
+  const menu = menuForRole(rol);
+  const roleLabel = ROLE_LABELS[rol] || rol;
 
   const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
-  }
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -65,7 +64,12 @@ export default function AuthShell() {
           <LocalHospitalIcon fontSize="small" />
         </Box>
         <Box>
-          <Typography variant="subtitle1" fontWeight={800} lineHeight={1} color={paletteRaw.azulD}>
+          <Typography
+            variant="subtitle1"
+            fontWeight={800}
+            lineHeight={1}
+            color={paletteRaw.azulD}
+          >
             Paciente<span style={{ color: paletteRaw.celeste }}>360º</span>
           </Typography>
           <Typography variant="caption" color={paletteRaw.gray}>
@@ -75,8 +79,8 @@ export default function AuthShell() {
       </Box>
       <List sx={{ flex: 1, px: 1.5, py: 1.5 }}>
         {menu.map((item) => {
-          const active = location.pathname.startsWith(item.path)
-          const Icon = item.icon
+          const active = location.pathname.startsWith(item.path);
+          const Icon = item.icon;
           return (
             <ListItemButton
               key={item.id}
@@ -95,7 +99,10 @@ export default function AuthShell() {
               }}
             >
               <ListItemIcon
-                sx={{ color: active ? '#fff' : paletteRaw.celeste, minWidth: 36 }}
+                sx={{
+                  color: active ? '#fff' : paletteRaw.celeste,
+                  minWidth: 36,
+                }}
               >
                 <Icon fontSize="small" />
               </ListItemIcon>
@@ -104,7 +111,7 @@ export default function AuthShell() {
                 slotProps={{ primary: { fontWeight: 600, fontSize: 14 } }}
               />
             </ListItemButton>
-          )
+          );
         })}
       </List>
       <Box sx={{ p: 1.5, borderTop: '1px solid #E3EEF6' }}>
@@ -120,11 +127,23 @@ export default function AuthShell() {
             background: paletteRaw.bg,
           }}
         >
-          <Avatar sx={{ width: 34, height: 34, bgcolor: paletteRaw.azul, fontSize: 14 }}>
+          <Avatar
+            sx={{
+              width: 34,
+              height: 34,
+              bgcolor: paletteRaw.azul,
+              fontSize: 14,
+            }}
+          >
             {(nombre || '?').charAt(0).toUpperCase()}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={700} color={paletteRaw.azulD} noWrap>
+            <Typography
+              variant="body2"
+              fontWeight={700}
+              color={paletteRaw.azulD}
+              noWrap
+            >
               {nombre}
             </Typography>
             <Typography variant="caption" color={paletteRaw.gray}>
@@ -139,11 +158,14 @@ export default function AuthShell() {
           <ListItemIcon sx={{ color: paletteRaw.danger, minWidth: 36 }}>
             <LogoutIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText primary="Cerrar sesión" slotProps={{ primary: { fontWeight: 600, fontSize: 14 } }} />
+          <ListItemText
+            primary="Cerrar sesión"
+            slotProps={{ primary: { fontWeight: 600, fontSize: 14 } }}
+          />
         </ListItemButton>
       </Box>
     </Box>
-  )
+  );
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', background: paletteRaw.bg }}>
@@ -175,12 +197,17 @@ export default function AuthShell() {
       >
         {drawerContent}
       </Drawer>
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <Box
+        sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}
+      >
         <AppBar position="static" color="inherit">
           <Toolbar sx={{ justifyContent: 'space-between' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <IconButton
-                sx={{ display: { xs: 'inline-flex', md: 'none' }, color: paletteRaw.azul }}
+                sx={{
+                  display: { xs: 'inline-flex', md: 'none' },
+                  color: paletteRaw.azul,
+                }}
                 onClick={() => setMobileOpen(true)}
               >
                 <MenuIcon />
@@ -189,15 +216,17 @@ export default function AuthShell() {
                 <Typography variant="caption" color={paletteRaw.gray}>
                   {roleLabel}
                 </Typography>
-                <Typography variant="subtitle1" fontWeight={800} color={paletteRaw.azulD}>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={800}
+                  color={paletteRaw.azulD}
+                >
                   {routeTitle(rol, location.pathname)}
                 </Typography>
               </Box>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Badge color="error" variant="dot">
-                <NotificationsNoneIcon sx={{ color: paletteRaw.gray }} />
-              </Badge>
+              <NotificationsBell />
               <Box
                 sx={{
                   display: { xs: 'none', sm: 'flex' },
@@ -210,10 +239,21 @@ export default function AuthShell() {
                   py: 0.25,
                 }}
               >
-                <Avatar sx={{ width: 26, height: 26, bgcolor: paletteRaw.azul, fontSize: 12 }}>
+                <Avatar
+                  sx={{
+                    width: 26,
+                    height: 26,
+                    bgcolor: paletteRaw.azul,
+                    fontSize: 12,
+                  }}
+                >
                   {(nombre || '?').charAt(0).toUpperCase()}
                 </Avatar>
-                <Typography variant="body2" fontWeight={600} color={paletteRaw.azulD}>
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  color={paletteRaw.azulD}
+                >
                   {nombre}
                 </Typography>
               </Box>
@@ -225,5 +265,5 @@ export default function AuthShell() {
         </Box>
       </Box>
     </Box>
-  )
+  );
 }

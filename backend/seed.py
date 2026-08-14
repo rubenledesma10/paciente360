@@ -291,7 +291,16 @@ def seed():
             quantity=500,
             date_time=datetime.utcnow() - timedelta(days=15),
         )
-        db.session.add_all([movimiento_entrada1, movimiento_entrada2])
+
+        movimiento_entrada3 = StockMovement(
+            id_product=producto3.id_product,
+            id_nurse=enfermero3.id_user,
+            type_movement="Entrada",
+            quantity=80,
+            date_time=datetime.utcnow() - timedelta(days=20),
+        )
+        db.session.add_all([movimiento_entrada1, movimiento_entrada2, movimiento_entrada3])
+        
         db.session.commit()
 
         # ---------- Trazabilidad y Movimiento de Salida (Automatizado) ----------

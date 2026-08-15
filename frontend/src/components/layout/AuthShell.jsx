@@ -34,7 +34,7 @@ export default function AuthShell() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   const drawerContent = (

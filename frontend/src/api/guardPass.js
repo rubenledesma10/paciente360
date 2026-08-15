@@ -1,7 +1,7 @@
 import client from './client';
 
-export function getGuardPasses() {
-  return client.get('/guard_pass/');
+export function getGuardPasses(date) {
+  return client.get('/guard_pass/', { params: date ? { date } : {} });
 }
 
 export function createGuardPass(payload) {

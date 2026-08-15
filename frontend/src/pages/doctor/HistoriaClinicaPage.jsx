@@ -5,6 +5,7 @@ import * as yup from 'yup'
 import dayjs from 'dayjs'
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -13,6 +14,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Grid,
   IconButton,
   MenuItem,
   TextField,
@@ -21,11 +23,13 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
-import { getPatients } from '../../api/patients'
+import { searchPatients } from '../../api/patients'
 import { getMedicalHistory } from '../../api/medicalHistory'
 import { createMedicalIndication, updateMedicalIndication } from '../../api/medicalIndications'
+import { getAppointmentsByPatient } from '../../api/appointments'
 import { useAuth } from '../../context/useAuth'
 import { formatDateTime } from '../../utils/dateFormat'
+import { formatPatientLabel, getPatientAge, getPatientDni } from '../../utils/patientDisplay'
 import { paletteRaw } from '../../theme/theme'
 
 const EDIT_WINDOW_MINUTES = 5
@@ -75,8 +79,11 @@ function EventDetail({ evento }) {
 
 export default function HistoriaClinicaPage() {
   const { userId } = useAuth()
-  const [patients, setPatients] = useState([])
-  const [selectedPatient, setSelectedPatient] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [selectedPatientObj, setSelectedPatientObj] = useState(null)
+  const [visitCount, setVisitCount] = useState(null)
   const [events, setEvents] = useState([])
   const [filterYear, setFilterYear] = useState('')
   const [filterMonth, setFilterMonth] = useState('')
@@ -87,6 +94,8 @@ export default function HistoriaClinicaPage() {
   const [formError, setFormError] = useState('')
   const [editingEvent, setEditingEvent] = useState(null)
 
+  const selectedPatient = selectedPatientObj?.id_user || ''
+
   const {
     register,
     handleSubmit,
@@ -95,19 +104,30 @@ export default function HistoriaClinicaPage() {
   } = useForm({ resolver: yupResolver(schema) })
 
   useEffect(() => {
+    const trimmed = searchQuery.trim()
+    if (!trimmed) return undefined
     let ignore = false
-    ;(async () => {
+    const timeoutId = setTimeout(async () => {
+      setSearchLoading(true)
       try {
-        const res = await getPatients()
-        if (!ignore) setPatients(res.data)
+        const res = await searchPatients(trimmed)
+        if (!ignore) setSearchResults(res.data)
       } catch {
-        if (!ignore) setLoadError('No se pudo cargar la lista de pacientes.')
+        if (!ignore) setLoadError('No se pudo buscar pacientes.')
+      } finally {
+        if (!ignore) setSearchLoading(false)
       }
-    })()
+    }, 300)
     return () => {
       ignore = true
+      clearTimeout(timeoutId)
     }
-  }, [])
+  }, [searchQuery])
+
+  const handleSearchInputChange = (_, value) => {
+    setSearchQuery(value)
+    if (!value.trim()) setSearchResults([])
+  }
 
   const loadHistory = async (patientId) => {
     setLoading(true)
@@ -122,14 +142,27 @@ export default function HistoriaClinicaPage() {
     }
   }
 
-  const handleSelectPatient = (e) => {
-    const value = e.target.value
-    setSelectedPatient(value)
+  const loadVisitCount = async (patientId) => {
+    setVisitCount(null)
+    try {
+      const res = await getAppointmentsByPatient(patientId)
+      setVisitCount(res.data.filter((a) => a.status === 'Atendido').length)
+    } catch {
+      setVisitCount(null)
+    }
+  }
+
+  const handleSelectPatient = (patient) => {
+    setSelectedPatientObj(patient)
     setEvents([])
+    setVisitCount(null)
     setFilterYear('')
     setFilterMonth('')
     setFilterDay('')
-    if (value) loadHistory(value)
+    if (patient) {
+      loadHistory(patient.id_user)
+      loadVisitCount(patient.id_user)
+    }
   }
 
   const yearOptions = useMemo(() => {
@@ -224,19 +257,84 @@ export default function HistoriaClinicaPage() {
 
       {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
 
-      <TextField
-        select
-        label="Paciente"
-        value={selectedPatient}
-        onChange={handleSelectPatient}
-        sx={{ mb: 3, minWidth: 280 }}
-      >
-        {patients.map((p) => (
-          <MenuItem key={p.id_user} value={p.id_user}>
-            {p.first_name} {p.last_name}
-          </MenuItem>
-        ))}
-      </TextField>
+      <Autocomplete
+        options={searchResults}
+        value={selectedPatientObj}
+        inputValue={searchQuery}
+        onInputChange={handleSearchInputChange}
+        onChange={(_, value) => handleSelectPatient(value)}
+        getOptionLabel={(p) => formatPatientLabel(p)}
+        isOptionEqualToValue={(a, b) => a.id_user === b.id_user}
+        loading={searchLoading}
+        noOptionsText={searchQuery.trim() ? 'Sin resultados' : 'Escribí un nombre, apellido o DNI'}
+        sx={{ mb: 3, minWidth: 320 }}
+        renderInput={(params) => (
+          <TextField {...params} label="Buscar paciente (nombre, apellido o DNI)" />
+        )}
+      />
+
+      {selectedPatientObj && (
+        <Card sx={{ p: 2.5, mb: 3 }}>
+          <Typography variant="subtitle1" fontWeight={800} color={paletteRaw.azulD} sx={{ mb: 1 }}>
+            Resumen del paciente
+          </Typography>
+          <Grid container spacing={1.5}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>Nombre y apellido</Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.first_name} {selectedPatientObj.last_name}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>DNI</Typography>
+              <Typography variant="body2" fontWeight={600}>{getPatientDni(selectedPatientObj)}</Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>Edad</Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {getPatientAge(selectedPatientObj.date_of_birth) ?? '—'} años
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>Veces que fue al médico</Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {visitCount != null ? visitCount : '—'}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>Email</Typography>
+              <Typography variant="body2" fontWeight={600}>{selectedPatientObj.email || '—'}</Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>Teléfono</Typography>
+              <Typography variant="body2" fontWeight={600}>{selectedPatientObj.phone_number || '—'}</Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>Dirección</Typography>
+              <Typography variant="body2" fontWeight={600}>{selectedPatientObj.address || '—'}</Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>Contacto de emergencia</Typography>
+              <Typography variant="body2" fontWeight={600}>{selectedPatientObj.emergency_contact || '—'}</Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>Género</Typography>
+              <Typography variant="body2" fontWeight={600}>{selectedPatientObj.gender || '—'}</Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>Obra social</Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.health_plan_name || '—'}
+                {selectedPatientObj.health_plan_status ? ` (${selectedPatientObj.health_plan_status})` : ''}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>N° de socio</Typography>
+              <Typography variant="body2" fontWeight={600}>{selectedPatientObj.member_number || '—'}</Typography>
+            </Grid>
+          </Grid>
+        </Card>
+      )}
 
       {selectedPatient && (
         <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>

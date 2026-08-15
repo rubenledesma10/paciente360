@@ -3,7 +3,7 @@ import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import HomeIcon from '@mui/icons-material/Home';
-import NewspaperIcon from '@mui/icons-material/Newspaper'; // ← nuevo
+import NewspaperIcon from '@mui/icons-material/Newspaper';
 import HistoryIcon from '@mui/icons-material/History';
 
 export const NURSE_MENU = [
@@ -28,7 +28,6 @@ export const NURSE_MENU = [
   },
 ];
 
-// Menú del paciente ← nuevo
 export const PATIENT_MENU = [
   {
     id: 'noticias',
@@ -53,6 +52,16 @@ export const DOCTOR_MENU = [
   },
 ];
 
+// Menú del administrativo ← nuevo
+export const ADMINISTRATIVE_MENU = [
+  {
+    id: 'admin-noticias',
+    label: 'Noticias y novedades',
+    icon: NewspaperIcon,
+    path: '/admin/noticias',
+  },
+];
+
 export const DEFAULT_MENU = [
   { id: 'inicio', label: 'Inicio', icon: HomeIcon, path: '/inicio' },
 ];
@@ -66,8 +75,9 @@ export const ROLE_LABELS = {
 
 export function menuForRole(rol) {
   if (rol === 'Nurse') return NURSE_MENU;
-  if (rol === 'Patient') return PATIENT_MENU; // ← nuevo
+  if (rol === 'Patient') return PATIENT_MENU;
   if (rol === 'Doctor') return DOCTOR_MENU;
+  if (rol === 'Administrative') return ADMINISTRATIVE_MENU;
   return DEFAULT_MENU;
 }
 

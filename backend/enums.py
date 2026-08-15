@@ -13,10 +13,10 @@ class AppointmentStatusEnum(enum.Enum):
     módulo de "Gestión de turnos" del administrativo -> hay que
     mantenerlos sincronizados con lo que espera el front.
     """
-    RESERVADO = 'Reservado'      
-    EN_ESPERA = 'En espera'      
-    ATENDIDO = 'Atendido'        
-    CANCELADO = 'Cancelado'  
+    RESERVADO = 'Reservado' #solamente tiene el turno y aun no llega      
+    EN_ESPERA = 'En espera' #llego y la receptionista le dio el ingreso     
+    ATENDIDO = 'Atendido'  #atentido es que el medico ya lo atendio       
+    CANCELADO = 'Cancelado'  #paciente lo cancelo
 
 class FollowUpStatusEnum(enum.Enum):
     ACTIVE = "active"

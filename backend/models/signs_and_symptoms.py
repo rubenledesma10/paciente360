@@ -10,8 +10,8 @@ class SignsAndSymptoms(db.Model):
     blood_pressure = db.Column(db.String(20), nullable=False)
     observations = db.Column(db.Text, nullable=True)
     date_and_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    signs = db.Column(db.String(255), nullable=True)
-    symptoms = db.Column(db.String(255), nullable=True)
+    signs = db.Column(db.String(255), nullable=False)
+    symptoms = db.Column(db.String(255), nullable=False)
     record_type = db.Column(db.String(50), nullable=False)
 
     nurse = db.relationship('Nurse', back_populates='signs_and_symptoms')

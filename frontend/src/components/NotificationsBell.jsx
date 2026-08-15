@@ -14,6 +14,25 @@ import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { getFollowUps } from '../api/followUps';
+import { getAppointments, getAppointmentsByPatient } from '../api/appointments';
+
+// Días de anticipación para avisar al paciente que confirme
+const CONFIRM_WINDOW_DAYS = 3;
+
+// Devuelve la cantidad de días entre hoy y una fecha (positivo = futuro)
+const daysUntil = (isoDate) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(isoDate);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target - today) / (1000 * 60 * 60 * 24));
+};
+
+const formatDate = (isoDate) =>
+  new Date(isoDate).toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+  });
 
 export default function NotificationsBell() {
   const { rol, userId } = useAuth();
@@ -24,6 +43,7 @@ export default function NotificationsBell() {
   useEffect(() => {
     let cancelled = false;
 
+    // ----- ENFERMERO: seguimientos de hoy / vencidos -----
     const loadNurse = async () => {
       try {
         const res = await getFollowUps();
@@ -32,7 +52,6 @@ export default function NotificationsBell() {
           .filter((f) => f.status === 'active' || f.status === 'pending')
           .map((f) => ({
             id: `fu-${f.id_follow_up}`,
-            kind: f.status,
             title:
               f.status === 'pending'
                 ? `Seguimiento vencido: ${f.patient_name}`
@@ -49,23 +68,81 @@ export default function NotificationsBell() {
       }
     };
 
-    const load = () => {
-      if (rol === 'Nurse') {
-        loadNurse();
-      } else {
-        setItems([]);
+    // ----- MÉDICO: turnos a atender (hoy y próximos) -----
+    const loadDoctor = async () => {
+      try {
+        const res = await getAppointments();
+        const notifs = res.data
+          .filter((a) => a.id_doctor === userId)
+          .filter((a) => a.status === 'Reservado' || a.status === 'En espera')
+          .filter((a) => daysUntil(a.date) >= 0) // hoy en adelante
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .map((a) => {
+            const d = daysUntil(a.date);
+            return {
+              id: `ap-${a.id_medical_appointment}`,
+              title: `Turno con ${a.patient_name}`,
+              subtitle:
+                d === 0
+                  ? `Hoy a las ${a.hour}`
+                  : `${formatDate(a.date)} a las ${a.hour}`,
+              to: null,
+            };
+          });
+        if (!cancelled) setItems(notifs);
+      } catch {
+        if (!cancelled) setItems([]);
       }
+    };
+
+    // ----- PACIENTE: turnos por confirmar + próximos -----
+    const loadPatient = async () => {
+      try {
+        const res = await getAppointmentsByPatient(userId);
+        const notifs = res.data
+          .filter((a) => a.status === 'Reservado' || a.status === 'En espera')
+          .filter((a) => daysUntil(a.date) >= 0)
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .map((a) => {
+            const d = daysUntil(a.date);
+            // Por confirmar: dentro de la ventana, sin confirmar y no el día del turno
+            const needsConfirm =
+              !a.confirmed && d > 0 && d <= CONFIRM_WINDOW_DAYS;
+            return {
+              id: `ap-${a.id_medical_appointment}`,
+              title: needsConfirm
+                ? `Confirmá tu turno del ${formatDate(a.date)}`
+                : `Turno el ${formatDate(a.date)}`,
+              subtitle: needsConfirm
+                ? `Con ${a.doctor_name} a las ${a.hour}`
+                : `Con ${a.doctor_name} a las ${a.hour}${a.confirmed ? ' (confirmado)' : ''}`,
+              to: null, // mañana: llevará a la pantalla de turnos del paciente
+            };
+          });
+        if (!cancelled) setItems(notifs);
+      } catch {
+        if (!cancelled) setItems([]);
+      }
+    };
+
+    const load = () => {
+      if (rol === 'Nurse') loadNurse();
+      else if (rol === 'Doctor') loadDoctor();
+      else if (rol === 'Patient') loadPatient();
+      else setItems([]);
     };
 
     load();
 
-    // Escucha cambios en los seguimientos para refrescar en tiempo real
+    // Refresco en tiempo real (seguimientos y, a futuro, turnos)
     const handler = () => load();
     window.addEventListener('followups-changed', handler);
+    window.addEventListener('appointments-changed', handler);
 
     return () => {
       cancelled = true;
       window.removeEventListener('followups-changed', handler);
+      window.removeEventListener('appointments-changed', handler);
     };
   }, [rol, userId]);
 

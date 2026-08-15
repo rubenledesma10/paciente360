@@ -10,9 +10,6 @@ export function getAppointmentsByPatient(patientId) {
 
 export function confirmAppointment(id) {
   return client.patch(`/appointments/${id}/confirm`);
-<<<<<<< HEAD
-}
-=======
 }
 
 // --- Reserva de turno (HU-07) ---
@@ -38,4 +35,3 @@ export function createMyAppointment(payload) {
 export function cancelAppointment(id) {
   return client.patch(`/appointments/${id}/cancel`);
 }
->>>>>>> 8e80fc4ba4cb471b5a53b7a6d79d00376fa2b7f5

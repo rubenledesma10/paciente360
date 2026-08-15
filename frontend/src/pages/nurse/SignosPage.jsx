@@ -35,6 +35,7 @@ import {
   createSignsAndSymptoms,
   updateSignsAndSymptoms,
   deleteSignsAndSymptoms,
+  getWaitingPatients,
 } from '../../api/signsAndSymptoms'
 import { formatDateTime } from '../../utils/dateFormat'
 import { getPatientAge, getPatientDni } from '../../utils/patientDisplay'
@@ -58,6 +59,7 @@ const schema = yup.object({
 export default function SignosPage() {
   const [rows, setRows] = useState([])
   const [patients, setPatients] = useState([])
+  const [waitingPatients, setWaitingPatients] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [open, setOpen] = useState(false)
@@ -86,6 +88,16 @@ export default function SignosPage() {
 
   const isEditable = (row) =>
     dayjs().diff(dayjs(row.date_and_time), 'minute') < EDIT_WINDOW_MINUTES
+
+  const patientOptions = editingRow
+    ? patients.map((p) => ({
+        id: p.id_user,
+        label: `${p.first_name} ${p.last_name} — DNI ${getPatientDni(p)} — ${getPatientAge(p.date_of_birth) ?? '—'} años`,
+      }))
+    : waitingPatients.map((p) => ({
+        id: p.id_patient,
+        label: `${p.patient_name} — DNI ${p.dni}`,
+      }))
 
   const visibleRows = rows.filter(
     (r) => !selectedDate || dayjs(r.date_and_time).isSame(selectedDate, 'day'),
@@ -135,7 +147,7 @@ export default function SignosPage() {
     }
   }, [])
 
-  const openCreateDialog = () => {
+  const openCreateDialog = async () => {
     setFormError('')
     setEditingRow(null)
     reset({
@@ -147,6 +159,12 @@ export default function SignosPage() {
       observations: '',
       record_type: 'Rutina',
     })
+    try {
+      const res = await getWaitingPatients()
+      setWaitingPatients(res.data)
+    } catch {
+      setFormError('No se pudo cargar la lista de pacientes en espera.')
+    }
     setOpen(true)
   }
 
@@ -343,11 +361,16 @@ export default function SignosPage() {
                   label="Paciente"
                   disabled={!!editingRow}
                   error={!!errors.id_patient}
-                  helperText={errors.id_patient?.message}
+                  helperText={
+                    errors.id_patient?.message ||
+                    (!editingRow && patientOptions.length === 0
+                      ? 'No hay pacientes en espera en este momento.'
+                      : '')
+                  }
                 >
-                  {patients.map((p) => (
-                    <MenuItem key={p.id_user} value={p.id_user}>
-                      {p.first_name} {p.last_name} — DNI {getPatientDni(p)} — {getPatientAge(p.date_of_birth) ?? '—'} años
+                  {patientOptions.map((o) => (
+                    <MenuItem key={o.id} value={o.id}>
+                      {o.label}
                     </MenuItem>
                   ))}
                 </TextField>

@@ -23,6 +23,8 @@ class MedicalAppointment(db.Model):
             'id_doctor': self.id_doctor,
             'date': self.date.isoformat() if self.date else None,
             'hour': self.hour,
-            'status': self.status.value if self.status else None,  # <-- corregido, antes rompia el JSON
-            'reason': self.reason
+            'status': self.status.value if self.status else None,
+            'reason': self.reason,
+            'patient_name': f"{self.patient.first_name} {self.patient.last_name}" if self.patient else None,
+            'doctor_name': f"{self.doctor.first_name} {self.doctor.last_name}" if self.doctor else None
         }

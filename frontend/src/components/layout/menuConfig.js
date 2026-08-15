@@ -6,6 +6,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
 import HistoryIcon from '@mui/icons-material/History';
 import EventNoteIcon from '@mui/icons-material/EventNote';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 
 export const NURSE_MENU = [
   {
@@ -30,6 +31,12 @@ export const NURSE_MENU = [
 ];
 
 export const PATIENT_MENU = [
+  {
+    id: 'sacar-turno',
+    label: 'Sacar turno',
+    icon: EventAvailableIcon,
+    path: '/sacar-turno',
+  },
   {
     id: 'mis-turnos',
     label: 'Mis turnos',

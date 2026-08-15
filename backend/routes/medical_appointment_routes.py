@@ -483,3 +483,137 @@ def confirm_appointment(appointment_id):
     appointment.confirmed = True
     db.session.commit()
     return jsonify(appointment.to_dict()), 200
+
+@appointments_bp.route('/available-slots', methods=['GET'])
+def get_available_slots():
+    """Horarios libres de un médico para una fecha.
+
+    Genera la grilla de 08:00 a 20:00 cada 20 minutos y descuenta
+    los turnos ya ocupados. Los cancelados NO ocupan: liberan el horario.
+    """
+    try:
+        id_doctor = request.args.get('id_doctor', type=int)
+        date_str = request.args.get('date')
+
+        if not id_doctor or not date_str:
+            return jsonify({"msg": "Se requieren id_doctor y date"}), 400
+
+        if not Doctor.query.get(id_doctor):
+            return jsonify({"msg": "Doctor no encontrado"}), 404
+
+        try:
+            target_date = date.fromisoformat(date_str)
+        except ValueError:
+            return jsonify({"msg": "Fecha inválida. Formato esperado YYYY-MM-DD"}), 400
+
+        if target_date < date.today():
+            return jsonify({"msg": "No se pueden consultar horarios de una fecha pasada"}), 400
+
+        taken = MedicalAppointment.query.filter(
+            MedicalAppointment.id_doctor == id_doctor,
+            MedicalAppointment.date == target_date,
+            MedicalAppointment.status != AppointmentStatusEnum.CANCELADO
+        ).all()
+
+        now = datetime.now()
+        slots = []
+        current_minutes = OPENING_TIME.hour * 60 + OPENING_TIME.minute
+        closing_minutes = CLOSING_TIME.hour * 60 + CLOSING_TIME.minute
+
+        while current_minutes + APPOINTMENT_DURATION_MINUTES <= closing_minutes:
+            slot_time = time(current_minutes // 60, current_minutes % 60)
+
+            # Si la fecha es hoy, no ofrecemos horarios que ya pasaron
+            is_past = target_date == now.date() and slot_time <= now.time()
+
+            if not is_past and not has_overlap(taken, slot_time):
+                slots.append(slot_time.strftime("%H:%M"))
+
+            current_minutes += APPOINTMENT_DURATION_MINUTES
+
+        return jsonify({
+            "id_doctor": id_doctor,
+            "date": target_date.isoformat(),
+            "slots": slots
+        }), 200
+    except Exception as e:
+        return jsonify({"msg": "Error al obtener horarios disponibles", "error": str(e)}), 500
+
+
+@appointments_bp.route('/me', methods=['POST'])
+@role_required(RoleEnum.PATIENT)
+def create_my_appointment():
+    """Reserva hecha por el propio paciente logueado.
+
+    A diferencia de /public, el paciente sale del JWT y NUNCA del body:
+    así nadie puede reservar a nombre de otro ni pisarle los datos.
+    """
+    try:
+        if not request.is_json:
+            return jsonify({"msg": "Falta el JSON en la petición"}), 400
+        data = request.get_json()
+
+        patient_id = int(get_jwt_identity())
+        if not Patient.query.get(patient_id):
+            return jsonify({"msg": "Paciente no encontrado"}), 404
+
+        doctor = Doctor.query.get(data.get('id_doctor'))
+        if not doctor:
+            return jsonify({"msg": "Doctor no encontrado"}), 404
+
+        if not data.get('date'):
+            return jsonify({"msg": "La fecha es obligatoria"}), 400
+        try:
+            appointment_date = date.fromisoformat(data.get('date'))
+        except ValueError:
+            return jsonify({"msg": "Fecha inválida. Formato esperado YYYY-MM-DD"}), 400
+
+        if appointment_date < date.today():
+            return jsonify({"msg": "No se puede reservar un turno en una fecha anterior a hoy"}), 400
+
+        if not data.get('hour'):
+            return jsonify({"msg": "La hora es obligatoria"}), 400
+        try:
+            appointment_time = datetime.strptime(data.get('hour'), "%H:%M").time()
+        except ValueError:
+            return jsonify({"msg": "Hora inválida. Formato esperado HH:MM"}), 400
+
+        if not is_within_business_hours(appointment_time):
+            return jsonify({
+                "msg": f"El turno debe iniciar entre las {OPENING_TIME.strftime('%H:%M')} "
+                       f"y terminar antes de las {CLOSING_TIME.strftime('%H:%M')}"
+            }), 400
+
+        # El paciente no puede tener dos turnos pisados
+        patient_appointments = MedicalAppointment.query.filter(
+            MedicalAppointment.id_patient == patient_id,
+            MedicalAppointment.date == appointment_date,
+            MedicalAppointment.status != AppointmentStatusEnum.CANCELADO
+        ).all()
+        if has_overlap(patient_appointments, appointment_time):
+            return jsonify({"msg": "Ya tenés un turno reservado en ese horario."}), 409
+
+        # El paciente nunca puede generar sobreturnos en la agenda del médico
+        doctor_appointments = MedicalAppointment.query.filter(
+            MedicalAppointment.id_doctor == doctor.id_user,
+            MedicalAppointment.date == appointment_date,
+            MedicalAppointment.status != AppointmentStatusEnum.CANCELADO
+        ).all()
+        if has_overlap(doctor_appointments, appointment_time):
+            return jsonify({"msg": "Ese horario ya no está disponible. Elegí otro."}), 409
+
+        new_appointment = MedicalAppointment(
+            id_patient=patient_id,
+            id_doctor=doctor.id_user,
+            date=appointment_date,
+            hour=data.get('hour'),
+            status=AppointmentStatusEnum.RESERVADO,
+            reason=data.get('reason')
+        )
+        db.session.add(new_appointment)
+        db.session.commit()
+
+        return jsonify(new_appointment.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": "Error al crear el turno", "error": str(e)}), 500

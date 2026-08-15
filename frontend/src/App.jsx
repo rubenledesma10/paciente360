@@ -19,6 +19,7 @@ import Seguimiento from './pages/Seguimiento';
 import IndicacionesPage from './pages/doctor/IndicacionesPage';
 import HistoriaClinicaPage from './pages/doctor/HistoriaClinicaPage';
 import MisTurnosPage from './pages/patient/MisTurnosPage';
+import SacarTurnoPage from './pages/patient/SacarTurnoPage';
 import { useAuth } from './context/useAuth';
 import { roleHome } from './utils/roleHome';
 import AdministrativeRoute from './routes/AdministrativeRoute';
@@ -57,6 +58,7 @@ function App() {
           </Route>
 
           <Route element={<PatientRoute />}>
+            <Route path="sacar-turno" element={<SacarTurnoPage />} />
             <Route path="mis-turnos" element={<MisTurnosPage />} />
           </Route>
 

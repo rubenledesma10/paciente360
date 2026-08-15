@@ -16,8 +16,18 @@ import {
   confirmAppointment,
 } from '../../api/appointments';
 
-// Parsea 'YYYY-MM-DD' como fecha local (evita el corrimiento de un día por UTC).
-// Si el backend manda otro formato, cae al parseo normal de Date.
+// Estados del turno (AppointmentStatusEnum del backend)
+const STATUS_RESERVED = 'Reservado';
+const STATUS_WAITING = 'En espera';
+const STATUS_ATTENDED = 'Atendido';
+const STATUS_CANCELLED = 'Cancelado';
+
+// Un turno sigue "en juego" mientras no fue atendido ni cancelado
+const isOpen = (status) =>
+  status === STATUS_RESERVED || status === STATUS_WAITING;
+
+// Parsea 'YYYY-MM-DD' como fecha local (el backend manda date.isoformat()).
+// Sin esto, new Date() lo interpreta como UTC y en Argentina resta un día.
 const parseDate = (value) => {
   if (!value) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -94,20 +104,36 @@ export default function MisTurnosPage() {
     }
   };
 
+  // Próximos = turnos vigentes (reservados / en espera) de hoy en adelante.
+  // Historial = todo lo demás: atendidos, cancelados o con fecha pasada.
   const filteredRows = rows
     .filter((ap) => {
-      const d = daysUntil(ap.date);
       if (selectedFilter === 'todos') return true;
-      if (selectedFilter === 'proximos') return d !== null && d >= 0;
-      return d !== null && d < 0;
+      const d = daysUntil(ap.date);
+      const upcoming = isOpen(ap.status) && d !== null && d >= 0;
+      return selectedFilter === 'proximos' ? upcoming : !upcoming;
     })
     .sort((a, b) => parseDate(a.date) - parseDate(b.date));
 
-  // Turnos próximos sin confirmar, para el aviso de arriba
+  // Turnos vigentes sin confirmar, para el aviso de arriba
   const toConfirmCount = rows.filter((ap) => {
     const d = daysUntil(ap.date);
-    return !ap.confirmed && d !== null && d > 0;
+    return isOpen(ap.status) && !ap.confirmed && d !== null && d > 0;
   }).length;
+
+  // El chip de arriba a la derecha: si el turno ya se cerró muestra su estado,
+  // si sigue vigente muestra si está confirmado o no.
+  const statusChip = (ap) => {
+    if (ap.status === STATUS_ATTENDED) {
+      return { label: 'Atendido', color: 'success' };
+    }
+    if (ap.status === STATUS_CANCELLED) {
+      return { label: 'Cancelado', color: 'error' };
+    }
+    return ap.confirmed
+      ? { label: 'Confirmado', color: 'success' }
+      : { label: 'Sin confirmar', color: 'warning' };
+  };
 
   return (
     <Box>
@@ -160,14 +186,16 @@ export default function MisTurnosPage() {
         {filteredRows.map((ap) => {
           const d = daysUntil(ap.date);
           const doctorName = ap.doctor_name || '—';
-          const isPast = d !== null && d < 0;
+          const open = isOpen(ap.status);
           const isToday = d === 0;
+          const isPast = d !== null && d < 0;
           // El backend no permite confirmar el mismo día del turno ni después
-          const canConfirm = !ap.confirmed && d !== null && d > 0;
+          const canConfirm = open && !ap.confirmed && d !== null && d > 0;
+          const chip = statusChip(ap);
 
           return (
             <Grid key={ap.id_medical_appointment} size={{ xs: 12, md: 6 }}>
-              <Card sx={{ p: 2.5, opacity: isPast ? 0.7 : 1 }}>
+              <Card sx={{ p: 2.5, opacity: open ? 1 : 0.75 }}>
                 <Box
                   sx={{
                     display: 'flex',
@@ -190,15 +218,11 @@ export default function MisTurnosPage() {
                         {doctorName}
                       </Typography>
                       <Typography variant="caption" color="#5b7387">
-                        {ap.specialty || 'Consulta médica'}
+                        {ap.reason || 'Consulta médica'}
                       </Typography>
                     </Box>
                   </Box>
-                  <Chip
-                    size="small"
-                    label={ap.confirmed ? 'Confirmado' : 'Sin confirmar'}
-                    color={ap.confirmed ? 'success' : 'warning'}
-                  />
+                  <Chip size="small" label={chip.label} color={chip.color} />
                 </Box>
 
                 <Typography
@@ -208,10 +232,12 @@ export default function MisTurnosPage() {
                   fontWeight={700}
                 >
                   {formatDate(ap.date)} a las {ap.hour}
-                  {isToday && ' — es hoy'}
+                  {open && isToday && ' — es hoy'}
                 </Typography>
 
-                {ap.status && (
+                {/* El estado en texto solo aporta en los turnos vigentes:
+                    en los cerrados ya lo dice el chip */}
+                {open && (
                   <Typography
                     variant="caption"
                     sx={{ mt: 0.5, display: 'block' }}
@@ -233,9 +259,14 @@ export default function MisTurnosPage() {
                       Confirmar asistencia
                     </Button>
                   )}
-                  {!ap.confirmed && isToday && (
+                  {open && !ap.confirmed && isToday && (
                     <Typography variant="caption" color="#5b7387">
                       Ya no se puede confirmar: el turno es hoy.
+                    </Typography>
+                  )}
+                  {open && !ap.confirmed && isPast && (
+                    <Typography variant="caption" color="#5b7387">
+                      El turno ya pasó sin confirmar.
                     </Typography>
                   )}
                 </Box>

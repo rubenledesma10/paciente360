@@ -6,6 +6,8 @@ from models.user import User
 from models.nurse import Nurse
 from models.patient import Patient
 from models.doctor import Doctor
+from models.specialty import Specialty
+from models.health_plan import HealthPlan, doctor_health_plan
 from models.news_and_prevention import NewsAndPrevention
 from models.guard_pass import GuardPass
 from models.signs_and_symptoms import SignsAndSymptoms
@@ -18,10 +20,194 @@ from models.medical_indication import MedicalIndication
 from enums import RoleEnum, AppointmentStatusEnum
 
 
+# Listado completo de especialidades medicas que ofrece la clinica.
+SPECIALTY_NAMES = [
+    "alergología - alergia",
+    "anestesiología",
+    "armonización facial",
+    "bioquímica",
+    "cardiología",
+    "cardiología infantil",
+    "cirugía",
+    "cirugía bariátrica",
+    "cirugía cabeza y cuello",
+    "cirugía cardiovascular",
+    "cirugía de columna",
+    "cirugía de tórax",
+    "cirugía digestiva",
+    "cirugía estética",
+    "cirugía infantil",
+    "cirugía maxilofacial",
+    "cirugía plástica",
+    "clínica médica",
+    "coloproctología",
+    "cosmetología y cosmeatría",
+    "deportología",
+    "dermatología",
+    "diabetología",
+    "diagnóstico por imágenes",
+    "ecografía",
+    "ecografía vascular",
+    "endocrinología",
+    "endocrinología infantil",
+    "enfermería",
+    "fertilidad",
+    "fisiatría",
+    "flebología",
+    "fonoaudiología",
+    "gastroenterología",
+    "gastroenterología infantil",
+    "genética",
+    "geriatría",
+    "ginecología",
+    "ginecología infanto juvenil",
+    "ginecología y obstetricia",
+    "hematología clínica",
+    "hematología pediátrica",
+    "hepatología",
+    "infectología",
+    "inmunología",
+    "inmunología infantil",
+    "kinesiología",
+    "kinesiologia respiratoria",
+    "laboratorio",
+    "mamografía",
+    "manicuría - cuidado personal",
+    "masajista - medicina complementaria",
+    "mastología",
+    "medicina de familia",
+    "medicina del dolor",
+    "medicina del sueño",
+    "medicina estética",
+    "medicina fetal",
+    "medicina funcional",
+    "medicina general",
+    "medicina laboral",
+    "nefrología",
+    "nefrología pediátrica",
+    "neumonología",
+    "neumonología infantil",
+    "neuro-audiología",
+    "neurocirugía",
+    "neurocirugía infantil",
+    "neurofisiología",
+    "neurología",
+    "neurología infantil",
+    "nutrición",
+    "nutrición infantil",
+    "obstetricia",
+    "odontología",
+    "odontología infantil",
+    "oftalmología",
+    "oftalmología infantil",
+    "oncología",
+    "ortodoncia",
+    "ortodoncia adolescente",
+    "ortodoncia infantil",
+    "ortopedia",
+    "osteopatía",
+    "otoneurología",
+    "otorrinolaringología",
+    "pediatría",
+    "pedicuría - cuidado personal",
+    "podología",
+    "proctología",
+    "proctología infantil",
+    "psicología",
+    "psicología infantil",
+    "psicopedagogía",
+    "psiquiatría",
+    "puericultura",
+    "quiropraxia",
+    "radiología",
+    "radiología odontológica",
+    "reiki - medicina complementaria",
+    "resonancia",
+    "reumatología",
+    "rpg rehabilitación postural global",
+    "terapia ocupacional",
+    "traumatología",
+    "traumatología infantil",
+    "uroginecología",
+    "urología",
+    "urologia pediátrica",
+]
+
+
+# Medicos de prueba: (nombre, apellido, usuario, dni, matricula, fecha nac, genero, especialidad)
+# Ojo: la especialidad debe existir tal cual en SPECIALTY_NAMES.
+DOCTORS_SEED = [
+    ("Javier", "Ríos", "jrios", "30112233", "MP-12456", date(1980, 6, 3), "Masculino", "clínica médica"),
+    ("Carolina", "Vega", "cvega", "31445566", "MP-13890", date(1983, 2, 17), "Femenino", "pediatría"),
+    ("Emilia", "Castro", "ecastro", "32556677", "MP-14275", date(1987, 10, 4), "Femenino", "pediatría"),
+    ("Martín", "Aguirre", "maguirre", "29334455", "MP-11902", date(1977, 5, 22), "Masculino", "cardiología"),
+    ("Lucía", "Benítez", "lbenitez", "33667788", "MP-15340", date(1990, 8, 9), "Femenino", "dermatología"),
+    ("Federico", "Sosa", "fsosa", "30998877", "MP-12781", date(1982, 12, 1), "Masculino", "traumatología"),
+    ("Valeria", "Ponce", "vponce", "32112299", "MP-14018", date(1985, 3, 28), "Femenino", "ginecología"),
+    ("Nicolás", "Herrera", "nherrera", "31778899", "MP-13566", date(1984, 7, 14), "Masculino", "oftalmología"),
+    ("Camila", "Duarte", "cduarte", "34221100", "MP-16112", date(1992, 1, 19), "Femenino", "nutrición"),
+    ("Gonzalo", "Ferrer", "gferrer", "28776655", "MP-11455", date(1975, 9, 6), "Masculino", "neurología"),
+    ("Julieta", "Ramos", "jramos", "33445599", "MP-15703", date(1989, 4, 25), "Femenino", "otorrinolaringología"),
+]
+
+
+# Obras sociales mas usadas en la zona. Se guardan con nombre corto para que
+# coincidan con el health_plan_name que traen los pacientes (texto libre).
+HEALTH_PLAN_NAMES = [
+    "OSEP",
+    "OSDE",
+    "Swiss Medical",
+    "Galeno",
+    "Medife",
+    "Sancor Salud",
+    "PAMI",
+    "Jerarquicos Salud",
+    "Prevencion Salud",
+    "Andes Salud",
+    "Boreal",
+    "DAMSU",
+    "Hospital Espanol de Mendoza",
+    "OSPE",
+    "OSECAC",
+    "OSPRERA",
+    "Omint",
+    "Avalian",
+    "Federada Salud",
+    "Accord Salud",
+    "ACA Salud",
+    "Nobis Medical",
+    "Staff Medico",
+    "Premedic",
+    "OSMATA",
+    "OSPACP",
+    "Union Personal",
+    "IOSFA",
+    "Poder Judicial",
+    "Particular",
+]
+
+
+# Obras sociales que acepta cada medico (por username).
+DOCTOR_HEALTH_PLANS = {
+    "jrios": ["OSEP", "OSDE", "PAMI", "Swiss Medical", "Particular"],
+    "cvega": ["OSEP", "OSDE", "Medife", "Sancor Salud", "Particular"],
+    "ecastro": ["OSEP", "PAMI", "Galeno", "Particular"],
+    "maguirre": ["OSDE", "Swiss Medical", "Galeno", "PAMI", "Particular"],
+    "lbenitez": ["OSEP", "Medife", "Omint", "Particular"],
+    "fsosa": ["OSEP", "OSDE", "Sancor Salud", "Jerarquicos Salud", "Particular"],
+    "vponce": ["OSEP", "Swiss Medical", "Avalian", "Particular"],
+    "nherrera": ["OSDE", "Medife", "Prevencion Salud", "Particular"],
+    "cduarte": ["OSEP", "Sancor Salud", "Boreal", "Particular"],
+    "gferrer": ["OSDE", "Swiss Medical", "PAMI", "Andes Salud", "Particular"],
+    "jramos": ["OSEP", "Galeno", "DAMSU", "Particular"],
+}
+
+
 def seed():
     with app.app_context():
         # Orden de borrado: primero lo que depende de doctors/nurses/patients/users,
         # despues las subclases (Doctor, Nurse, Patient), al final la tabla base (User).
+        # Specialty va DESPUES de Doctor porque doctors.id_especialidad la referencia.
         Traceability.query.delete()
         StockMovement.query.delete()
         MedicalProduct.query.delete()
@@ -31,24 +217,60 @@ def seed():
         SignsAndSymptoms.query.delete()
         GuardPass.query.delete()
         NewsAndPrevention.query.delete()
+        # La tabla intermedia se limpia a mano: query.delete() es un borrado masivo
+        # que NO dispara las cascadas del ORM y dejaria filas huerfanas.
+        db.session.execute(doctor_health_plan.delete())
         Doctor.query.delete()
         Nurse.query.delete()
         Patient.query.delete()
         User.query.delete()
+        Specialty.query.delete()
+        HealthPlan.query.delete()
         db.session.commit()
 
-        # ---------- Médico (Doctor real) ----------
-        medico = Doctor(
-            first_name="Javier", last_name="Ríos", username="jrios",
-            dni="30112233", email="javier.rios@paciente360.com",
-            date_of_birth=date(1980, 6, 3),
-            gender="Masculino",
-            rol=RoleEnum.DOCTOR,
-            medical_license=12456,  # int por ahora -> ver comentario sobre cambiar a String
-        )
-        medico.set_password("medico123")
-        db.session.add(medico)
+        # ---------- Especialidades ----------
+        specialties = {}
+        for name in SPECIALTY_NAMES:
+            especialidad = Specialty(name=name)
+            db.session.add(especialidad)
+            specialties[name] = especialidad
         db.session.commit()
+
+        # ---------- Obras sociales ----------
+        health_plans = {}
+        for name in HEALTH_PLAN_NAMES:
+            plan = HealthPlan(name=name)
+            db.session.add(plan)
+            health_plans[name] = plan
+        db.session.commit()
+
+        # ---------- Medicos ----------
+        # Se cargan varios para que el desplegable de especialidades no quede vacio.
+        # Pediatria tiene dos para poder probar la eleccion de profesional.
+        doctors = {}
+        for first, last, username, dni, license_number, birth, gender, specialty_name in DOCTORS_SEED:
+            especialidad = specialties.get(specialty_name)
+            doctor = Doctor(
+                first_name=first, last_name=last, username=username,
+                dni=dni, email=f"{username}@paciente360.com",
+                date_of_birth=birth,
+                gender=gender,
+                rol=RoleEnum.DOCTOR,
+                medical_license=license_number,
+                id_especialidad=especialidad.id_speciality if especialidad else None,
+            )
+            doctor.set_password("medico123")
+            doctor.health_plans = [
+                health_plans[p]
+                for p in DOCTOR_HEALTH_PLANS.get(username, [])
+                if p in health_plans
+            ]
+            db.session.add(doctor)
+            doctors[username] = doctor
+        db.session.commit()
+
+        # El resto del seed sigue usando a Javier Rios como medico principal
+        medico = doctors["jrios"]
 
         # ---------- Administrativo (todavía plano, no tiene tabla propia) ----------
         administrativo = User(
@@ -383,7 +605,9 @@ def seed():
         print("==================================================")
         print("✅ Seed completado exitosamente:")
         print("==================================================")
-        print(f"  - Médico: {medico.username} (id={medico.id_user})")
+        print(f"  - Especialidades: {len(specialties)} registros")
+        print(f"  - Obras sociales: {len(health_plans)} registros")
+        print(f"  - Médicos: {len(doctors)} registros (principal: {medico.username}, id={medico.id_user})")
         print(f"  - Administrativo: {administrativo.username} (id={administrativo.id_user})")
         print(f"  - Pacientes: {paciente1.username}, {paciente2.username}, {paciente3.username}")
         print(f"  - Enfermeros: {enfermero1.username}, {enfermero2.username}, {enfermero3.username}")

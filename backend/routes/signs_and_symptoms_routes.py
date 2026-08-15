@@ -107,27 +107,57 @@ def update_signs_and_symptoms(id_signs_and_symptoms):
 
     data = request.get_json()
     signs_and_symptoms = SignsAndSymptoms.query.get(id_signs_and_symptoms)
+    
     if not signs_and_symptoms:
         return jsonify({'error': 'Signs and Symptoms not found'}), 404
     
-    id_nurse_logueado=int(get_jwt_identity())
+    id_nurse_logueado = int(get_jwt_identity())
     if signs_and_symptoms.id_nurse != id_nurse_logueado:
-        return jsonify({"error":"Only the nurse who recorded this can edit it."}), 403
+        return jsonify({"error": "Only the nurse who recorded this can edit it."}), 403
     
     now = datetime.utcnow()
     time_limit = signs_and_symptoms.date_and_time + timedelta(minutes=5)
-    if now > time_limit:
-        return jsonify({'error': 'Update window has expired. You can only update within 5 minutes of creation.'}), 403
+    is_past_time_limit = now > time_limit
+    
+    restricted_fields = ['temperature', 'blood_pressure', 'signs', 'symptoms', 'record_type'] #validar que campos intentan editar si ya pasaron los 5 minutos
+    
+    
+    attempting_restricted_edit = any(field in data for field in restricted_fields) #verificamos si en el JSON mandaron alguno de los campos clinicos bloqueados
+    
+    if is_past_time_limit and attempting_restricted_edit:
+        return jsonify({
+            'error': 'Update window has expired. After 5 minutes, you can only append new observations.'
+        }), 403
+
     try:
-        signs_and_symptoms.temperature = data.get('temperature', signs_and_symptoms.temperature)
-        signs_and_symptoms.blood_pressure = data.get('blood_pressure', signs_and_symptoms.blood_pressure)
-        signs_and_symptoms.observations = data.get('observations', signs_and_symptoms.observations)
-        signs_and_symptoms.signs = data.get('signs', signs_and_symptoms.signs)
-        signs_and_symptoms.symptoms = data.get('symptoms', signs_and_symptoms.symptoms)
-        signs_and_symptoms.record_type = data.get('record_type', signs_and_symptoms.record_type)
+        if not is_past_time_limit: #actualizar campos si aun no han pasado los 5 minutos
+            if 'temperature' in data:
+                signs_and_symptoms.temperature = data['temperature']
+            if 'blood_pressure' in data:
+                signs_and_symptoms.blood_pressure = data['blood_pressure']
+            if 'signs' in data:
+                signs_and_symptoms.signs = data['signs']
+            if 'symptoms' in data:
+                signs_and_symptoms.symptoms = data['symptoms']
+            if 'record_type' in data:
+                signs_and_symptoms.record_type = data['record_type']
+
+        new_observation = data.get('observations')
+        
+        if new_observation:
+            hora_argentina = datetime.utcnow() - timedelta(hours=3)
+            timestamp_str = hora_argentina.strftime("%d/%m/%Y %H:%M")
+            
+            texto_a_agregar = f"{timestamp_str} {new_observation}"
+            
+            if signs_and_symptoms.observations:
+                signs_and_symptoms.observations += f"\n{texto_a_agregar}"
+            else:
+                signs_and_symptoms.observations = texto_a_agregar
 
         db.session.commit()
         return jsonify(signs_and_symptoms.to_dict()), 200
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500

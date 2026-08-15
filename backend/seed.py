@@ -201,7 +201,8 @@ def seed():
         ])
         db.session.commit()
 
-        # ---------- Turnos (ahora con id_doctor obligatorio) ----------
+        # ---------- Turnos ----------
+        # Turnos existentes
         turno1 = MedicalAppointment(
             id_patient=paciente1.id_user, id_doctor=medico.id_user,
             date=date.today() + timedelta(days=5),
@@ -224,7 +225,36 @@ def seed():
             reason="Control de rutina",
         )
 
-        db.session.add_all([turno1, turno2, turno3])
+        # Turnos para probar la CONFIRMACIÓN de asistencia (dentro de la ventana de 3 días)
+        # A 2 días, sin confirmar -> debe aparecer la notificación y permitir confirmar
+        turno_por_confirmar = MedicalAppointment(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            date=date.today() + timedelta(days=2),
+            hour="11:00",
+            status=AppointmentStatusEnum.RESERVADO,
+            reason="Control cardiológico",
+            confirmed=False,
+        )
+        # A 1 día, ya confirmado -> no debería pedir confirmación
+        turno_confirmado = MedicalAppointment(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            date=date.today() + timedelta(days=1),
+            hour="15:00",
+            status=AppointmentStatusEnum.RESERVADO,
+            reason="Análisis de rutina",
+            confirmed=True,
+        )
+        # A 3 días, sin confirmar -> límite de la ventana de notificación
+        turno_limite = MedicalAppointment(
+            id_patient=paciente2.id_user, id_doctor=medico.id_user,
+            date=date.today() + timedelta(days=3),
+            hour="16:30",
+            status=AppointmentStatusEnum.RESERVADO,
+            reason="Consulta dermatológica",
+            confirmed=False,
+        )
+
+        db.session.add_all([turno1, turno2, turno3, turno_por_confirmar, turno_confirmado, turno_limite])
         db.session.commit()
 
         # ---------- Indicaciones médicas ----------

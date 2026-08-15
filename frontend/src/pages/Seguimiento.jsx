@@ -24,6 +24,7 @@ import {
   getFollowUps,
   createFollowUp,
   toggleFollowUpFinish,
+  updateFollowUp,
 } from '../api/followUps';
 import { useAuth } from '../context/useAuth';
 import MedicalHistoryDialog from '../components/MedicalHistoryDialog';
@@ -32,7 +33,7 @@ import { getPatientAge, getPatientDni } from '../utils/patientDisplay';
 // Fecha de hoy en formato YYYY-MM-DD (para validar el mínimo del formulario)
 const today = new Date().toISOString().split('T')[0];
 
-// Validación: el próximo control no puede ser una fecha pasada (Item 1)
+// Validación: el próximo control no puede ser una fecha pasada
 const schema = yup.object({
   id_patient: yup.number().typeError('Elegí un paciente').required(),
   observations: yup.string().required('Ingresá las observaciones'),
@@ -75,6 +76,12 @@ export default function Seguimiento() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyPatient, setHistoryPatient] = useState({ id: null, name: '', dni: null, age: null });
 
+  // Estados para el diálogo de reprogramar
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleTarget, setRescheduleTarget] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleError, setRescheduleError] = useState('');
+
   const {
     register,
     handleSubmit,
@@ -106,6 +113,11 @@ export default function Seguimiento() {
     loadAll();
   }, []);
 
+  // Avisa a la campana (y a quien escuche) que los seguimientos cambiaron
+  const notifyChange = () => {
+    window.dispatchEvent(new Event('followups-changed'));
+  };
+
   const openDialog = () => {
     setFormError('');
     reset({ id_patient: '', observations: '', next_check_up: '' });
@@ -124,6 +136,7 @@ export default function Seguimiento() {
       });
       setOpen(false);
       loadAll();
+      notifyChange();
     } catch (err) {
       setFormError(
         err.response?.data?.error ||
@@ -137,6 +150,7 @@ export default function Seguimiento() {
     try {
       await toggleFollowUpFinish(id);
       loadAll();
+      notifyChange();
     } catch {
       setLoadError('No se pudo actualizar el estado del seguimiento.');
     }
@@ -153,8 +167,36 @@ export default function Seguimiento() {
     setHistoryOpen(true);
   };
 
-  // Filtra según el filtro seleccionado (usando el status en inglés del backend)
+  const openReschedule = (followUp) => {
+    setRescheduleTarget(followUp);
+    setRescheduleDate(followUp.next_check_up || '');
+    setRescheduleError('');
+    setRescheduleOpen(true);
+  };
+
+  const handleReschedule = async () => {
+    setRescheduleError('');
+    if (rescheduleDate && rescheduleDate < today) {
+      setRescheduleError('El próximo control no puede ser una fecha pasada.');
+      return;
+    }
+    try {
+      await updateFollowUp(rescheduleTarget.id_follow_up, {
+        next_check_up: rescheduleDate || null,
+      });
+      setRescheduleOpen(false);
+      loadAll();
+      notifyChange();
+    } catch (err) {
+      setRescheduleError(
+        err.response?.data?.msg || 'No se pudo reprogramar el seguimiento.',
+      );
+    }
+  };
+
+  // Filtra: solo MIS seguimientos, y después según el filtro seleccionado
   const filteredRows = rows.filter((fu) => {
+    if (fu.id_nurse !== userId) return false; // solo los que atiendo yo
     if (selectedFilter === 'todos') return true;
     if (selectedFilter === 'activos') {
       return fu.status !== 'finished';
@@ -162,8 +204,10 @@ export default function Seguimiento() {
     return fu.status === selectedFilter;
   });
 
-  // Cuenta los pendientes (vencidos) para la alerta
-  const pendingCount = rows.filter((fu) => fu.status === 'pending').length;
+  // Cuenta mis pendientes (vencidos) para la alerta
+  const pendingCount = rows.filter(
+    (fu) => fu.id_nurse === userId && fu.status === 'pending',
+  ).length;
 
   // Color del chip según estado
   const statusColor = (status) => {
@@ -234,8 +278,12 @@ export default function Seguimiento() {
           const patientAge = patient ? getPatientAge(patient.date_of_birth) : null;
           const statusLabel = STATUS_LABELS[fu.status] || fu.status;
           const isMine = fu.id_nurse === userId;
+          // Finalizar = alta médica: solo tiene sentido en seguimientos vigentes,
+          // donde el enfermero efectivamente vio al paciente.
           const canFinish =
-            isMine && (fu.status === 'pending' || fu.status === 'active');
+            isMine && (fu.status === 'active' || fu.status === 'scheduled');
+          // Reprogramar = solo cuando el control ya venció y hay que darle nueva fecha.
+          const canReschedule = isMine && fu.status === 'pending';
           return (
             <Grid key={fu.id_follow_up} size={{ xs: 12, md: 6 }}>
               <Card sx={{ p: 2.5 }}>
@@ -269,14 +317,6 @@ export default function Seguimiento() {
                           ? new Date(fu.date_time).toLocaleString('es-AR')
                           : ''}
                       </Typography>
-                      <Typography
-                        variant="caption"
-                        sx={{ mt: 0.5, display: 'block' }}
-                        color="#5b7387"
-                      >
-                        Atendido por: {fu.nurse_name || '—'}
-                        {isMine && ' (vos)'}
-                      </Typography>
                     </Box>
                   </Box>
                   <Chip
@@ -302,6 +342,15 @@ export default function Seguimiento() {
                   </Typography>
                 )}
 
+                <Typography
+                  variant="caption"
+                  sx={{ mt: 0.5, display: 'block' }}
+                  color="#5b7387"
+                >
+                  Atendido por: {fu.nurse_name || '—'}
+                  {isMine && ' (vos)'}
+                </Typography>
+
                 <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   {canFinish && (
                     <Button
@@ -310,6 +359,16 @@ export default function Seguimiento() {
                       onClick={() => toggle(fu.id_follow_up)}
                     >
                       Marcar finalizado
+                    </Button>
+                  )}
+                  {canReschedule && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="info"
+                      onClick={() => openReschedule(fu)}
+                    >
+                      Reprogramar
                     </Button>
                   )}
                   <Button
@@ -393,6 +452,42 @@ export default function Seguimiento() {
             </Button>
           </DialogActions>
         </Box>
+      </Dialog>
+
+      {/* Diálogo de reprogramar */}
+      <Dialog
+        open={rescheduleOpen}
+        onClose={() => setRescheduleOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Reprogramar seguimiento</DialogTitle>
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
+          {rescheduleTarget && (
+            <Typography variant="body2" color="#5b7387">
+              Paciente: {rescheduleTarget.patient_name}
+            </Typography>
+          )}
+          {rescheduleError && <Alert severity="error">{rescheduleError}</Alert>}
+          <TextField
+            label="Nueva fecha de control"
+            type="date"
+            value={rescheduleDate}
+            onChange={(e) => setRescheduleDate(e.target.value)}
+            slotProps={{
+              inputLabel: { shrink: true },
+              htmlInput: { min: today },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRescheduleOpen(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={handleReschedule}>
+            Guardar
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Modal de historia clínica */}

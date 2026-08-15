@@ -463,3 +463,23 @@ def get_doctors_by_specialty(specialty_id):
         return jsonify([d.to_dict() for d in doctors]), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching doctors by specialty"}), 500
+    
+@appointments_bp.route('/<int:appointment_id>/confirm', methods=['PATCH'])
+@role_required(RoleEnum.PATIENT)
+def confirm_appointment(appointment_id):
+    appointment = MedicalAppointment.query.get(appointment_id)
+    if not appointment:
+        return jsonify({"msg": "Appointment not found"}), 404
+
+    # El paciente solo puede confirmar sus propios turnos
+    id_logueado = int(get_jwt_identity())
+    if appointment.id_patient != id_logueado:
+        return jsonify({"msg": "No autorizado"}), 403
+
+    # No se puede confirmar el día del turno (ni después)
+    if appointment.date <= date.today():
+        return jsonify({"msg": "No se puede confirmar el día del turno"}), 400
+
+    appointment.confirmed = True
+    db.session.commit()
+    return jsonify(appointment.to_dict()), 200

@@ -36,10 +36,10 @@ export default function NewsDetail() {
     <Box sx={{ maxWidth: 760, mx: 'auto' }}>
       <Button
         startIcon={<ArrowBackIcon />}
-        onClick={() => navigate('/noticias')}
+        onClick={() => navigate('/')}
         sx={{ mb: 2, color: '#1565A8', fontWeight: 600 }}
       >
-        Volver a noticias
+        Volver a inicio
       </Button>
 
       <Card sx={{ p: 4, borderRadius: 3 }}>

@@ -28,6 +28,7 @@ import {
 } from '../api/followUps';
 import { useAuth } from '../context/useAuth';
 import MedicalHistoryDialog from '../components/MedicalHistoryDialog';
+import { getPatientAge, getPatientDni } from '../utils/patientDisplay';
 
 // Fecha de hoy en formato YYYY-MM-DD (para validar el mínimo del formulario)
 const today = new Date().toISOString().split('T')[0];
@@ -73,7 +74,7 @@ export default function Seguimiento() {
   const [formError, setFormError] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('activos');
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyPatient, setHistoryPatient] = useState({ id: null, name: '' });
+  const [historyPatient, setHistoryPatient] = useState({ id: null, name: '', dni: null, age: null });
 
   // Estados para el diálogo de reprogramar
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -156,7 +157,13 @@ export default function Seguimiento() {
   };
 
   const openHistory = (patientId, name) => {
-    setHistoryPatient({ id: patientId, name });
+    const patient = patients.find((p) => p.id_user === patientId);
+    setHistoryPatient({
+      id: patientId,
+      name,
+      dni: patient ? getPatientDni(patient) : null,
+      age: patient ? getPatientAge(patient.date_of_birth) : null,
+    });
     setHistoryOpen(true);
   };
 
@@ -267,6 +274,8 @@ export default function Seguimiento() {
       <Grid container spacing={2}>
         {filteredRows.map((fu) => {
           const name = fu.patient_name || patientName(fu.id_patient);
+          const patient = patients.find((p) => p.id_user === fu.id_patient);
+          const patientAge = patient ? getPatientAge(patient.date_of_birth) : null;
           const statusLabel = STATUS_LABELS[fu.status] || fu.status;
           const isMine = fu.id_nurse === userId;
           // Finalizar = alta médica: solo tiene sentido en seguimientos vigentes,
@@ -298,6 +307,10 @@ export default function Seguimiento() {
                     <Box>
                       <Typography fontWeight={700} color="#0E4C82">
                         {name}
+                      </Typography>
+                      <Typography variant="caption" color="#5b7387" display="block">
+                        DNI {patient ? getPatientDni(patient) : '—'}
+                        {patientAge != null && ` — ${patientAge} años`}
                       </Typography>
                       <Typography variant="caption" color="#5b7387">
                         {fu.date_time
@@ -406,7 +419,7 @@ export default function Seguimiento() {
                 >
                   {patients.map((p) => (
                     <MenuItem key={p.id_user} value={p.id_user}>
-                      {p.first_name} {p.last_name}
+                      {p.first_name} {p.last_name} — DNI {getPatientDni(p)} — {getPatientAge(p.date_of_birth) ?? '—'} años
                     </MenuItem>
                   ))}
                 </TextField>
@@ -483,6 +496,8 @@ export default function Seguimiento() {
         onClose={() => setHistoryOpen(false)}
         patientId={historyPatient.id}
         patientName={historyPatient.name}
+        patientDni={historyPatient.dni}
+        patientAge={historyPatient.age}
       />
     </Box>
   );

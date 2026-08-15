@@ -25,6 +25,8 @@ export default function MedicalHistoryDialog({
   onClose,
   patientId,
   patientName,
+  patientDni,
+  patientAge,
 }) {
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
@@ -108,6 +110,8 @@ export default function MedicalHistoryDialog({
           </Typography>
           <Typography variant="caption" color="#5b7387">
             {patientName}
+            {patientDni && ` — DNI ${patientDni}`}
+            {patientAge != null && ` — ${patientAge} años`}
           </Typography>
         </Box>
         <IconButton onClick={onClose} size="small">

@@ -25,6 +25,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -36,6 +37,7 @@ import {
   deleteSignsAndSymptoms,
 } from '../../api/signsAndSymptoms'
 import { formatDateTime } from '../../utils/dateFormat'
+import { getPatientAge, getPatientDni } from '../../utils/patientDisplay'
 import { paletteRaw } from '../../theme/theme'
 
 const EDIT_WINDOW_MINUTES = 5
@@ -64,6 +66,7 @@ export default function SignosPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(dayjs())
 
   const {
     register,
@@ -83,6 +86,10 @@ export default function SignosPage() {
 
   const isEditable = (row) =>
     dayjs().diff(dayjs(row.date_and_time), 'minute') < EDIT_WINDOW_MINUTES
+
+  const visibleRows = rows.filter(
+    (r) => !selectedDate || dayjs(r.date_and_time).isSame(selectedDate, 'day'),
+  )
 
   const loadAll = async () => {
     setLoading(true)
@@ -222,11 +229,25 @@ export default function SignosPage() {
 
       {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
 
+      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <DatePicker
+          label="Día"
+          value={selectedDate}
+          onChange={(value) => setSelectedDate(value)}
+          slotProps={{ textField: { size: 'small' } }}
+        />
+        <Button size="small" onClick={() => setSelectedDate(dayjs())}>
+          Hoy
+        </Button>
+      </Box>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>Paciente</TableCell>
+              <TableCell>DNI</TableCell>
+              <TableCell>Edad</TableCell>
               <TableCell>Temp.</TableCell>
               <TableCell>Presión</TableCell>
               <TableCell>Síntomas</TableCell>
@@ -236,11 +257,14 @@ export default function SignosPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((r) => {
+            {visibleRows.map((r) => {
+              const patient = patients.find((p) => p.id_user === r.id_patient)
               const editable = isEditable(r)
               return (
                 <TableRow key={r.id_signs_and_symptoms}>
                   <TableCell sx={{ fontWeight: 600 }}>{patientName(r.id_patient)}</TableCell>
+                  <TableCell>{getPatientDni(patient)}</TableCell>
+                  <TableCell>{getPatientAge(patient?.date_of_birth) ?? '—'}</TableCell>
                   <TableCell
                     sx={{ color: r.temperature >= 38 ? paletteRaw.danger : 'inherit', fontWeight: r.temperature >= 38 ? 700 : 400 }}
                   >
@@ -290,10 +314,10 @@ export default function SignosPage() {
                 </TableRow>
               )
             })}
-            {!loading && rows.length === 0 && (
+            {!loading && visibleRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ color: paletteRaw.gray }}>
-                  Todavía no hay registros.
+                <TableCell colSpan={9} align="center" sx={{ color: paletteRaw.gray }}>
+                  No hay registros para el día seleccionado.
                 </TableCell>
               </TableRow>
             )}
@@ -323,7 +347,7 @@ export default function SignosPage() {
                 >
                   {patients.map((p) => (
                     <MenuItem key={p.id_user} value={p.id_user}>
-                      {p.first_name} {p.last_name}
+                      {p.first_name} {p.last_name} — DNI {getPatientDni(p)} — {getPatientAge(p.date_of_birth) ?? '—'} años
                     </MenuItem>
                   ))}
                 </TextField>

@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@mui/material'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import { getNurses } from '../../api/nurses'
@@ -42,6 +43,7 @@ export default function GuardiaPage() {
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState('')
   const [editingRow, setEditingRow] = useState(null)
+  const [selectedDate, setSelectedDate] = useState(dayjs())
 
   const {
     handleSubmit,
@@ -64,10 +66,13 @@ export default function GuardiaPage() {
     (a, b) => dayjs(b.rotation).valueOf() - dayjs(a.rotation).valueOf(),
   )
 
-  const loadAll = async () => {
+  const loadAll = async (date = selectedDate) => {
     setLoadError('')
     try {
-      const [guardRes, nursesRes] = await Promise.all([getGuardPasses(), getNurses()])
+      const [guardRes, nursesRes] = await Promise.all([
+        getGuardPasses(date ? date.format('YYYY-MM-DD') : undefined),
+        getNurses(),
+      ])
       setRows(guardRes.data)
       setNurses(nursesRes.data)
     } catch {
@@ -80,7 +85,10 @@ export default function GuardiaPage() {
     ;(async () => {
       setLoadError('')
       try {
-        const [guardRes, nursesRes] = await Promise.all([getGuardPasses(), getNurses()])
+        const [guardRes, nursesRes] = await Promise.all([
+          getGuardPasses(selectedDate ? selectedDate.format('YYYY-MM-DD') : undefined),
+          getNurses(),
+        ])
         if (!ignore) {
           setRows(guardRes.data)
           setNurses(nursesRes.data)
@@ -94,7 +102,7 @@ export default function GuardiaPage() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [selectedDate])
 
   const openDialog = () => {
     setFormError('')
@@ -147,9 +155,23 @@ export default function GuardiaPage() {
             Comunicación entre turnos
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openDialog}>
-          Nuevo pase
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <DatePicker
+            label="Fecha"
+            value={selectedDate}
+            onChange={(value) => setSelectedDate(value)}
+            slotProps={{ textField: { size: 'small' } }}
+          />
+          <Button variant="outlined" onClick={() => setSelectedDate(dayjs())}>
+            Hoy
+          </Button>
+          <Button variant="outlined" onClick={() => setSelectedDate(null)}>
+            Ver todos
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openDialog}>
+            Nuevo pase
+          </Button>
+        </Box>
       </Box>
 
       {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
@@ -214,7 +236,11 @@ export default function GuardiaPage() {
             )
           })}
           {sortedRows.length === 0 && (
-            <Typography color={paletteRaw.gray}>Todavía no hay pases de guardia.</Typography>
+            <Typography color={paletteRaw.gray}>
+              {selectedDate
+                ? `No hay pases de guardia registrados el ${selectedDate.format('DD/MM/YYYY')}.`
+                : 'Todavía no hay pases de guardia.'}
+            </Typography>
           )}
         </Box>
       </Box>

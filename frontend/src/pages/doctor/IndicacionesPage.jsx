@@ -27,6 +27,9 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { getPatients } from '../../api/patients'
 import {
   getMedicalIndications,
@@ -35,6 +38,8 @@ import {
   deleteMedicalIndication,
 } from '../../api/medicalIndications'
 import { formatDateTime } from '../../utils/dateFormat'
+import { formatPatientLabel, getPatientAge, getPatientDni } from '../../utils/patientDisplay'
+import { drawPdfHeader, drawPdfFooter, PDF_HEADER_HEIGHT } from '../../utils/pdfBranding'
 import { paletteRaw } from '../../theme/theme'
 
 const EDIT_WINDOW_MINUTES = 5
@@ -76,6 +81,39 @@ export default function IndicacionesPage() {
   const sortedRows = [...rows].sort(
     (a, b) => dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf(),
   )
+
+  const downloadIndicationPdf = (row) => {
+    const patient = patients.find((p) => p.id_user === row.id_patient)
+    if (!patient) return
+    const doc = new jsPDF()
+    const patientBoxTop = PDF_HEADER_HEIGHT + 10
+
+    doc.setDrawColor(paletteRaw.celeste)
+    doc.setFillColor(paletteRaw.celesteXL)
+    doc.roundedRect(14, patientBoxTop, 182, 20, 2, 2, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.setTextColor(paletteRaw.azulD)
+    doc.text(formatPatientLabel(patient), 20, patientBoxTop + 8)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(paletteRaw.gray)
+    doc.text(`Indicación del ${formatDateTime(row.created_at)}`, 20, patientBoxTop + 15)
+
+    autoTable(doc, {
+      startY: patientBoxTop + 26,
+      margin: { top: PDF_HEADER_HEIGHT + 6 },
+      head: [['Fecha', 'Indicación', 'Tratamiento']],
+      body: [[formatDateTime(row.created_at), row.indication, row.treatment || '—']],
+      headStyles: { fillColor: paletteRaw.azulD, textColor: '#ffffff' },
+      styles: { textColor: paletteRaw.ink, lineColor: paletteRaw.celeste },
+    })
+
+    drawPdfHeader(doc, 'Indicaciones Médicas')
+    drawPdfFooter(doc)
+    const dateSuffix = dayjs(row.created_at).format('YYYY-MM-DD')
+    doc.save(`indicacion_${patient.last_name}_${getPatientDni(patient)}_${dateSuffix}.pdf`)
+  }
 
   const loadAll = async () => {
     setLoading(true)
@@ -206,22 +244,35 @@ export default function IndicacionesPage() {
           <TableHead>
             <TableRow>
               <TableCell>Paciente</TableCell>
+              <TableCell>DNI</TableCell>
+              <TableCell>Edad</TableCell>
               <TableCell>Indicación</TableCell>
               <TableCell>Tratamiento</TableCell>
               <TableCell>Fecha</TableCell>
+              <TableCell align="center">PDF</TableCell>
               <TableCell align="right">Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {sortedRows.map((r) => {
               const editable = isEditable(r)
+              const patient = patients.find((p) => p.id_user === r.id_patient)
               return (
                 <TableRow key={r.id_medical_indication}>
                   <TableCell sx={{ fontWeight: 600 }}>{patientName(r.id_patient)}</TableCell>
+                  <TableCell>{getPatientDni(patient)}</TableCell>
+                  <TableCell>{getPatientAge(patient?.date_of_birth) ?? '—'}</TableCell>
                   <TableCell>{r.indication}</TableCell>
                   <TableCell>{r.treatment || '—'}</TableCell>
                   <TableCell sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}>
                     {formatDateTime(r.created_at)}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Descargar PDF">
+                      <IconButton size="small" onClick={() => downloadIndicationPdf(r)}>
+                        <PictureAsPdfIcon fontSize="small" sx={{ color: paletteRaw.azul }} />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                     <Tooltip title={editable ? 'Editar' : 'Ya pasaron 5 minutos desde el registro'}>
@@ -248,9 +299,9 @@ export default function IndicacionesPage() {
                 </TableRow>
               )
             })}
-            {!loading && rows.length === 0 && (
+            {!loading && sortedRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ color: paletteRaw.gray }}>
+                <TableCell colSpan={8} align="center" sx={{ color: paletteRaw.gray }}>
                   Todavía no hay indicaciones registradas.
                 </TableCell>
               </TableRow>
@@ -279,7 +330,7 @@ export default function IndicacionesPage() {
                 >
                   {patients.map((p) => (
                     <MenuItem key={p.id_user} value={p.id_user}>
-                      {p.first_name} {p.last_name}
+                      {formatPatientLabel(p)}
                     </MenuItem>
                   ))}
                 </TextField>

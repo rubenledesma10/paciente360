@@ -21,9 +21,11 @@ def create_guard_pass():
         return jsonify({"Error":"Nurse not found"}),404
         
     try:
+        rotation = data.get('rotation')
         new_guard_pass = GuardPass(
             id_nurse=id_nurse,
-            notes=data.get('notes')
+            notes=data.get('notes'),
+            **({'rotation': datetime.fromisoformat(rotation)} if rotation else {})
         )
 
         db.session.add(new_guard_pass)
@@ -36,7 +38,15 @@ def create_guard_pass():
 @guard_pass_bp.route('/', methods=['GET'])
 @role_required(RoleEnum.NURSE)
 def get_guard_passes():
-    guard_passes = GuardPass.query.all()
+    date_str = request.args.get('date')
+    query = GuardPass.query
+    if date_str:
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Invalid date format, expected YYYY-MM-DD'}), 400
+        query = query.filter(db.func.date(GuardPass.rotation) == date)
+    guard_passes = query.order_by(GuardPass.rotation.desc()).all()
     return jsonify([gp.to_dict() for gp in guard_passes]), 200
 
 @guard_pass_bp.route('/<int:id_guard_pass>', methods=['GET'])

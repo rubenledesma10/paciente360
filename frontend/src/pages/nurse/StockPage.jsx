@@ -35,6 +35,7 @@ import {
 import { getStockMovements, createStockMovement } from '../../api/stockMovements'
 import { getTraceabilities, createTraceability } from '../../api/traceabilities'
 import { formatDate, formatDateTime } from '../../utils/dateFormat'
+import { getPatientAge, getPatientDni } from '../../utils/patientDisplay'
 import { paletteRaw } from '../../theme/theme'
 
 const movementSchema = yup.object({
@@ -181,6 +182,9 @@ export default function StockPage() {
     () => products.filter((p) => p.current_stock <= p.minimum_stock_level),
     [products],
   )
+
+  const expiringProducts = useMemo(() => products.filter((p) => p.por_vencer), [products])
+  const expiredProducts = useMemo(() => products.filter((p) => p.vencido), [products])
 
   const watchedTraceProductId = useWatch({
     control: traceForm.control,
@@ -401,11 +405,24 @@ export default function StockPage() {
       )}
 
       {tab === 'trz' && (
+        <>
+          {expiredProducts.length > 0 && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              PM vencidos: {expiredProducts.map((p) => p.name_product).join(', ')}
+            </Alert>
+          )}
+          {expiringProducts.length > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              PM por vencer: {expiringProducts.map((p) => p.name_product).join(', ')}
+            </Alert>
+          )}
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Paciente</TableCell>
+                <TableCell>DNI</TableCell>
+                <TableCell>Edad</TableCell>
                 <TableCell>Producto</TableCell>
                 <TableCell>Cantidad</TableCell>
                 <TableCell>Lote</TableCell>
@@ -416,9 +433,12 @@ export default function StockPage() {
             <TableBody>
               {traceabilities.map((t) => {
                 const product = products.find((p) => p.id_product === t.id_product)
+                const patient = patients.find((p) => p.id_user === t.id_patient)
                 return (
                   <TableRow key={t.id_traceability}>
                     <TableCell sx={{ fontWeight: 600 }}>{patientName(t.id_patient)}</TableCell>
+                    <TableCell>{getPatientDni(patient)}</TableCell>
+                    <TableCell>{getPatientAge(patient?.date_of_birth) ?? '—'}</TableCell>
                     <TableCell>{productName(t.id_product)}</TableCell>
                     <TableCell>{t.quantity}</TableCell>
                     <TableCell><Chip size="small" label={product?.batch_number || '—'} /></TableCell>
@@ -430,6 +450,7 @@ export default function StockPage() {
             </TableBody>
           </Table>
         </TableContainer>
+        </>
       )}
 
       <Dialog open={movOpen} onClose={() => setMovOpen(false)} fullWidth maxWidth="sm">
@@ -506,7 +527,7 @@ export default function StockPage() {
                 >
                   {patients.map((p) => (
                     <MenuItem key={p.id_user} value={p.id_user}>
-                      {p.first_name} {p.last_name}
+                      {p.first_name} {p.last_name} — DNI {getPatientDni(p)} — {getPatientAge(p.date_of_birth) ?? '—'} años
                     </MenuItem>
                   ))}
                 </TextField>

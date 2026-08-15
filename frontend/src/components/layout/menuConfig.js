@@ -5,6 +5,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import HomeIcon from '@mui/icons-material/Home';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
 import HistoryIcon from '@mui/icons-material/History';
+import EventNoteIcon from '@mui/icons-material/EventNote';
 
 export const NURSE_MENU = [
   {
@@ -30,6 +31,12 @@ export const NURSE_MENU = [
 
 export const PATIENT_MENU = [
   {
+    id: 'mis-turnos',
+    label: 'Mis turnos',
+    icon: EventNoteIcon,
+    path: '/mis-turnos',
+  },
+  {
     id: 'noticias',
     label: 'Noticias y prevención',
     icon: NewspaperIcon,
@@ -52,7 +59,7 @@ export const DOCTOR_MENU = [
   },
 ];
 
-// Menú del administrativo ← nuevo
+// Menú del administrativo
 export const ADMINISTRATIVE_MENU = [
   {
     id: 'admin-noticias',

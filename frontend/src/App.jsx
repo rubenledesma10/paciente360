@@ -3,6 +3,7 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import PublicOnlyRoute from './routes/PublicOnlyRoute';
 import NurseRoute from './routes/NurseRoute';
 import DoctorRoute from './routes/DoctorRoute';
+import PatientRoute from './routes/PatientRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import RecuperarCuentaPage from './pages/RecuperarCuentaPage';
@@ -12,10 +13,12 @@ import PublicShell from './components/layout/PublicShell';
 import SignosPage from './pages/nurse/SignosPage';
 import StockPage from './pages/nurse/StockPage';
 import GuardiaPage from './pages/nurse/GuardiaPage';
+import NewsAndPrevention from './pages/NewsAndPrevention';
 import NewsDetail from './pages/NewsDetail';
 import Seguimiento from './pages/Seguimiento';
 import IndicacionesPage from './pages/doctor/IndicacionesPage';
 import HistoriaClinicaPage from './pages/doctor/HistoriaClinicaPage';
+import MisTurnosPage from './pages/patient/MisTurnosPage';
 import { useAuth } from './context/useAuth';
 import { roleHome } from './utils/roleHome';
 import AdministrativeRoute from './routes/AdministrativeRoute';
@@ -26,15 +29,16 @@ function App() {
 
   return (
     <Routes>
-      {/* Principal pública: login + noticias */}
+      {/* Principal pública: login + registro */}
       <Route element={<PublicOnlyRoute />}>
         <Route path="/" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/recuperar-cuenta" element={<RecuperarCuentaPage />} />
       </Route>
 
-      {/* Detalle de noticia: público */}
+      {/* Noticias: públicas (listado y detalle) */}
       <Route element={<PublicShell />}>
+        <Route path="/noticias" element={<NewsAndPrevention />} />
         <Route path="/noticias/:id" element={<NewsDetail />} />
       </Route>
 
@@ -50,6 +54,10 @@ function App() {
           <Route element={<DoctorRoute />}>
             <Route path="indicaciones" element={<IndicacionesPage />} />
             <Route path="historia-clinica" element={<HistoriaClinicaPage />} />
+          </Route>
+
+          <Route element={<PatientRoute />}>
+            <Route path="mis-turnos" element={<MisTurnosPage />} />
           </Route>
 
           <Route element={<AdministrativeRoute />}>

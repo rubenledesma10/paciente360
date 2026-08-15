@@ -19,20 +19,32 @@ import { getAppointments, getAppointmentsByPatient } from '../api/appointments';
 // Días de anticipación para avisar al paciente que confirme
 const CONFIRM_WINDOW_DAYS = 3;
 
+// Parsea 'YYYY-MM-DD' como fecha local (evita el corrimiento de un día por UTC)
+const parseDate = (value) => {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(value);
+};
+
 // Devuelve la cantidad de días entre hoy y una fecha (positivo = futuro)
-const daysUntil = (isoDate) => {
+const daysUntil = (value) => {
+  const target = parseDate(value);
+  if (!target) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const target = new Date(isoDate);
   target.setHours(0, 0, 0, 0);
   return Math.round((target - today) / (1000 * 60 * 60 * 24));
 };
 
-const formatDate = (isoDate) =>
-  new Date(isoDate).toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-  });
+const formatDate = (value) => {
+  const d = parseDate(value);
+  return d
+    ? d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+    : '—';
+};
 
 export default function NotificationsBell() {
   const { rol, userId } = useAuth();
@@ -76,7 +88,7 @@ export default function NotificationsBell() {
           .filter((a) => a.id_doctor === userId)
           .filter((a) => a.status === 'Reservado' || a.status === 'En espera')
           .filter((a) => daysUntil(a.date) >= 0) // hoy en adelante
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .sort((a, b) => parseDate(a.date) - parseDate(b.date))
           .map((a) => {
             const d = daysUntil(a.date);
             return {
@@ -102,7 +114,7 @@ export default function NotificationsBell() {
         const notifs = res.data
           .filter((a) => a.status === 'Reservado' || a.status === 'En espera')
           .filter((a) => daysUntil(a.date) >= 0)
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .sort((a, b) => parseDate(a.date) - parseDate(b.date))
           .map((a) => {
             const d = daysUntil(a.date);
             // Por confirmar: dentro de la ventana, sin confirmar y no el día del turno
@@ -116,7 +128,7 @@ export default function NotificationsBell() {
               subtitle: needsConfirm
                 ? `Con ${a.doctor_name} a las ${a.hour}`
                 : `Con ${a.doctor_name} a las ${a.hour}${a.confirmed ? ' (confirmado)' : ''}`,
-              to: null, // mañana: llevará a la pantalla de turnos del paciente
+              to: '/mis-turnos',
             };
           });
         if (!cancelled) setItems(notifs);
@@ -134,7 +146,7 @@ export default function NotificationsBell() {
 
     load();
 
-    // Refresco en tiempo real (seguimientos y, a futuro, turnos)
+    // Refresco en tiempo real (seguimientos y turnos)
     const handler = () => load();
     window.addEventListener('followups-changed', handler);
     window.addEventListener('appointments-changed', handler);

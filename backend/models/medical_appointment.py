@@ -12,6 +12,7 @@ class MedicalAppointment(db.Model):
     hour = db.Column(db.String(10), nullable=False)
     status = db.Column(db.Enum(AppointmentStatusEnum), default=AppointmentStatusEnum.RESERVADO, nullable=False)
     reason = db.Column(db.String(255), nullable=True)
+    confirmed = db.Column(db.Boolean, default=False, nullable=False)
  
     patient = db.relationship('Patient', back_populates='appointments')
     doctor = db.relationship('Doctor', back_populates='appointments')
@@ -25,6 +26,7 @@ class MedicalAppointment(db.Model):
             'hour': self.hour,
             'status': self.status.value if self.status else None,
             'reason': self.reason,
+            'confirmed': self.confirmed,
             'patient_name': f"{self.patient.first_name} {self.patient.last_name}" if self.patient else None,
             'doctor_name': f"{self.doctor.first_name} {self.doctor.last_name}" if self.doctor else None
         }

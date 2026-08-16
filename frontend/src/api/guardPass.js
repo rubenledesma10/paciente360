@@ -11,3 +11,11 @@ export function createGuardPass(payload) {
 export function updateGuardPass(id, payload) {
   return client.put(`/guard_pass/${id}`, payload);
 }
+
+export function createGuardPassChecklist(idGuardPass, items) {
+  return client.post(`/guard_pass/${idGuardPass}/checklist`, { items });
+}
+
+export function updateGuardPassChecklist(idGuardPass, items) {
+  return client.put(`/guard_pass/${idGuardPass}/checklist`, { items });
+}

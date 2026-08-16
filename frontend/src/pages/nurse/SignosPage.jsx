@@ -29,7 +29,9 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import HistoryIcon from '@mui/icons-material/History'
 import { getPatients } from '../../api/patients'
+import MedicalHistoryDialog from '../../components/MedicalHistoryDialog'
 import {
   getSignsAndSymptoms,
   createSignsAndSymptoms,
@@ -66,6 +68,8 @@ export default function SignosPage() {
   const [formError, setFormError] = useState('')
   const [editingRow, setEditingRow] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyPatient, setHistoryPatient] = useState({ id: null, name: '', dni: null, age: null })
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [selectedDate, setSelectedDate] = useState(dayjs())
@@ -88,6 +92,17 @@ export default function SignosPage() {
 
   const isEditable = (row) =>
     dayjs().diff(dayjs(row.date_and_time), 'minute') < EDIT_WINDOW_MINUTES
+
+  const openHistory = (patientId, name) => {
+    const patient = patients.find((p) => p.id_user === patientId)
+    setHistoryPatient({
+      id: patientId,
+      name,
+      dni: patient ? getPatientDni(patient) : null,
+      age: patient ? getPatientAge(patient.date_of_birth) : null,
+    })
+    setHistoryOpen(true)
+  }
 
   const patientOptions = editingRow
     ? patients.map((p) => ({
@@ -289,14 +304,7 @@ export default function SignosPage() {
                     {r.temperature}°C
                   </TableCell>
                   <TableCell>{r.blood_pressure || '—'}</TableCell>
-                  <TableCell>
-                    {r.symptoms}
-                    {r.observations && (
-                      <Typography variant="caption" display="block" color={paletteRaw.gray}>
-                        {r.observations}
-                      </Typography>
-                    )}
-                  </TableCell>
+                  <TableCell>{r.symptoms}</TableCell>
                   <TableCell>
                     <Chip
                       size="small"
@@ -308,6 +316,14 @@ export default function SignosPage() {
                     {formatDateTime(r.date_and_time)}
                   </TableCell>
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                    <Tooltip title="Historial clínico">
+                      <IconButton
+                        size="small"
+                        onClick={() => openHistory(r.id_patient, patientName(r.id_patient))}
+                      >
+                        <HistoryIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title={editable ? 'Editar' : 'Ya pasaron 5 minutos desde el registro'}>
                       <span>
                         <IconButton
@@ -448,6 +464,15 @@ export default function SignosPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <MedicalHistoryDialog
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        patientId={historyPatient.id}
+        patientName={historyPatient.name}
+        patientDni={historyPatient.dni}
+        patientAge={historyPatient.age}
+      />
     </Box>
   )
 }

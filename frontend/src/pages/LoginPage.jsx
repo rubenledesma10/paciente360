@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   CardActionArea,
+  CardMedia,
   Chip,
   Grid,
   IconButton,
@@ -26,6 +27,7 @@ import { useAuth } from '../context/useAuth';
 import { roleHome } from '../utils/roleHome';
 import { gradients, paletteRaw } from '../theme/theme';
 import { getNews } from '../api/news';
+import { mediaUrl } from '../utils/mediaUrl';
 
 const schema = yup.object({
   username: yup.string().required('Ingresá tu usuario'),
@@ -229,65 +231,88 @@ export default function LoginPage() {
           </Box>
 
           <Grid container spacing={3}>
-            {filteredNews.map((item) => (
-              <Grid key={item.id_news_and_prevention} size={{ xs: 12, sm: 6 }}>
-                <Card sx={{ height: '100%', borderRadius: 3 }}>
-                  <CardActionArea
-                    onClick={() =>
-                      navigate(`/noticias/${item.id_news_and_prevention}`)
-                    }
-                    sx={{ height: '100%', p: 2.5, display: 'block' }}
-                  >
-                    <Chip
-                      label={item.category}
-                      size="small"
+            {filteredNews.map((item) => {
+              const photo = mediaUrl(item.photo);
+              return (
+                <Grid
+                  key={item.id_news_and_prevention}
+                  size={{ xs: 12, sm: 6 }}
+                >
+                  <Card sx={{ height: '100%', borderRadius: 3 }}>
+                    <CardActionArea
+                      onClick={() =>
+                        navigate(`/noticias/${item.id_news_and_prevention}`)
+                      }
                       sx={{
-                        mb: 1.5,
-                        fontWeight: 700,
-                        bgcolor:
-                          item.category === 'Prevención'
-                            ? '#e4f5ee'
-                            : '#fdf1e0',
-                        color:
-                          item.category === 'Prevención'
-                            ? '#1a8a5a'
-                            : '#c77f1a',
-                      }}
-                    />
-                    <Typography
-                      variant="h6"
-                      fontWeight={700}
-                      color="#0E4C82"
-                      sx={{ mb: 0.5 }}
-                    >
-                      {item.title}
-                    </Typography>
-                    <Box
-                      sx={{
+                        height: '100%',
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
-                        mb: 1.5,
+                        flexDirection: 'column',
+                        alignItems: 'stretch',
                       }}
                     >
-                      <CalendarTodayIcon
-                        sx={{ fontSize: 14, color: '#94a3b8' }}
-                      />
-                      <Typography variant="caption" color="#94a3b8">
-                        {formatDate(item.date)}
-                      </Typography>
-                    </Box>
-                    <Typography
-                      variant="body2"
-                      color="#475569"
-                      sx={{ lineHeight: 1.6 }}
-                    >
-                      {item.content}
-                    </Typography>
-                  </CardActionArea>
-                </Card>
-              </Grid>
-            ))}
+                      {/* La imagen es opcional: sin foto la tarjeta se ve igual de bien */}
+                      {photo && (
+                        <CardMedia
+                          component="img"
+                          image={photo}
+                          alt={item.title}
+                          sx={{ height: 170, objectFit: 'cover' }}
+                        />
+                      )}
+
+                      <Box sx={{ p: 2.5 }}>
+                        <Chip
+                          label={item.category}
+                          size="small"
+                          sx={{
+                            mb: 1.5,
+                            fontWeight: 700,
+                            bgcolor:
+                              item.category === 'Prevención'
+                                ? '#e4f5ee'
+                                : '#fdf1e0',
+                            color:
+                              item.category === 'Prevención'
+                                ? '#1a8a5a'
+                                : '#c77f1a',
+                          }}
+                        />
+                        <Typography
+                          variant="h6"
+                          fontWeight={700}
+                          color="#0E4C82"
+                          sx={{ mb: 0.5 }}
+                        >
+                          {item.title}
+                        </Typography>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            mb: 1.5,
+                          }}
+                        >
+                          <CalendarTodayIcon
+                            sx={{ fontSize: 14, color: '#94a3b8' }}
+                          />
+                          <Typography variant="caption" color="#94a3b8">
+                            {formatDate(item.date)}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          color="#475569"
+                          sx={{ lineHeight: 1.6 }}
+                        >
+                          {item.content}
+                        </Typography>
+                      </Box>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         </Grid>
       </Grid>

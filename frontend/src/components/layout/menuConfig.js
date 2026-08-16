@@ -53,6 +53,12 @@ export const PATIENT_MENU = [
 
 export const DOCTOR_MENU = [
   {
+    id: 'agenda',
+    label: 'Mis turnos',
+    icon: EventNoteIcon,
+    path: '/agenda',
+  },
+  {
     id: 'indicaciones',
     label: 'Indicaciones médicas',
     icon: AssignmentIcon,
@@ -68,6 +74,12 @@ export const DOCTOR_MENU = [
 
 // Menú del administrativo
 export const ADMINISTRATIVE_MENU = [
+  {
+    id: 'admin-turnos',
+    label: 'Gestión de turnos',
+    icon: EventNoteIcon,
+    path: '/admin/turnos',
+  },
   {
     id: 'admin-noticias',
     label: 'Noticias y novedades',

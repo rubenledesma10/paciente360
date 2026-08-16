@@ -9,7 +9,7 @@ import RegisterPage from './pages/RegisterPage';
 import RecuperarCuentaPage from './pages/RecuperarCuentaPage';
 import HomePlaceholderPage from './pages/HomePlaceholderPage';
 import AuthShell from './components/layout/AuthShell';
-import PublicShell from './components/layout/PublicShell';
+import NewsShell from './components/layout/NewsShell';
 import SignosPage from './pages/nurse/SignosPage';
 import StockPage from './pages/nurse/StockPage';
 import GuardiaPage from './pages/nurse/GuardiaPage';
@@ -18,12 +18,15 @@ import NewsDetail from './pages/NewsDetail';
 import Seguimiento from './pages/Seguimiento';
 import IndicacionesPage from './pages/doctor/IndicacionesPage';
 import HistoriaClinicaPage from './pages/doctor/HistoriaClinicaPage';
+import AgendaPage from './pages/doctor/AgendaPage';
+import PerfilPage from './pages/PerfilPage';
 import MisTurnosPage from './pages/patient/MisTurnosPage';
 import SacarTurnoPage from './pages/patient/SacarTurnoPage';
 import { useAuth } from './context/useAuth';
 import { roleHome } from './utils/roleHome';
 import AdministrativeRoute from './routes/AdministrativeRoute';
 import AdminNoticiasPage from './pages/admin/AdminNoticiasPage';
+import AdminTurnosPage from './pages/admin/AdminTurnosPage';
 
 function App() {
   const { rol } = useAuth();
@@ -37,8 +40,9 @@ function App() {
         <Route path="/recuperar-cuenta" element={<RecuperarCuentaPage />} />
       </Route>
 
-      {/* Noticias: públicas (listado y detalle) */}
-      <Route element={<PublicShell />}>
+      {/* Noticias: se ven con y sin sesión.
+          NewsShell elige el layout: sidebar si estás logueado, cabecera pública si no. */}
+      <Route element={<NewsShell />}>
         <Route path="/noticias" element={<NewsAndPrevention />} />
         <Route path="/noticias/:id" element={<NewsDetail />} />
       </Route>
@@ -53,6 +57,7 @@ function App() {
           </Route>
 
           <Route element={<DoctorRoute />}>
+            <Route path="agenda" element={<AgendaPage />} />
             <Route path="indicaciones" element={<IndicacionesPage />} />
             <Route path="historia-clinica" element={<HistoriaClinicaPage />} />
           </Route>
@@ -63,8 +68,12 @@ function App() {
           </Route>
 
           <Route element={<AdministrativeRoute />}>
+            <Route path="admin/turnos" element={<AdminTurnosPage />} />
             <Route path="admin/noticias" element={<AdminNoticiasPage />} />
           </Route>
+
+          {/* Perfil: comun a los cuatro roles */}
+          <Route path="perfil" element={<PerfilPage />} />
 
           <Route path="inicio" element={<HomePlaceholderPage />} />
         </Route>

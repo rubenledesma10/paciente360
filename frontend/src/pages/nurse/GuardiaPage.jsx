@@ -4,6 +4,9 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import dayjs from 'dayjs'
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -13,7 +16,10 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
+  Radio,
+  RadioGroup,
   TextField,
   Tooltip,
   Typography,
@@ -22,11 +28,25 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ChecklistIcon from '@mui/icons-material/PlaylistAddCheck'
 import { getNurses } from '../../api/nurses'
-import { getGuardPasses, createGuardPass, updateGuardPass } from '../../api/guardPass'
+import {
+  getGuardPasses,
+  createGuardPass,
+  updateGuardPass,
+  createGuardPassChecklist,
+  updateGuardPassChecklist,
+} from '../../api/guardPass'
 import { useAuth } from '../../context/useAuth'
 import { formatDateTime } from '../../utils/dateFormat'
 import { paletteRaw } from '../../theme/theme'
+import {
+  CHECKLIST_RATINGS,
+  GUARD_PASS_CHECKLIST_SECTIONS,
+  GUARD_PASS_CHECKLIST_ITEMS,
+  emptyChecklistItems,
+} from '../../utils/guardPassChecklist'
 
 const EDIT_WINDOW_MINUTES = 15
 
@@ -44,6 +64,8 @@ export default function GuardiaPage() {
   const [formError, setFormError] = useState('')
   const [editingRow, setEditingRow] = useState(null)
   const [selectedDate, setSelectedDate] = useState(dayjs())
+  const [checklistItems, setChecklistItems] = useState(emptyChecklistItems())
+  const [checklistViewTarget, setChecklistViewTarget] = useState(null)
 
   const {
     handleSubmit,
@@ -56,6 +78,21 @@ export default function GuardiaPage() {
   const nurseName = (id) => {
     const n = nurses.find((x) => x.id_user === id)
     return n ? `${n.first_name} ${n.last_name}` : '—'
+  }
+
+  const setChecklistItemField = (n, field, value) => {
+    setChecklistItems((prev) =>
+      prev.map((it) => (it.n === n ? { ...it, [field]: value } : it)),
+    )
+  }
+
+  const checklistSummary = (checklist) => {
+    if (!checklist) return null
+    const counts = { Satisfactorio: 0, 'Requiere más práctica': 0, Insatisfactorio: 0 }
+    checklist.items.forEach((it) => {
+      if (it.rating && counts[it.rating] !== undefined) counts[it.rating] += 1
+    })
+    return counts
   }
 
   const isEditable = (row) =>
@@ -107,6 +144,7 @@ export default function GuardiaPage() {
   const openDialog = () => {
     setFormError('')
     setEditingRow(null)
+    setChecklistItems(emptyChecklistItems())
     reset({ rotation: dayjs(), notes: '' })
     setOpen(true)
   }
@@ -114,21 +152,43 @@ export default function GuardiaPage() {
   const openEditDialog = (row) => {
     setFormError('')
     setEditingRow(row)
+    if (row.checklist) {
+      setChecklistItems(
+        GUARD_PASS_CHECKLIST_ITEMS.map((item) => {
+          const existing = row.checklist.items.find((it) => it.n === item.n)
+          return existing
+            ? { n: item.n, rating: existing.rating, observation: existing.observation || '' }
+            : { n: item.n, rating: null, observation: '' }
+        }),
+      )
+    } else {
+      setChecklistItems(emptyChecklistItems())
+    }
     reset({ rotation: dayjs(row.rotation), notes: row.notes || '' })
     setOpen(true)
   }
 
   const onSubmit = async (values) => {
     setFormError('')
+    const hasChecklistData = checklistItems.some((it) => it.rating || it.observation)
     try {
+      let idGuardPass = editingRow?.id_guard_pass
       if (editingRow) {
         await updateGuardPass(editingRow.id_guard_pass, { notes: values.notes })
       } else {
-        await createGuardPass({
+        const res = await createGuardPass({
           id_nurse: userId,
           rotation: dayjs(values.rotation).format('YYYY-MM-DD HH:mm:ss'),
           notes: values.notes,
         })
+        idGuardPass = res.data.id_guard_pass
+      }
+      if (hasChecklistData) {
+        if (editingRow?.checklist) {
+          await updateGuardPassChecklist(idGuardPass, checklistItems)
+        } else {
+          await createGuardPassChecklist(idGuardPass, checklistItems)
+        }
       }
       setOpen(false)
       loadAll()
@@ -232,6 +292,24 @@ export default function GuardiaPage() {
                 <Typography variant="body2" sx={{ mt: 1 }} color={paletteRaw.ink}>
                   {g.notes}
                 </Typography>
+                {g.checklist && (
+                  <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button
+                      size="small"
+                      variant="text"
+                      startIcon={<ChecklistIcon fontSize="small" />}
+                      onClick={() => setChecklistViewTarget(g)}
+                    >
+                      Ver checklist SBAR-SAER
+                    </Button>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color="success"
+                      label={`${checklistSummary(g.checklist).Satisfactorio}/${GUARD_PASS_CHECKLIST_ITEMS.length} satisfactorio`}
+                    />
+                  </Box>
+                )}
               </Card>
             )
           })}
@@ -277,6 +355,56 @@ export default function GuardiaPage() {
               error={!!errors.notes}
               helperText={errors.notes?.message}
             />
+
+            <Accordion disableGutters>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="body2" fontWeight={700} color={paletteRaw.azulD}>
+                  Checklist SBAR-SAER (opcional)
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {GUARD_PASS_CHECKLIST_SECTIONS.map((section) => (
+                  <Box key={section.key}>
+                    <Typography variant="subtitle2" color={paletteRaw.azulD} sx={{ mb: 1 }}>
+                      {section.title}
+                    </Typography>
+                    {section.items.map((item) => {
+                      const current = checklistItems.find((it) => it.n === item.n)
+                      return (
+                        <Box key={item.n} sx={{ mb: 1.5 }}>
+                          <Typography variant="body2" sx={{ mb: 0.5 }}>
+                            {item.n}. {item.text}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                            <RadioGroup
+                              row
+                              value={current?.rating || ''}
+                              onChange={(e) => setChecklistItemField(item.n, 'rating', e.target.value)}
+                            >
+                              {CHECKLIST_RATINGS.map((rating) => (
+                                <FormControlLabel
+                                  key={rating}
+                                  value={rating}
+                                  control={<Radio size="small" />}
+                                  label={<Typography variant="caption">{rating}</Typography>}
+                                />
+                              ))}
+                            </RadioGroup>
+                            <TextField
+                              size="small"
+                              placeholder="Observación"
+                              value={current?.observation || ''}
+                              onChange={(e) => setChecklistItemField(item.n, 'observation', e.target.value)}
+                              sx={{ flex: 1, minWidth: 180 }}
+                            />
+                          </Box>
+                        </Box>
+                      )
+                    })}
+                  </Box>
+                ))}
+              </AccordionDetails>
+            </Accordion>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setOpen(false)}>Cancelar</Button>
@@ -285,6 +413,58 @@ export default function GuardiaPage() {
             </Button>
           </DialogActions>
         </Box>
+      </Dialog>
+
+      <Dialog
+        open={!!checklistViewTarget}
+        onClose={() => setChecklistViewTarget(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Checklist SBAR-SAER</DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {checklistViewTarget &&
+            GUARD_PASS_CHECKLIST_SECTIONS.map((section) => (
+              <Box key={section.key}>
+                <Typography variant="subtitle2" color={paletteRaw.azulD} sx={{ mb: 1 }}>
+                  {section.title}
+                </Typography>
+                {section.items.map((item) => {
+                  const found = checklistViewTarget.checklist.items.find((it) => it.n === item.n)
+                  return (
+                    <Box key={item.n} sx={{ mb: 1.5 }}>
+                      <Typography variant="body2">
+                        {item.n}. {item.text}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                        <Chip
+                          size="small"
+                          label={found?.rating || 'Sin calificar'}
+                          color={
+                            found?.rating === 'Satisfactorio'
+                              ? 'success'
+                              : found?.rating === 'Requiere más práctica'
+                                ? 'warning'
+                                : found?.rating === 'Insatisfactorio'
+                                  ? 'error'
+                                  : 'default'
+                          }
+                        />
+                        {found?.observation && (
+                          <Typography variant="caption" color={paletteRaw.gray}>
+                            Observación: {found.observation}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  )
+                })}
+              </Box>
+            ))}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setChecklistViewTarget(null)}>Cerrar</Button>
+        </DialogActions>
       </Dialog>
     </Box>
   )

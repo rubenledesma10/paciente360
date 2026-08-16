@@ -27,20 +27,17 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { getPatients } from '../../api/patients'
-import {
-  getMedicalProducts,
-  createMedicalProduct,
-  updateMedicalProduct,
-} from '../../api/medicalProducts'
+import { getMedicalProducts, createMedicalProduct } from '../../api/medicalProducts'
 import { getStockMovements, createStockMovement } from '../../api/stockMovements'
 import { getTraceabilities, createTraceability } from '../../api/traceabilities'
+import { getWaitingPatients } from '../../api/signsAndSymptoms'
 import { formatDate, formatDateTime } from '../../utils/dateFormat'
 import { getPatientAge, getPatientDni } from '../../utils/patientDisplay'
 import { paletteRaw } from '../../theme/theme'
 
 const movementSchema = yup.object({
   id_product: yup.number().typeError('Elegí un producto').required(),
-  type_movement: yup.string().required(),
+  type_movement: yup.string().oneOf(['Entrada', 'Desechado']).required(),
   quantity: yup
     .number()
     .typeError('Ingresá la cantidad')
@@ -58,6 +55,30 @@ const traceSchema = yup.object({
     .integer('Debe ser un número entero')
     .required('Ingresá la cantidad'),
 })
+
+const PRODUCT_TYPES = [
+  // Medicamentos
+  'Analgésicos',
+  'Antibióticos',
+  'Antivirales',
+  'Antiinflamatorios',
+  'Antipiréticos',
+  'Antihistamínicos',
+  'Antihipertensivos',
+  'Anestésicos',
+  'Vacunas',
+  'Soluciones y sueros',
+  // Insumos y material
+  'Descartables',
+  'Material de curación',
+  'Material de sutura',
+  'Instrumental médico',
+  'Equipos de protección personal (EPP)',
+  'Prótesis',
+  'Oxígeno y gases medicinales',
+  'Reactivos de laboratorio',
+  'Otro',
+]
 
 const productSchema = yup.object({
   name_product: yup.string().required('Ingresá el nombre del producto'),
@@ -89,6 +110,7 @@ export default function StockPage() {
   const [movements, setMovements] = useState([])
   const [traceabilities, setTraceabilities] = useState([])
   const [patients, setPatients] = useState([])
+  const [waitingPatients, setWaitingPatients] = useState([])
   const [loadError, setLoadError] = useState('')
   const [movOpen, setMovOpen] = useState(false)
   const [movError, setMovError] = useState('')
@@ -102,7 +124,7 @@ export default function StockPage() {
 
   const movForm = useForm({
     resolver: yupResolver(movementSchema),
-    defaultValues: { type_movement: 'Salida' },
+    defaultValues: { type_movement: 'Entrada' },
   })
   const traceForm = useForm({ resolver: yupResolver(traceSchema) })
   const productForm = useForm({
@@ -196,13 +218,19 @@ export default function StockPage() {
 
   const openMovDialog = () => {
     setMovError('')
-    movForm.reset({ id_product: '', type_movement: 'Salida', quantity: '' })
+    movForm.reset({ id_product: '', type_movement: 'Entrada', quantity: '' })
     setMovOpen(true)
   }
 
-  const openTraceDialog = () => {
+  const openTraceDialog = async () => {
     setTraceError('')
     traceForm.reset({ id_patient: '', id_product: '', quantity: 1 })
+    try {
+      const res = await getWaitingPatients()
+      setWaitingPatients(res.data)
+    } catch {
+      setTraceError('No se pudo cargar la lista de pacientes en espera.')
+    }
     setTraceOpen(true)
   }
 
@@ -223,12 +251,6 @@ export default function StockPage() {
     setMovError('')
     try {
       await createStockMovement(values)
-      const product = products.find((p) => p.id_product === Number(values.id_product))
-      if (product) {
-        const delta = values.type_movement === 'Entrada' ? values.quantity : -values.quantity
-        const nextStock = Math.max(0, product.current_stock + Number(delta))
-        await updateMedicalProduct(product.id_product, { current_stock: nextStock })
-      }
       setMovOpen(false)
       loadAll()
     } catch (err) {
@@ -296,13 +318,15 @@ export default function StockPage() {
         </Box>
         {tab === 'inv' && (
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button variant="outlined" startIcon={<AddIcon />} onClick={openProductDialog}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openProductDialog}>
               Nuevo producto
             </Button>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={openMovDialog}>
-              Movimiento
-            </Button>
           </Box>
+        )}
+        {tab === 'mov' && (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openMovDialog}>
+            Movimiento
+          </Button>
         )}
         {tab === 'trz' && (
           <Button variant="contained" startIcon={<AddIcon />} onClick={openTraceDialog}>
@@ -316,6 +340,11 @@ export default function StockPage() {
       {lowStock.length > 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           Stock bajo: {lowStock.map((p) => p.name_product).join(', ')}
+        </Alert>
+      )}
+      {expiringProducts.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          PM por vencer: {expiringProducts.map((p) => p.name_product).join(', ')}
         </Alert>
       )}
 
@@ -392,7 +421,13 @@ export default function StockPage() {
                     <Chip
                       size="small"
                       label={m.type_movement}
-                      color={m.type_movement === 'Entrada' ? 'success' : 'warning'}
+                      color={
+                        m.type_movement === 'Entrada'
+                          ? 'success'
+                          : m.type_movement === 'Desechado'
+                            ? 'error'
+                            : 'warning'
+                      }
                     />
                   </TableCell>
                   <TableCell>{m.quantity}</TableCell>
@@ -409,11 +444,6 @@ export default function StockPage() {
           {expiredProducts.length > 0 && (
             <Alert severity="error" sx={{ mb: 2 }}>
               PM vencidos: {expiredProducts.map((p) => p.name_product).join(', ')}
-            </Alert>
-          )}
-          {expiringProducts.length > 0 && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              PM por vencer: {expiringProducts.map((p) => p.name_product).join(', ')}
             </Alert>
           )}
         <TableContainer component={Paper}>
@@ -484,8 +514,8 @@ export default function StockPage() {
                 control={movForm.control}
                 render={({ field }) => (
                   <TextField {...field} select label="Tipo" fullWidth>
-                    <MenuItem value="Salida">Salida</MenuItem>
                     <MenuItem value="Entrada">Entrada</MenuItem>
+                    <MenuItem value="Desechado">Desechado</MenuItem>
                   </TextField>
                 )}
               />
@@ -523,11 +553,16 @@ export default function StockPage() {
                   select
                   label="Paciente"
                   error={!!traceForm.formState.errors.id_patient}
-                  helperText={traceForm.formState.errors.id_patient?.message}
+                  helperText={
+                    traceForm.formState.errors.id_patient?.message ||
+                    (waitingPatients.length === 0
+                      ? 'No hay pacientes en espera en este momento.'
+                      : '')
+                  }
                 >
-                  {patients.map((p) => (
-                    <MenuItem key={p.id_user} value={p.id_user}>
-                      {p.first_name} {p.last_name} — DNI {getPatientDni(p)} — {getPatientAge(p.date_of_birth) ?? '—'} años
+                  {waitingPatients.map((p) => (
+                    <MenuItem key={p.id_patient} value={p.id_patient}>
+                      {p.patient_name} — DNI {p.dni}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -590,11 +625,19 @@ export default function StockPage() {
               helperText={productForm.formState.errors.name_product?.message}
             />
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Tipo"
-                placeholder="Insumo / Medicamento"
-                fullWidth
-                {...productForm.register('type_product')}
+              <Controller
+                name="type_product"
+                control={productForm.control}
+                defaultValue=""
+                render={({ field }) => (
+                  <TextField {...field} select label="Tipo" fullWidth>
+                    {PRODUCT_TYPES.map((t) => (
+                      <MenuItem key={t} value={t}>
+                        {t}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
               />
               <TextField
                 label="Número de lote"

@@ -98,7 +98,7 @@ export default function NotificationsBell() {
                 d === 0
                   ? `Hoy a las ${a.hour}`
                   : `${formatDate(a.date)} a las ${a.hour}`,
-              to: null,
+              to: '/agenda',
             };
           });
         if (!cancelled) setItems(notifs);

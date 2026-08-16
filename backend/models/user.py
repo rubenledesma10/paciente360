@@ -33,4 +33,27 @@ class User(db.Model):
     def check_password(self, password_input): #aca va la logica para verificar el hash de la contraseña
         return check_password_hash(self.password, password_input)
 
-    
+    def to_dict(self):
+        """Serializacion base del usuario.
+
+        Patient, Doctor y Nurse la sobrescriben con sus campos propios.
+        El administrativo no tiene tabla propia, asi que usa esta: sin
+        este metodo su perfil no se podia serializar.
+        NUNCA incluye la contrasena, ni siquiera hasheada.
+        """
+        return {
+            'id_user': self.id_user,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'username': self.username,
+            'dni': self.dni,
+            'email': self.email,
+            'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
+            'profile_photo': self.profile_photo,
+            'country': self.country,
+            'phone_number': self.phone_number,
+            'address': self.address,
+            'emergency_contact': self.emergency_contact,
+            'gender': self.gender,
+            'is_active': self.is_active,
+        }

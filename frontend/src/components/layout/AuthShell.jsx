@@ -20,17 +20,24 @@ import { useAuth } from '../../context/useAuth';
 import { menuForRole, routeTitle, ROLE_LABELS } from './menuConfig';
 import { paletteRaw } from '../../theme/theme';
 import NotificationsBell from '../NotificationsBell';
+import { mediaUrl } from '../../utils/mediaUrl';
 
 const DRAWER_WIDTH = 260;
 
 export default function AuthShell() {
-  const { rol, nombre, logout } = useAuth();
+  const { rol, nombre, foto, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const menu = menuForRole(rol);
   const roleLabel = ROLE_LABELS[rol] || rol;
+  const photoUrl = mediaUrl(foto) || undefined;
+
+  const goToProfile = () => {
+    setMobileOpen(false);
+    navigate('/perfil');
+  };
 
   const handleLogout = () => {
     logout();
@@ -116,6 +123,7 @@ export default function AuthShell() {
       </List>
       <Box sx={{ p: 1.5, borderTop: '1px solid #E3EEF6' }}>
         <Box
+          onClick={goToProfile}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -125,9 +133,12 @@ export default function AuthShell() {
             py: 1,
             mb: 1,
             background: paletteRaw.bg,
+            cursor: 'pointer',
+            '&:hover': { filter: 'brightness(0.97)' },
           }}
         >
           <Avatar
+            src={photoUrl}
             sx={{
               width: 34,
               height: 34,
@@ -147,7 +158,7 @@ export default function AuthShell() {
               {nombre}
             </Typography>
             <Typography variant="caption" color={paletteRaw.gray}>
-              {roleLabel}
+              {roleLabel} · Ver mi perfil
             </Typography>
           </Box>
         </Box>
@@ -228,6 +239,7 @@ export default function AuthShell() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <NotificationsBell />
               <Box
+                onClick={goToProfile}
                 sx={{
                   display: { xs: 'none', sm: 'flex' },
                   alignItems: 'center',
@@ -237,9 +249,12 @@ export default function AuthShell() {
                   pl: 0.5,
                   pr: 1.5,
                   py: 0.25,
+                  cursor: 'pointer',
+                  '&:hover': { filter: 'brightness(0.97)' },
                 }}
               >
                 <Avatar
+                  src={photoUrl}
                   sx={{
                     width: 26,
                     height: 26,

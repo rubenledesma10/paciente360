@@ -18,6 +18,7 @@ from routes.medical_product_routes import medical_products_bp
 from routes.specialty_routes import specialties_bp
 from routes.stock_movement_routes import stock_movements_bp
 from routes.medical_history_routes import medical_history_bp
+from routes.profile_routes import profile_bp
 from models.db import db
 from models.user import User
 from models.nurse import Nurse
@@ -63,6 +64,7 @@ app.register_blueprint(specialties_bp)
 app.register_blueprint(stock_movements_bp)
 app.register_blueprint(health_plans_bp)
 app.register_blueprint(medical_history_bp)
+app.register_blueprint(profile_bp)
 
 with app.app_context():
     from models.user import User

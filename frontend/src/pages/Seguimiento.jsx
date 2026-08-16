@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { getPatients } from '../api/patients';
+import { getAttendedPatients } from '../api/appointments';
 import {
   getFollowUps,
   createFollowUp,
@@ -68,13 +69,24 @@ const FILTERS = [
 export default function Seguimiento() {
   const { userId } = useAuth();
   const [rows, setRows] = useState([]);
+  // Dos listas distintas y a proposito:
+  // - patients: todos, para poder mostrar DNI y edad en seguimientos viejos
+  // - attendedPatients: solo los atendidos HOY, unicos habilitados para un
+  //   seguimiento nuevo (no tiene sentido seguir a quien no paso por consulta)
   const [patients, setPatients] = useState([]);
+  const [attendedPatients, setAttendedPatients] = useState([]);
+  const [loadingAttended, setLoadingAttended] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [open, setOpen] = useState(false);
   const [formError, setFormError] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('activos');
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyPatient, setHistoryPatient] = useState({ id: null, name: '', dni: null, age: null });
+  const [historyPatient, setHistoryPatient] = useState({
+    id: null,
+    name: '',
+    dni: null,
+    age: null,
+  });
 
   // Estados para el diálogo de reprogramar
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -118,9 +130,24 @@ export default function Seguimiento() {
     window.dispatchEvent(new Event('followups-changed'));
   };
 
+  // Se recarga al abrir el dialogo: si un medico acaba de atender a alguien,
+  // ese paciente tiene que aparecer sin necesidad de refrescar la pagina.
+  const loadAttendedPatients = async () => {
+    setLoadingAttended(true);
+    try {
+      const res = await getAttendedPatients();
+      setAttendedPatients(res.data);
+    } catch {
+      setAttendedPatients([]);
+    } finally {
+      setLoadingAttended(false);
+    }
+  };
+
   const openDialog = () => {
     setFormError('');
     reset({ id_patient: '', observations: '', next_check_up: '' });
+    loadAttendedPatients();
     setOpen(true);
   };
 
@@ -275,7 +302,9 @@ export default function Seguimiento() {
         {filteredRows.map((fu) => {
           const name = fu.patient_name || patientName(fu.id_patient);
           const patient = patients.find((p) => p.id_user === fu.id_patient);
-          const patientAge = patient ? getPatientAge(patient.date_of_birth) : null;
+          const patientAge = patient
+            ? getPatientAge(patient.date_of_birth)
+            : null;
           const statusLabel = STATUS_LABELS[fu.status] || fu.status;
           const isMine = fu.id_nurse === userId;
           // Finalizar = alta médica: solo tiene sentido en seguimientos vigentes,
@@ -308,7 +337,11 @@ export default function Seguimiento() {
                       <Typography fontWeight={700} color="#0E4C82">
                         {name}
                       </Typography>
-                      <Typography variant="caption" color="#5b7387" display="block">
+                      <Typography
+                        variant="caption"
+                        color="#5b7387"
+                        display="block"
+                      >
                         DNI {patient ? getPatientDni(patient) : '—'}
                         {patientAge != null && ` — ${patientAge} años`}
                       </Typography>
@@ -405,6 +438,12 @@ export default function Seguimiento() {
             sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
           >
             {formError && <Alert severity="error">{formError}</Alert>}
+            {!loadingAttended && attendedPatients.length === 0 && (
+              <Alert severity="info">
+                Todavía no hay pacientes atendidos hoy. El seguimiento se carga
+                después de que el médico atienda al paciente.
+              </Alert>
+            )}
             <Controller
               name="id_patient"
               control={control}
@@ -414,12 +453,17 @@ export default function Seguimiento() {
                   {...field}
                   select
                   label="Paciente"
+                  disabled={attendedPatients.length === 0}
                   error={!!errors.id_patient}
-                  helperText={errors.id_patient?.message}
+                  helperText={
+                    errors.id_patient?.message || 'Solo pacientes atendidos hoy'
+                  }
                 >
-                  {patients.map((p) => (
+                  {attendedPatients.map((p) => (
                     <MenuItem key={p.id_user} value={p.id_user}>
-                      {p.first_name} {p.last_name} — DNI {getPatientDni(p)} — {getPatientAge(p.date_of_birth) ?? '—'} años
+                      {p.first_name} {p.last_name} — DNI {getPatientDni(p)} —{' '}
+                      {getPatientAge(p.date_of_birth) ?? '—'} años
+                      {p.attended_by ? ` — atendido por ${p.attended_by}` : ''}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -447,7 +491,11 @@ export default function Seguimiento() {
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button type="submit" variant="contained" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isSubmitting || attendedPatients.length === 0}
+            >
               Guardar
             </Button>
           </DialogActions>

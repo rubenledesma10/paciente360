@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
@@ -22,9 +23,13 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ImageIcon from '@mui/icons-material/Image';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import { getNews, createNews, updateNews, deleteNews } from '../../api/news';
+import { mediaUrl } from '../../utils/mediaUrl';
 
 const CATEGORIES = ['Prevención', 'Salud estacional', 'Enfermedades'];
+const MAX_PHOTO_MB = 5;
 
 export default function AdminNoticiasPage() {
   const [news, setNews] = useState([]);
@@ -34,7 +39,11 @@ export default function AdminNoticiasPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null); // null = crear, objeto = editar
   const [form, setForm] = useState({ title: '', content: '', category: '' });
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Diálogo borrar
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -53,9 +62,16 @@ export default function AdminNoticiasPage() {
     loadNews();
   }, []);
 
+  const resetPhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const openCreate = () => {
     setEditing(null);
     setForm({ title: '', content: '', category: '' });
+    resetPhoto();
     setFormError('');
     setDialogOpen(true);
   };
@@ -67,8 +83,32 @@ export default function AdminNoticiasPage() {
       content: item.content,
       category: item.category,
     });
+    resetPhoto();
+    // Al editar se muestra la imagen que ya tiene, hasta que elija otra
+    setPhotoPreview(mediaUrl(item.photo));
     setFormError('');
     setDialogOpen(true);
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFormError('El archivo tiene que ser una imagen.');
+      resetPhoto();
+      return;
+    }
+    if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
+      setFormError(`La imagen no puede pesar más de ${MAX_PHOTO_MB} MB.`);
+      resetPhoto();
+      return;
+    }
+
+    setFormError('');
+    setPhotoFile(file);
+    // Vista previa local: no se sube nada hasta que guarde
+    setPhotoPreview(URL.createObjectURL(file));
   };
 
   const handleSave = async () => {
@@ -77,18 +117,23 @@ export default function AdminNoticiasPage() {
       setFormError('Completá todos los campos.');
       return;
     }
+    setSaving(true);
     try {
+      const payload = { ...form, photo: photoFile };
       if (editing) {
-        await updateNews(editing.id_news_and_prevention, form);
+        await updateNews(editing.id_news_and_prevention, payload);
       } else {
-        await createNews(form);
+        await createNews(payload);
       }
       setDialogOpen(false);
+      resetPhoto();
       loadNews();
     } catch (err) {
       setFormError(
         err.response?.data?.message || 'No se pudo guardar la noticia.',
       );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -144,6 +189,9 @@ export default function AdminNoticiasPage() {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell width={70}>
+                <b>Foto</b>
+              </TableCell>
               <TableCell>
                 <b>Título</b>
               </TableCell>
@@ -161,6 +209,15 @@ export default function AdminNoticiasPage() {
           <TableBody>
             {news.map((item) => (
               <TableRow key={item.id_news_and_prevention}>
+                <TableCell>
+                  <Avatar
+                    variant="rounded"
+                    src={mediaUrl(item.photo) || undefined}
+                    sx={{ width: 48, height: 48, bgcolor: '#e2e8f0' }}
+                  >
+                    <ImageIcon sx={{ color: '#94a3b8' }} />
+                  </Avatar>
+                </TableCell>
                 <TableCell>{item.title}</TableCell>
                 <TableCell>
                   <Chip label={item.category} size="small" />
@@ -182,7 +239,7 @@ export default function AdminNoticiasPage() {
             ))}
             {news.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={5}>
                   <Typography color="#5b7387" sx={{ py: 2 }}>
                     No hay noticias cargadas.
                   </Typography>
@@ -207,6 +264,7 @@ export default function AdminNoticiasPage() {
           sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
         >
           {formError && <Alert severity="error">{formError}</Alert>}
+
           <TextField
             label="Título"
             value={form.title}
@@ -231,11 +289,83 @@ export default function AdminNoticiasPage() {
             value={form.content}
             onChange={(e) => setForm({ ...form, content: e.target.value })}
           />
+
+          {/* Imagen de portada */}
+          <Box>
+            <Typography
+              variant="body2"
+              fontWeight={700}
+              color="#0E4C82"
+              sx={{ mb: 1 }}
+            >
+              Imagen de portada
+            </Typography>
+
+            {photoPreview && (
+              <Box
+                component="img"
+                src={photoPreview}
+                alt="Vista previa"
+                sx={{
+                  width: '100%',
+                  maxHeight: 200,
+                  objectFit: 'cover',
+                  borderRadius: 2,
+                  mb: 1,
+                  display: 'block',
+                }}
+              />
+            )}
+
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              }}
+            >
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<PhotoCameraIcon />}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {photoPreview ? 'Cambiar imagen' : 'Elegir imagen'}
+              </Button>
+              {photoFile && (
+                <Button size="small" color="error" onClick={resetPhoto}>
+                  Quitar
+                </Button>
+              )}
+              <Typography variant="caption" color="#5b7387">
+                JPG, PNG, GIF o WEBP. Hasta {MAX_PHOTO_MB} MB.
+              </Typography>
+            </Box>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              hidden
+              onChange={handlePhotoChange}
+            />
+
+            {editing && !photoFile && (
+              <Typography
+                variant="caption"
+                color="#5b7387"
+                sx={{ display: 'block', mt: 1 }}
+              >
+                Si no elegís una imagen nueva, se mantiene la actual.
+              </Typography>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSave}>
-            Guardar
+          <Button variant="contained" onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar'}
           </Button>
         </DialogActions>
       </Dialog>

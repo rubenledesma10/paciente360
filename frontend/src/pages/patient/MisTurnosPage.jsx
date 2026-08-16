@@ -6,23 +6,29 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Grid,
   Typography,
 } from '@mui/material';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { useAuth } from '../../context/useAuth';
 import {
   getAppointmentsByPatient,
   confirmAppointment,
+  cancelAppointment,
 } from '../../api/appointments';
 
 // Estados del turno (AppointmentStatusEnum del backend)
-const STATUS_RESERVED = 'Reservado';
-const STATUS_WAITING = 'En espera';
 const STATUS_ATTENDED = 'Atendido';
 const STATUS_CANCELLED = 'Cancelado';
+const STATUS_RESERVED = 'Reservado';
+const STATUS_WAITING = 'En espera';
 
-// Un turno sigue "en juego" mientras no fue atendido ni cancelado
 const isOpen = (status) =>
   status === STATUS_RESERVED || status === STATUS_WAITING;
 
@@ -37,7 +43,6 @@ const parseDate = (value) => {
   return new Date(value);
 };
 
-// Días entre hoy y la fecha del turno (0 = hoy, negativo = ya pasó)
 const daysUntil = (value) => {
   const target = parseDate(value);
   if (!target) return null;
@@ -63,8 +68,10 @@ export default function MisTurnosPage() {
   const [rows, setRows] = useState([]);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [actionOk, setActionOk] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('proximos');
-  const [confirmingId, setConfirmingId] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
 
   const loadAll = useCallback(async () => {
     if (!userId) return;
@@ -81,31 +88,51 @@ export default function MisTurnosPage() {
     loadAll();
   }, [loadAll]);
 
-  // Avisa a la campana que los turnos cambiaron
   const notifyChange = () => {
     window.dispatchEvent(new Event('appointments-changed'));
   };
 
+  const readError = (err, fallback) =>
+    err.response?.data?.msg || err.response?.data?.error || fallback;
+
   const handleConfirm = async (id) => {
     setActionError('');
-    setConfirmingId(id);
+    setActionOk('');
+    setBusyId(id);
     try {
       await confirmAppointment(id);
+      setActionOk('Confirmaste tu asistencia al turno.');
       await loadAll();
       notifyChange();
     } catch (err) {
-      setActionError(
-        err.response?.data?.error ||
-          err.response?.data?.msg ||
-          'No se pudo confirmar la asistencia.',
-      );
+      setActionError(readError(err, 'No se pudo confirmar la asistencia.'));
     } finally {
-      setConfirmingId(null);
+      setBusyId(null);
     }
   };
 
-  // Próximos = turnos vigentes (reservados / en espera) de hoy en adelante.
-  // Historial = todo lo demás: atendidos, cancelados o con fecha pasada.
+  const handleCancel = async () => {
+    if (!cancelTarget) return;
+    const id = cancelTarget.id_medical_appointment;
+    setActionError('');
+    setActionOk('');
+    setBusyId(id);
+    try {
+      await cancelAppointment(id);
+      setActionOk('Turno cancelado.');
+      setCancelTarget(null);
+      await loadAll();
+      notifyChange();
+    } catch (err) {
+      setActionError(readError(err, 'No se pudo cancelar el turno.'));
+      setCancelTarget(null);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Próximos = turnos vigentes de hoy en adelante.
+  // Historial = atendidos, cancelados o con fecha pasada.
   const filteredRows = rows
     .filter((ap) => {
       if (selectedFilter === 'todos') return true;
@@ -115,21 +142,14 @@ export default function MisTurnosPage() {
     })
     .sort((a, b) => parseDate(a.date) - parseDate(b.date));
 
-  // Turnos vigentes sin confirmar, para el aviso de arriba
-  const toConfirmCount = rows.filter((ap) => {
-    const d = daysUntil(ap.date);
-    return isOpen(ap.status) && !ap.confirmed && d !== null && d > 0;
-  }).length;
+  // El backend ya decide quién puede confirmar: no repetimos la regla acá
+  const toConfirmCount = rows.filter((ap) => ap.patient_can_confirm).length;
 
-  // El chip de arriba a la derecha: si el turno ya se cerró muestra su estado,
-  // si sigue vigente muestra si está confirmado o no.
   const statusChip = (ap) => {
-    if (ap.status === STATUS_ATTENDED) {
+    if (ap.status === STATUS_ATTENDED)
       return { label: 'Atendido', color: 'success' };
-    }
-    if (ap.status === STATUS_CANCELLED) {
+    if (ap.status === STATUS_CANCELLED)
       return { label: 'Cancelado', color: 'error' };
-    }
     return ap.confirmed
       ? { label: 'Confirmado', color: 'success' }
       : { label: 'Sin confirmar', color: 'warning' };
@@ -137,13 +157,12 @@ export default function MisTurnosPage() {
 
   return (
     <Box>
-      {/* Encabezado */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" fontWeight={800} color="#0E4C82">
           Mis turnos
         </Typography>
         <Typography variant="body2" color="#5b7387">
-          Consultá y confirmá tus turnos médicos
+          Consultá, confirmá y cancelá tus turnos médicos
         </Typography>
       </Box>
 
@@ -161,13 +180,21 @@ export default function MisTurnosPage() {
           {actionError}
         </Alert>
       )}
+      {actionOk && (
+        <Alert
+          severity="success"
+          sx={{ mb: 2 }}
+          onClose={() => setActionOk('')}
+        >
+          {actionOk}
+        </Alert>
+      )}
       {toConfirmCount > 0 && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Tenés {toConfirmCount} turno(s) sin confirmar
+          Tenés {toConfirmCount} turno(s) por confirmar
         </Alert>
       )}
 
-      {/* Filtros */}
       <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (
           <Chip
@@ -181,17 +208,14 @@ export default function MisTurnosPage() {
         ))}
       </Box>
 
-      {/* Lista de turnos */}
       <Grid container spacing={2}>
         {filteredRows.map((ap) => {
           const d = daysUntil(ap.date);
           const doctorName = ap.doctor_name || '—';
           const open = isOpen(ap.status);
           const isToday = d === 0;
-          const isPast = d !== null && d < 0;
-          // El backend no permite confirmar el mismo día del turno ni después
-          const canConfirm = open && !ap.confirmed && d !== null && d > 0;
           const chip = statusChip(ap);
+          const busy = busyId === ap.id_medical_appointment;
 
           return (
             <Grid key={ap.id_medical_appointment} size={{ xs: 12, md: 6 }}>
@@ -222,7 +246,24 @@ export default function MisTurnosPage() {
                       </Typography>
                     </Box>
                   </Box>
-                  <Chip size="small" label={chip.label} color={chip.color} />
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      gap: 0.5,
+                      flexWrap: 'wrap',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
+                    {ap.is_overbooking && (
+                      <Chip
+                        size="small"
+                        label="Sobreturno"
+                        color="secondary"
+                        variant="outlined"
+                      />
+                    )}
+                    <Chip size="small" label={chip.label} color={chip.color} />
+                  </Box>
                 </Box>
 
                 <Typography
@@ -235,8 +276,6 @@ export default function MisTurnosPage() {
                   {open && isToday && ' — es hoy'}
                 </Typography>
 
-                {/* El estado en texto solo aporta en los turnos vigentes:
-                    en los cerrados ya lo dice el chip */}
                 {open && (
                   <Typography
                     variant="caption"
@@ -247,26 +286,44 @@ export default function MisTurnosPage() {
                   </Typography>
                 )}
 
-                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {canConfirm && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    display: 'flex',
+                    gap: 1,
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                  }}
+                >
+                  {/* Las reglas de negocio viven en el backend: el front solo obedece */}
+                  {ap.patient_can_confirm && (
                     <Button
                       size="small"
                       variant="outlined"
                       startIcon={<EventAvailableIcon />}
-                      disabled={confirmingId === ap.id_medical_appointment}
+                      disabled={busy}
                       onClick={() => handleConfirm(ap.id_medical_appointment)}
                     >
                       Confirmar asistencia
                     </Button>
                   )}
-                  {open && !ap.confirmed && isToday && (
-                    <Typography variant="caption" color="#5b7387">
-                      Ya no se puede confirmar: el turno es hoy.
-                    </Typography>
+
+                  {ap.patient_can_cancel && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      startIcon={<EventBusyIcon />}
+                      disabled={busy}
+                      onClick={() => setCancelTarget(ap)}
+                    >
+                      Cancelar turno
+                    </Button>
                   )}
-                  {open && !ap.confirmed && isPast && (
+
+                  {open && !ap.patient_can_cancel && (
                     <Typography variant="caption" color="#5b7387">
-                      El turno ya pasó sin confirmar.
+                      Ya no se puede cancelar online. Comunicate con la clínica.
                     </Typography>
                   )}
                 </Box>
@@ -283,6 +340,34 @@ export default function MisTurnosPage() {
           </Grid>
         )}
       </Grid>
+
+      {/* Confirmación antes de cancelar: es una acción que no se puede deshacer */}
+      <Dialog
+        open={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Cancelar turno</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {cancelTarget && (
+              <>
+                ¿Seguro que querés cancelar el turno con{' '}
+                {cancelTarget.doctor_name} del {formatDate(cancelTarget.date)} a
+                las {cancelTarget.hour}? Esta acción no se puede deshacer: si
+                después querés volver, vas a tener que sacar un turno nuevo.
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setCancelTarget(null)}>Volver</Button>
+          <Button color="error" variant="contained" onClick={handleCancel}>
+            Cancelar turno
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

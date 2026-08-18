@@ -25,9 +25,9 @@ VALID_STATUS_TRANSITIONS = {
 # Confirmar con mucha anticipacion no aporta informacion util.
 CONFIRMATION_WINDOW_DAYS = 3
 
-# Horas minimas de anticipacion para que el paciente cancele.
-# Cancelar se puede desde siempre: cuanto antes avise, mejor para la clinica.
-CANCELLATION_WINDOW_HOURS = 8
+# No hay ventana minima para cancelar: se puede hasta el momento del turno.
+# Una cancelacion tardia igual sirve, porque libera el horario y la clinica
+# puede darselo a una urgencia. Un ausente, en cambio, no libera nada.
 
 
 class MedicalAppointment(db.Model):
@@ -91,13 +91,8 @@ class MedicalAppointment(db.Model):
         return 0 < remaining <= CONFIRMATION_WINDOW_DAYS * 24
 
     def patient_can_cancel(self):
-        """El paciente cancela desde que saca el turno hasta 8 horas antes."""
-        if not self.is_open():
-            return False
-        remaining = self.hours_until()
-        if remaining is None:
-            return False
-        return remaining >= CANCELLATION_WINDOW_HOURS
+        """El paciente puede cancelar mientras el turno siga abierto."""
+        return self.is_open()
 
     def to_dict(self):
         return {
@@ -110,6 +105,7 @@ class MedicalAppointment(db.Model):
             'reason': self.reason,
             'confirmed': self.confirmed,
             'is_overbooking': self.is_overbooking,
+            # El front no repite las reglas: pregunta y muestra los botones segun esto
             'patient_can_confirm': self.patient_can_confirm(),
             'patient_can_cancel': self.patient_can_cancel(),
             'patient_name': f"{self.patient.first_name} {self.patient.last_name}" if self.patient else None,

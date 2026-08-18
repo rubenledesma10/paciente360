@@ -11,6 +11,7 @@ import {
   CardActionArea,
   CardMedia,
   Chip,
+  Divider,
   Grid,
   IconButton,
   InputAdornment,
@@ -23,6 +24,7 @@ import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { useAuth } from '../context/useAuth';
 import { roleHome } from '../utils/roleHome';
 import { gradients, paletteRaw } from '../theme/theme';
@@ -201,6 +203,23 @@ export default function LoginPage() {
                     Crear cuenta
                   </Link>
                 </Typography>
+
+                {/* Sacar turno no requiere cuenta: si el acceso no esta aca,
+                    nadie descubre que existe */}
+                <Divider sx={{ my: 2 }}>
+                  <Typography variant="caption" color={paletteRaw.gray}>
+                    o
+                  </Typography>
+                </Divider>
+                <Button
+                  component={RouterLink}
+                  to="/turnos"
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<EventAvailableIcon />}
+                >
+                  Sacar un turno sin cuenta
+                </Button>
               </Box>
             </Paper>
           </Box>
@@ -208,13 +227,32 @@ export default function LoginPage() {
 
         {/* Columna derecha: noticias públicas */}
         <Grid size={{ xs: 12, md: 7, lg: 8 }} sx={{ p: { xs: 3, md: 5 } }}>
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h4" fontWeight={800} color="#0E4C82">
-              Noticias y Prevención
-            </Typography>
-            <Typography variant="body1" color="#5b7387">
-              Contenido confiable de salud para vos y tu familia
-            </Typography>
+          <Box
+            sx={{
+              mb: 3,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: 2,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Box>
+              <Typography variant="h4" fontWeight={800} color="#0E4C82">
+                Noticias y Prevención
+              </Typography>
+              <Typography variant="body1" color="#5b7387">
+                Contenido confiable de salud para vos y tu familia
+              </Typography>
+            </Box>
+            <Button
+              component={RouterLink}
+              to="/turnos"
+              variant="contained"
+              startIcon={<EventAvailableIcon />}
+            >
+              Sacar turno
+            </Button>
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>

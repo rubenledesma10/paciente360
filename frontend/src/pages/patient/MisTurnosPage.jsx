@@ -320,12 +320,6 @@ export default function MisTurnosPage() {
                       Cancelar turno
                     </Button>
                   )}
-
-                  {open && !ap.patient_can_cancel && (
-                    <Typography variant="caption" color="#5b7387">
-                      Ya no se puede cancelar online. Comunicate con la clínica.
-                    </Typography>
-                  )}
                 </Box>
               </Card>
             </Grid>

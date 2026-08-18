@@ -4,6 +4,7 @@ from datetime import date, datetime, time
 from models.db import db
 from models.medical_appointment import MedicalAppointment, VALID_STATUS_TRANSITIONS
 from models.patient import Patient
+from models.user import User
 from models.doctor import Doctor
 from models.specialty import Specialty
 from enums import AppointmentStatusEnum, RoleEnum
@@ -72,13 +73,15 @@ def get_patient_agenda(patient_id, target_date):
     ).all()
 
 
-def buscar_o_crear_paciente(data, allow_patient_update=False):
+def buscar_o_crear_paciente(data, allow_patient_update=False, verify_identity=False):
     """Busca al paciente por DNI. Si no existe, lo crea.
 
-    allow_patient_update solo lo activa el administrativo, que es un usuario
-    autenticado y de confianza. Desde la reserva pública NUNCA se actualiza
-    una ficha existente: si no, cualquiera que sepa un DNI podría pisarle
-    la obra social a otra persona.
+    verify_identity: lo usa la reserva publica. Si el DNI ya esta registrado,
+    exige que la fecha de nacimiento coincida. Sin eso, cualquiera que supiera
+    un DNI podria sacarle turnos a otra persona.
+
+    allow_patient_update: solo el administrativo, que es un usuario autenticado.
+    Desde la reserva publica NUNCA se actualiza una ficha existente.
     """
     dni = data.get('dni')
     if not dni:
@@ -86,8 +89,23 @@ def buscar_o_crear_paciente(data, allow_patient_update=False):
 
     paciente = Patient.query.filter_by(dni=dni).first()
 
-    # 1. Si ya existe, se usa tal cual está
+    # 1. Si ya existe
     if paciente:
+        if verify_identity:
+            birth_str = data.get('date_of_birth')
+            if not birth_str:
+                return None, ("La fecha de nacimiento es obligatoria", 400)
+            try:
+                birth_date = date.fromisoformat(birth_str)
+            except ValueError:
+                return None, ("date_of_birth invalida. Formato esperado YYYY-MM-DD", 400)
+            if paciente.date_of_birth != birth_date:
+                return None, (
+                    "Los datos no coinciden con los registrados. "
+                    "Si ya tenes cuenta, inicia sesion para sacar tu turno.",
+                    403
+                )
+
         if allow_patient_update:
             if 'health_plan_status' in data:
                 paciente.health_plan_status = data.get('health_plan_status')
@@ -98,7 +116,7 @@ def buscar_o_crear_paciente(data, allow_patient_update=False):
             db.session.commit()
         return paciente, None
 
-    # 2. Si no existe, validamos campos mínimos y lo creamos
+    # 2. Si no existe, validamos campos minimos y lo creamos
     campos_requeridos = ['first_name', 'last_name', 'email', 'date_of_birth']
     faltantes = [c for c in campos_requeridos if not data.get(c)]
     if faltantes:
@@ -107,7 +125,11 @@ def buscar_o_crear_paciente(data, allow_patient_update=False):
     try:
         fecha_nacimiento = date.fromisoformat(data.get('date_of_birth'))
     except ValueError:
-        return None, ("date_of_birth inválida. Formato esperado YYYY-MM-DD", 400)
+        return None, ("date_of_birth invalida. Formato esperado YYYY-MM-DD", 400)
+
+    # El email tambien es unico: si ya esta tomado por otra cuenta, avisamos
+    if User.query.filter_by(email=data.get('email')).first():
+        return None, ("Ya hay una cuenta registrada con ese email", 409)
 
     nuevo_paciente = Patient(
         first_name=data.get('first_name'),
@@ -130,7 +152,8 @@ def buscar_o_crear_paciente(data, allow_patient_update=False):
     return nuevo_paciente, None
 
 
-def _crear_turno_validado(data, status_default, is_overbooking=False, allow_patient_update=False):
+def _crear_turno_validado(data, status_default, is_overbooking=False,
+                          allow_patient_update=False, verify_identity=False):
     """Lógica central validada para crear turnos."""
     if not Doctor.query.get(data.get('id_doctor')):
         return {"msg": "Doctor no encontrado"}, 404
@@ -155,7 +178,11 @@ def _crear_turno_validado(data, status_default, is_overbooking=False, allow_pati
     if not is_within_business_hours(appointment_time):
         return {"msg": f"El turno debe iniciar entre las {OPENING_TIME.strftime('%H:%M')} y terminar antes de las {CLOSING_TIME.strftime('%H:%M')}"}, 400
 
-    paciente, error = buscar_o_crear_paciente(data, allow_patient_update=allow_patient_update)
+    paciente, error = buscar_o_crear_paciente(
+        data,
+        allow_patient_update=allow_patient_update,
+        verify_identity=verify_identity
+    )
     if error:
         return {"msg": error[0]}, error[1]
 
@@ -212,7 +239,8 @@ def create_appointment_public():
             data,
             AppointmentStatusEnum.RESERVADO,
             is_overbooking=False,
-            allow_patient_update=False
+            allow_patient_update=False,
+            verify_identity=True
         )
         return jsonify(body), status_code
     except Exception as e:
@@ -553,8 +581,9 @@ def get_allowed_transitions(appointment_id):
 def cancel_appointment(appointment_id):
     """Cancela un turno.
 
-    El paciente cancela los suyos hasta 8 horas antes.
-    El administrativo cancela cualquiera mientras siga abierto.
+    Tanto el paciente como el administrativo pueden cancelar mientras el turno
+    siga abierto, incluso minutos antes: el horario queda libre y la clinica
+    puede reasignarlo a una urgencia.
     """
     try:
         appointment = MedicalAppointment.query.get(appointment_id)
@@ -710,10 +739,13 @@ def get_doctors_by_specialty(specialty_id):
 
 @appointments_bp.route('/available-slots', methods=['GET'])
 def get_available_slots():
-    """Horarios libres de un médico para una fecha.
+    """Grilla de horarios de un medico para una fecha.
 
-    Genera la grilla de 08:00 a 20:00 cada 20 minutos y descuenta
-    los turnos ya ocupados. Los cancelados NO ocupan: liberan el horario.
+    Devuelve los libres y tambien los ocupados: mostrar el horario tomado
+    (en gris) le explica al paciente por que no puede elegirlo, en vez de
+    hacerlo desaparecer sin aviso.
+
+    Los turnos cancelados NO ocupan: liberan el horario.
     """
     try:
         id_doctor = request.args.get('id_doctor', type=int)
@@ -728,37 +760,50 @@ def get_available_slots():
         try:
             target_date = date.fromisoformat(date_str)
         except ValueError:
-            return jsonify({"msg": "Fecha inválida. Formato esperado YYYY-MM-DD"}), 400
+            return jsonify({"msg": "Fecha invalida. Formato esperado YYYY-MM-DD"}), 400
 
         if target_date < date.today():
             return jsonify({"msg": "No se pueden consultar horarios de una fecha pasada"}), 400
 
-        taken = get_doctor_agenda(id_doctor, target_date)
+        taken_appointments = get_doctor_agenda(id_doctor, target_date)
 
         now = datetime.now()
-        slots = []
+        slots = []          # libres (se mantiene por compatibilidad)
+        taken = []          # ocupados por otro turno
+        grid = []           # la grilla completa, con el motivo de cada estado
+
         current_minutes = OPENING_TIME.hour * 60 + OPENING_TIME.minute
         closing_minutes = CLOSING_TIME.hour * 60 + CLOSING_TIME.minute
 
         while current_minutes + APPOINTMENT_DURATION_MINUTES <= closing_minutes:
             slot_time = time(current_minutes // 60, current_minutes % 60)
+            label = slot_time.strftime("%H:%M")
 
-            # Si la fecha es hoy, no ofrecemos horarios que ya pasaron
             is_past = target_date == now.date() and slot_time <= now.time()
+            is_taken = has_overlap(taken_appointments, slot_time)
 
-            if not is_past and not has_overlap(taken, slot_time):
-                slots.append(slot_time.strftime("%H:%M"))
+            if is_past:
+                status = 'past'
+            elif is_taken:
+                status = 'taken'
+                taken.append(label)
+            else:
+                status = 'available'
+                slots.append(label)
 
+            grid.append({"hour": label, "status": status})
             current_minutes += APPOINTMENT_DURATION_MINUTES
 
         return jsonify({
             "id_doctor": id_doctor,
             "date": target_date.isoformat(),
-            "slots": slots
+            "slots": slots,
+            "taken": taken,
+            "grid": grid
         }), 200
     except Exception as e:
         return jsonify({"msg": "Error al obtener horarios disponibles", "error": str(e)}), 500
-    
+
 
 @appointments_bp.route('/attended-patients', methods=['GET'])
 @role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE)

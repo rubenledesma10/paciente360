@@ -39,6 +39,12 @@ export function getAvailableSlots(doctorId, date) {
   });
 }
 
+// Reserva sin login. El backend valida la identidad con DNI + fecha de nacimiento
+// si el DNI ya esta registrado.
+export function createPublicAppointment(payload) {
+  return client.post('/appointments/public', payload);
+}
+
 // Reserva del paciente logueado
 export function createMyAppointment(payload) {
   return client.post('/appointments/me', payload);

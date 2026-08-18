@@ -10,7 +10,7 @@ from enums import RoleEnum
 
 stock_movements_bp = Blueprint('stock_movements', __name__, url_prefix='/api/stock-movements')
 
-TIPOS_VALIDOS=['Entrada','Salida']
+TIPOS_VALIDOS=['Entrada','Salida','Desechado']
 
 @stock_movements_bp.route('/', methods=['POST'])
 @role_required(RoleEnum.NURSE)
@@ -32,9 +32,9 @@ def create_stock_movement():
         if not isinstance(cantidad, int) or cantidad <= 0:
             return jsonify({"msg": "Invalid quantity. It must be a positive integer."}), 400
 
-        if tipo == 'Salida' and cantidad > product.current_stock:
+        if tipo in ['Salida', 'Desechado'] and cantidad > product.current_stock:
             return jsonify({
-                "msg": f"Stock insuficiente. Disponible: {product.current_stock}, solicitado: {cantidad}"
+                "msg": f"Stock insuficiente. Disponible: {product.current_stock}, solicitado para {tipo.lower()}: {cantidad}"
             }), 400
 
         id_nurse_logueado = int(get_jwt_identity())
@@ -52,8 +52,9 @@ def create_stock_movement():
         if tipo == 'Entrada':
             product.current_stock += cantidad
 
-        else:
-            product.current_stock = max(0,product.current_stock - cantidad)
+        elif tipo in ['Salida', 'Desechado']:
+            product.current_stock = max(0, product.current_stock - cantidad)
+
         db.session.commit()
 
         return jsonify({"msg": "Stock movement created successfully", "stock_movement_id": new_movement.id_stock_movement, "current_stock": product.current_stock}), 201
@@ -147,7 +148,7 @@ def delete_stock_movement(movement_id):
         if product:
             if movement.type_movement == 'Entrada':
                 product.current_stock = max(0, product.current_stock - movement.quantity)
-            else:
+            elif movement.type_movement in ['Salida', 'Desechado']: 
                 product.current_stock += movement.quantity
 
         db.session.delete(movement)

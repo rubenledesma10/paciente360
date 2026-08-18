@@ -34,6 +34,7 @@ from models.patient_follow_up import PatientFollowUp
 from models.signs_and_symptoms import SignsAndSymptoms
 from models.news_and_prevention import NewsAndPrevention
 from models.guard_pass import GuardPass
+from models.guard_pass_checklist import GuardPassChecklist
 from models.health_plan import HealthPlan
 from routes.health_plan_routes import health_plans_bp
 
@@ -72,7 +73,8 @@ with app.app_context():
     from models.doctor import Doctor
     from models.news_and_prevention import NewsAndPrevention
     from models.signs_and_symptoms import SignsAndSymptoms
-    from models.guard_pass import GuardPass 
+    from models.guard_pass import GuardPass
+    from models.guard_pass_checklist import GuardPassChecklist
     from models.health_plan import HealthPlan
     db.create_all()
 

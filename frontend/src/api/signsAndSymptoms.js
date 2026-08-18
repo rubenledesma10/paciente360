@@ -4,6 +4,10 @@ export function getSignsAndSymptoms() {
   return client.get('/signs_and_symptoms/')
 }
 
+export function getWaitingPatients() {
+  return client.get('/signs_and_symptoms/waiting-patients')
+}
+
 export function createSignsAndSymptoms(payload) {
   return client.post('/signs_and_symptoms/', payload)
 }

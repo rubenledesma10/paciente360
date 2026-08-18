@@ -15,6 +15,7 @@ import StockPage from './pages/nurse/StockPage';
 import GuardiaPage from './pages/nurse/GuardiaPage';
 import NewsAndPrevention from './pages/NewsAndPrevention';
 import NewsDetail from './pages/NewsDetail';
+import SacarTurnoPublicoPage from './pages/SacarTurnoPublicoPage';
 import Seguimiento from './pages/Seguimiento';
 import IndicacionesPage from './pages/doctor/IndicacionesPage';
 import HistoriaClinicaPage from './pages/doctor/HistoriaClinicaPage';
@@ -43,6 +44,7 @@ function App() {
       {/* Noticias: se ven con y sin sesión.
           NewsShell elige el layout: sidebar si estás logueado, cabecera pública si no. */}
       <Route element={<NewsShell />}>
+        <Route path="/turnos" element={<SacarTurnoPublicoPage />} />
         <Route path="/noticias" element={<NewsAndPrevention />} />
         <Route path="/noticias/:id" element={<NewsDetail />} />
       </Route>

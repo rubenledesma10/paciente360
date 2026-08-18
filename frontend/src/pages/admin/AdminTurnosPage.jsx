@@ -480,6 +480,14 @@ export default function AdminTurnosPage() {
             ))}
           </TextField>
 
+          {/* Atajo al caso mas comun del mostrador: la agenda del dia */}
+          <Button
+            size="small"
+            variant={filterDate === today ? 'contained' : 'outlined'}
+            onClick={() => setFilterDate(today)}
+          >
+            Turnos de hoy
+          </Button>
           <Button
             size="small"
             onClick={() => {

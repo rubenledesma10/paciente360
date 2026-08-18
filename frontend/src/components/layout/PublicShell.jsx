@@ -1,9 +1,16 @@
-import { Link as RouterLink, Outlet } from 'react-router-dom';
-import { AppBar, Box, Button, Toolbar, Typography } from '@mui/material';
+import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom';
+import { AppBar, Box, Button, Stack, Toolbar, Typography } from '@mui/material';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import { paletteRaw } from '../../theme/theme';
 
+const NAV_LINKS = [
+  { label: 'Sacar turno', to: '/turnos' },
+  { label: 'Noticias', to: '/noticias' },
+];
+
 export default function PublicShell() {
+  const location = useLocation();
+
   return (
     <Box sx={{ minHeight: '100vh', background: paletteRaw.bg }}>
       <AppBar
@@ -12,7 +19,7 @@ export default function PublicShell() {
         elevation={0}
         sx={{ borderBottom: '1px solid #E3EEF6' }}
       >
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
+        <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }}>
           <Box
             component={RouterLink}
             to="/noticias"
@@ -41,11 +48,42 @@ export default function PublicShell() {
               variant="subtitle1"
               fontWeight={800}
               color={paletteRaw.azulD}
+              sx={{ display: { xs: 'none', sm: 'block' } }}
             >
               Paciente<span style={{ color: paletteRaw.celeste }}>360º</span>
             </Typography>
           </Box>
-          <Button component={RouterLink} to="/login" variant="contained">
+
+          {/* Navegación pública: sin esto nadie llega a /turnos */}
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ flexGrow: 1, ml: { xs: 0, sm: 2 } }}
+          >
+            {NAV_LINKS.map((link) => {
+              const active = location.pathname.startsWith(link.to);
+              return (
+                <Button
+                  key={link.to}
+                  component={RouterLink}
+                  to={link.to}
+                  sx={{
+                    fontWeight: 700,
+                    color: active ? paletteRaw.azul : paletteRaw.gray,
+                    borderBottom: active
+                      ? `2px solid ${paletteRaw.celeste}`
+                      : '2px solid transparent',
+                    borderRadius: 0,
+                  }}
+                >
+                  {link.label}
+                </Button>
+              );
+            })}
+          </Stack>
+
+          {/* La pantalla de login es '/', no '/login' */}
+          <Button component={RouterLink} to="/" variant="contained">
             Iniciar sesión
           </Button>
         </Toolbar>

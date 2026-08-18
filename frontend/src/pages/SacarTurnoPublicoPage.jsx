@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
   Avatar,
@@ -8,21 +8,40 @@ import {
   Card,
   Chip,
   CircularProgress,
+  Divider,
+  Link,
   MenuItem,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {
   getSpecialties,
   getDoctorsBySpecialty,
   getAvailableSlots,
-  createMyAppointment,
-} from '../../api/appointments';
+  createPublicAppointment,
+} from '../api/appointments';
 
 const today = new Date().toISOString().split('T')[0];
 
-// Título de cada bloque del flujo
+const parseDate = (value) => {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(value);
+};
+
+const formatDate = (value) => {
+  const d = parseDate(value);
+  return d ? d.toLocaleDateString('es-AR') : '—';
+};
+
+const readError = (err, fallback) =>
+  err.response?.data?.msg || err.response?.data?.error || fallback;
+
 function StepTitle({ number, children }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
@@ -44,36 +63,39 @@ function StepTitle({ number, children }) {
   );
 }
 
-export default function SacarTurnoPage() {
-  const navigate = useNavigate();
+export default function SacarTurnoPublicoPage() {
+  // Datos de la persona
+  const [form, setForm] = useState({
+    dni: '',
+    date_of_birth: '',
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone_number: '',
+  });
 
   const [specialties, setSpecialties] = useState([]);
   const [specialtyId, setSpecialtyId] = useState('');
-
   const [doctors, setDoctors] = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [doctor, setDoctor] = useState(null);
 
   const [date, setDate] = useState('');
-  // grid trae TODOS los horarios con su estado (libre / ocupado / pasado).
-  // Mostrar el ocupado en gris explica por que no se puede elegir, en vez
-  // de hacerlo desaparecer sin aviso.
   const [grid, setGrid] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [hour, setHour] = useState('');
-
   const [reason, setReason] = useState('');
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [booked, setBooked] = useState(null);
 
-  // Especialidades: se cargan una sola vez
   useEffect(() => {
     getSpecialties()
       .then((res) => setSpecialties(res.data))
       .catch(() => setError('No se pudieron cargar las especialidades.'));
   }, []);
 
-  // Al cambiar la especialidad se reinicia todo lo que viene después
   const handleSpecialtyChange = async (value) => {
     setSpecialtyId(value);
     setDoctor(null);
@@ -83,7 +105,6 @@ export default function SacarTurnoPage() {
     setError('');
     setDoctors([]);
     if (!value) return;
-
     setLoadingDoctors(true);
     try {
       const res = await getDoctorsBySpecialty(value);
@@ -103,48 +124,54 @@ export default function SacarTurnoPage() {
     setError('');
   };
 
-  // Al elegir fecha se piden los horarios libres de ese médico
   const handleDateChange = async (value) => {
     setDate(value);
     setHour('');
     setGrid([]);
     setError('');
     if (!value || !doctor) return;
-
     setLoadingSlots(true);
     try {
       const res = await getAvailableSlots(doctor.id_user, value);
-      // Los pasados no se muestran: no aportan nada y ensucian la grilla
       setGrid((res.data.grid || []).filter((g) => g.status !== 'past'));
     } catch (err) {
-      setError(
-        err.response?.data?.msg || 'No se pudieron cargar los horarios.',
-      );
+      setError(readError(err, 'No se pudieron cargar los horarios.'));
     } finally {
       setLoadingSlots(false);
     }
   };
 
+  const datosCompletos =
+    form.dni &&
+    form.date_of_birth &&
+    form.first_name &&
+    form.last_name &&
+    form.email;
+
   const handleSubmit = async () => {
     setError('');
+    if (!datosCompletos) {
+      setError('Completá tus datos personales antes de confirmar.');
+      return;
+    }
     setSaving(true);
     try {
-      await createMyAppointment({
+      const res = await createPublicAppointment({
+        ...form,
         id_doctor: doctor.id_user,
         date,
         hour,
         reason: reason || null,
       });
-      // Avisa a la campana que hay un turno nuevo
-      window.dispatchEvent(new Event('appointments-changed'));
-      navigate('/mis-turnos');
+      setBooked({
+        doctor: `${doctor.first_name} ${doctor.last_name}`,
+        date,
+        hour,
+        data: res.data,
+      });
     } catch (err) {
-      setError(
-        err.response?.data?.msg ||
-          err.response?.data?.error ||
-          'No se pudo reservar el turno.',
-      );
-      // Si el horario se ocupó mientras elegía, refrescamos la grilla
+      setError(readError(err, 'No se pudo reservar el turno.'));
+      // Si el horario se ocupó mientras completaba, refrescamos la grilla
       if (err.response?.status === 409 && doctor && date) {
         handleDateChange(date);
       }
@@ -154,16 +181,62 @@ export default function SacarTurnoPage() {
   };
 
   const freeCount = grid.filter((g) => g.status === 'available').length;
-  const canSubmit = doctor && date && hour && !saving;
+
+  // Pantalla de confirmación
+  if (booked) {
+    return (
+      <Box sx={{ maxWidth: 620, mx: 'auto' }}>
+        <Card sx={{ p: 4, textAlign: 'center' }}>
+          <CheckCircleIcon sx={{ fontSize: 64, color: '#2e7d32', mb: 1 }} />
+          <Typography
+            variant="h5"
+            fontWeight={800}
+            color="#0E4C82"
+            gutterBottom
+          >
+            Turno reservado
+          </Typography>
+          <Typography color="#34495e" sx={{ mb: 2 }}>
+            {booked.doctor}
+            <br />
+            <strong>
+              {formatDate(booked.date)} a las {booked.hour}
+            </strong>
+          </Typography>
+
+          <Alert severity="info" sx={{ textAlign: 'left', mb: 2 }}>
+            Podés ver, confirmar o cancelar este turno entrando con tu DNI como
+            usuario y contraseña.
+          </Alert>
+
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <Button variant="contained" component={RouterLink} to="/">
+              Iniciar sesión
+            </Button>
+            <Button variant="outlined" onClick={() => window.location.reload()}>
+              Sacar otro turno
+            </Button>
+          </Box>
+        </Card>
+      </Box>
+    );
+  }
 
   return (
-    <Box sx={{ maxWidth: 780 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={800} color="#0E4C82">
+    <Box sx={{ maxWidth: 780, mx: 'auto' }}>
+      <Box sx={{ mb: 3, textAlign: 'center' }}>
+        <Typography variant="h4" fontWeight={800} color="#0E4C82">
           Sacar turno
         </Typography>
-        <Typography variant="body2" color="#5b7387">
-          Elegí especialidad, profesional y horario
+        <Typography variant="body1" color="#5b7387">
+          No necesitás cuenta. Completá tus datos y elegí el horario.
         </Typography>
       </Box>
 
@@ -173,9 +246,83 @@ export default function SacarTurnoPage() {
         </Alert>
       )}
 
-      {/* 1. Especialidad */}
+      {/* 1. Datos personales */}
       <Card sx={{ p: 2.5, mb: 2 }}>
-        <StepTitle number={1}>Especialidad</StepTitle>
+        <StepTitle number={1}>Tus datos</StepTitle>
+
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <TextField
+            size="small"
+            label="DNI"
+            required
+            sx={{ flex: '1 1 45%' }}
+            value={form.dni}
+            onChange={(e) => setForm({ ...form, dni: e.target.value })}
+          />
+          <TextField
+            size="small"
+            label="Fecha de nacimiento"
+            type="date"
+            required
+            sx={{ flex: '1 1 45%' }}
+            slotProps={{ inputLabel: { shrink: true } }}
+            value={form.date_of_birth}
+            onChange={(e) =>
+              setForm({ ...form, date_of_birth: e.target.value })
+            }
+          />
+          <TextField
+            size="small"
+            label="Nombre"
+            required
+            sx={{ flex: '1 1 45%' }}
+            value={form.first_name}
+            onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+          />
+          <TextField
+            size="small"
+            label="Apellido"
+            required
+            sx={{ flex: '1 1 45%' }}
+            value={form.last_name}
+            onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+          />
+          <TextField
+            size="small"
+            label="Email"
+            type="email"
+            required
+            sx={{ flex: '1 1 45%' }}
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+          <TextField
+            size="small"
+            label="Teléfono"
+            sx={{ flex: '1 1 45%' }}
+            value={form.phone_number}
+            onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
+          />
+        </Box>
+
+        <Typography
+          variant="caption"
+          color="#5b7387"
+          sx={{ mt: 1.5, display: 'block' }}
+        >
+          Si ya sos paciente de la clínica, el DNI y la fecha de nacimiento
+          tienen que coincidir con los que tenemos registrados. ¿Ya tenés
+          cuenta?{' '}
+          <Link component={RouterLink} to="/">
+            Iniciá sesión
+          </Link>
+          .
+        </Typography>
+      </Card>
+
+      {/* 2. Especialidad */}
+      <Card sx={{ p: 2.5, mb: 2 }}>
+        <StepTitle number={2}>Especialidad</StepTitle>
         <TextField
           select
           fullWidth
@@ -192,19 +339,16 @@ export default function SacarTurnoPage() {
         </TextField>
       </Card>
 
-      {/* 2. Profesional */}
+      {/* 3. Profesional */}
       {specialtyId && (
         <Card sx={{ p: 2.5, mb: 2 }}>
-          <StepTitle number={2}>Profesional</StepTitle>
-
+          <StepTitle number={3}>Profesional</StepTitle>
           {loadingDoctors && <CircularProgress size={22} />}
-
           {!loadingDoctors && doctors.length === 0 && (
             <Typography variant="body2" color="#5b7387">
               No hay profesionales disponibles en esta especialidad.
             </Typography>
           )}
-
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
             {doctors.map((d) => {
               const selected = doctor?.id_user === d.id_user;
@@ -244,10 +388,10 @@ export default function SacarTurnoPage() {
         </Card>
       )}
 
-      {/* 3. Fecha y horario */}
+      {/* 4. Fecha y horario */}
       {doctor && (
         <Card sx={{ p: 2.5, mb: 2 }}>
-          <StepTitle number={3}>Fecha y horario</StepTitle>
+          <StepTitle number={4}>Fecha y horario</StepTitle>
 
           <TextField
             type="date"
@@ -269,12 +413,6 @@ export default function SacarTurnoPage() {
               No quedan horarios libres para esa fecha: el profesional tiene la
               agenda completa. Probá con otro día.
             </Alert>
-          )}
-
-          {!loadingSlots && date && grid.length === 0 && (
-            <Typography variant="body2" color="#5b7387">
-              No hay horarios de atención para esa fecha.
-            </Typography>
           )}
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -316,21 +454,17 @@ export default function SacarTurnoPage() {
         </Card>
       )}
 
-      {/* 4. Confirmación */}
+      {/* 5. Confirmación */}
       {hour && (
-        <Card sx={{ p: 2.5, mb: 2 }}>
-          <StepTitle number={4}>Confirmar</StepTitle>
-
+        <Card sx={{ p: 2.5, mb: 4 }}>
+          <StepTitle number={5}>Confirmar</StepTitle>
           <Typography variant="body2" color="#34495e" sx={{ mb: 2 }}>
             Turno con{' '}
             <strong>
               {doctor.first_name} {doctor.last_name}
             </strong>{' '}
-            el{' '}
-            <strong>
-              {new Date(`${date}T00:00:00`).toLocaleDateString('es-AR')}
-            </strong>{' '}
-            a las <strong>{hour}</strong>.
+            el <strong>{formatDate(date)}</strong> a las <strong>{hour}</strong>
+            .
           </Typography>
 
           <TextField
@@ -342,11 +476,9 @@ export default function SacarTurnoPage() {
             sx={{ mb: 2 }}
           />
 
-          <Button
-            variant="contained"
-            disabled={!canSubmit}
-            onClick={handleSubmit}
-          >
+          <Divider sx={{ mb: 2 }} />
+
+          <Button variant="contained" onClick={handleSubmit} disabled={saving}>
             {saving ? 'Reservando...' : 'Reservar turno'}
           </Button>
         </Card>

@@ -1,11 +1,13 @@
-import { Navigate, Outlet } from 'react-router-dom'
-import { useAuth } from '../context/useAuth'
-import { roleHome } from '../utils/roleHome'
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
+import { roleHome } from '../utils/roleHome';
 
 export default function PublicOnlyRoute() {
-  const { isAuthenticated, rol } = useAuth()
+  const { isAuthenticated, rol } = useAuth();
   if (isAuthenticated) {
-    return <Navigate to={roleHome(rol)} replace />
+    return <Navigate to={roleHome(rol)} replace />;
   }
-  return <Outlet />
+  return <Outlet />;
 }
+
+// Esto es un comentario en JSX.

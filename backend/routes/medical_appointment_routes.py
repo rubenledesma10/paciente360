@@ -159,15 +159,20 @@ def _crear_turno_validado(data, status_default, is_overbooking=False, allow_pati
     if error:
         return {"msg": error[0]}, error[1]
 
-    # VALIDACIÓN PACIENTE: no puede tener dos turnos pisados, ni siquiera en un sobreturno.
-    # El sobreturno satura al médico, no clona al paciente.
-    patient_appointments = get_patient_agenda(paciente.id_user, appointment_date)
+    patient_appointments = MedicalAppointment.query.filter(
+        MedicalAppointment.id_patient == paciente.id_user,
+        MedicalAppointment.date == appointment_date,
+        MedicalAppointment.status != AppointmentStatusEnum.CANCELADO
+    ).all()
     if has_overlap(patient_appointments, appointment_time):
         return {"msg": "El paciente ya tiene un turno reservado en ese horario."}, 409
-
-    # VALIDACIÓN MÉDICO: choque de turnos (se saltea solo si es sobreturno)
+ 
     if not is_overbooking:
-        doctor_appointments = get_doctor_agenda(data.get('id_doctor'), appointment_date)
+        doctor_appointments = MedicalAppointment.query.filter(
+            MedicalAppointment.id_doctor == data.get('id_doctor'),
+            MedicalAppointment.date == appointment_date,
+            MedicalAppointment.status != AppointmentStatusEnum.CANCELADO
+        ).all()
         if has_overlap(doctor_appointments, appointment_time):
             return {"msg": "El médico ya tiene un turno asignado en ese horario. Por favor, asigne un Sobre Turno si es necesario."}, 409
 
@@ -420,13 +425,20 @@ def update_appointment(appointment_id):
         if not is_within_business_hours(new_time):
             return jsonify({"msg": f"El turno debe iniciar entre las {OPENING_TIME.strftime('%H:%M')} y terminar antes de las {CLOSING_TIME.strftime('%H:%M')}"}), 400
 
-        # Un sobreturno ya nació pisando la agenda: si se lo edita, se respeta esa condición
-        if not appointment.is_overbooking:
-            doctor_appointments = get_doctor_agenda(new_doctor_id, new_date)
-            if has_overlap(doctor_appointments, new_time, exclude_id=appointment.id_medical_appointment):
-                return jsonify({"msg": "El médico ya tiene un turno en ese horario."}), 409
-
-        patient_appointments = get_patient_agenda(appointment.id_patient, new_date)
+        # Al editar, respetamos la regla estricta (no permitimos sobre turnos en la edición por seguridad)
+        doctor_appointments = MedicalAppointment.query.filter(
+            MedicalAppointment.id_doctor == new_doctor_id,
+            MedicalAppointment.date == new_date,
+            MedicalAppointment.status != AppointmentStatusEnum.CANCELADO
+        ).all()
+        if has_overlap(doctor_appointments, new_time, exclude_id=appointment.id_medical_appointment):
+            return jsonify({"msg": "El médico ya tiene un turno en ese horario."}), 409
+ 
+        patient_appointments = MedicalAppointment.query.filter(
+            MedicalAppointment.id_patient == appointment.id_patient,
+            MedicalAppointment.date == new_date,
+            MedicalAppointment.status != AppointmentStatusEnum.CANCELADO
+        ).all()
         if has_overlap(patient_appointments, new_time, exclude_id=appointment.id_medical_appointment):
             return jsonify({"msg": "El paciente ya tiene otro turno a esa hora."}), 409
 

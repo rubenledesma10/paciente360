@@ -71,8 +71,8 @@ export default function MedicalHistoryDialog({
             {d.blood_pressure && `Presión: ${d.blood_pressure}`}
           </Typography>
           {d.observations && (
-            <Typography variant="caption" display="block" color="#5b7387">
-              {d.observations}
+            <Typography variant="caption" color="#5b7387" sx={{ display: 'block', mt: 0.5 }}>
+              Observación: {d.observations}
             </Typography>
           )}
         </>

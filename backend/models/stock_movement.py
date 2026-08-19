@@ -21,5 +21,7 @@ class StockMovement(db.Model):
             'id_nurse': self.id_nurse,
             'type_movement': self.type_movement,
             'quantity': self.quantity,
-            'date_time': self.date_time.isoformat() if self.date_time else None
+            'date_time': self.date_time.isoformat() if self.date_time else None,
+            'product_name': self.product.name_product if self.product else None,
+            'batch_number': self.product.batch_number if self.product else None,
         }

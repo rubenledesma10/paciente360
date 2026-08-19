@@ -58,6 +58,10 @@ const schema = yup.object({
   record_type: yup.string().required(),
 })
 
+const obsSchema = yup.object({
+  observations: yup.string().required('Escribí una observación'),
+})
+
 export default function SignosPage() {
   const [rows, setRows] = useState([])
   const [patients, setPatients] = useState([])
@@ -67,6 +71,7 @@ export default function SignosPage() {
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState('')
   const [editingRow, setEditingRow] = useState(null)
+  const [observationOnlyMode, setObservationOnlyMode] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyPatient, setHistoryPatient] = useState({ id: null, name: '', dni: null, age: null })
@@ -84,6 +89,8 @@ export default function SignosPage() {
     resolver: yupResolver(schema),
     defaultValues: { record_type: 'Rutina' },
   })
+
+  const obsForm = useForm({ resolver: yupResolver(obsSchema) })
 
   const patientName = (id) => {
     const p = patients.find((x) => x.id_user === id)
@@ -165,6 +172,7 @@ export default function SignosPage() {
   const openCreateDialog = async () => {
     setFormError('')
     setEditingRow(null)
+    setObservationOnlyMode(false)
     reset({
       id_patient: '',
       temperature: '',
@@ -186,16 +194,34 @@ export default function SignosPage() {
   const openEditDialog = (row) => {
     setFormError('')
     setEditingRow(row)
+    const restricted = !isEditable(row)
+    setObservationOnlyMode(restricted)
     reset({
       id_patient: row.id_patient,
       temperature: row.temperature,
       blood_pressure: row.blood_pressure,
       signs: row.signs || '',
       symptoms: row.symptoms || '',
-      observations: row.observations || '',
+      observations: restricted ? '' : row.observations || '',
       record_type: row.record_type,
     })
+    if (restricted) {
+      obsForm.reset({ observations: '' })
+    }
     setOpen(true)
+  }
+
+  const onObsSubmit = async (values) => {
+    setFormError('')
+    try {
+      await updateSignsAndSymptoms(editingRow.id_signs_and_symptoms, {
+        observations: values.observations,
+      })
+      setOpen(false)
+      loadAll()
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'No se pudo guardar la observación.')
+    }
   }
 
   const onSubmit = async (values) => {
@@ -284,6 +310,7 @@ export default function SignosPage() {
               <TableCell>Temp.</TableCell>
               <TableCell>Presión</TableCell>
               <TableCell>Síntomas</TableCell>
+              <TableCell>Signos</TableCell>
               <TableCell>Tipo</TableCell>
               <TableCell>Fecha/Hora</TableCell>
               <TableCell align="right">Acciones</TableCell>
@@ -305,6 +332,7 @@ export default function SignosPage() {
                   </TableCell>
                   <TableCell>{r.blood_pressure || '—'}</TableCell>
                   <TableCell>{r.symptoms}</TableCell>
+                  <TableCell>{r.signs || '—'}</TableCell>
                   <TableCell>
                     <Chip
                       size="small"
@@ -324,16 +352,16 @@ export default function SignosPage() {
                         <HistoryIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title={editable ? 'Editar' : 'Ya pasaron 5 minutos desde el registro'}>
-                      <span>
-                        <IconButton
-                          size="small"
-                          disabled={!editable}
-                          onClick={() => openEditDialog(r)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </span>
+                    <Tooltip
+                      title={
+                        editable
+                          ? 'Editar'
+                          : 'Ya pasaron 5 minutos del registro — solo se puede agregar una observación'
+                      }
+                    >
+                      <IconButton size="small" onClick={() => openEditDialog(r)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
                     </Tooltip>
                     <IconButton
                       size="small"
@@ -350,7 +378,7 @@ export default function SignosPage() {
             })}
             {!loading && visibleRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ color: paletteRaw.gray }}>
+                <TableCell colSpan={10} align="center" sx={{ color: paletteRaw.gray }}>
                   No hay registros para el día seleccionado.
                 </TableCell>
               </TableRow>
@@ -361,9 +389,19 @@ export default function SignosPage() {
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>
-          {editingRow ? 'Editar signos y síntomas' : 'Registrar signos y síntomas'}
+          {observationOnlyMode
+            ? 'Agregar observación'
+            : editingRow
+              ? 'Editar signos y síntomas'
+              : 'Registrar signos y síntomas'}
         </DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <Box
+          component="form"
+          onSubmit={
+            observationOnlyMode ? obsForm.handleSubmit(onObsSubmit) : handleSubmit(onSubmit)
+          }
+          noValidate
+        >
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {formError && <Alert severity="error">{formError}</Alert>}
             <Controller
@@ -401,6 +439,7 @@ export default function SignosPage() {
                 {...register('temperature')}
                 error={!!errors.temperature}
                 helperText={errors.temperature?.message}
+                disabled={observationOnlyMode}
               />
               <TextField
                 label="Presión arterial"
@@ -409,29 +448,39 @@ export default function SignosPage() {
                 {...register('blood_pressure')}
                 error={!!errors.blood_pressure}
                 helperText={errors.blood_pressure?.message}
+                disabled={observationOnlyMode}
               />
             </Box>
-            <TextField
-              label="Signos clínicos"
-              {...register('signs')}
-            />
             <TextField
               label="Síntomas reportados"
               {...register('symptoms')}
               error={!!errors.symptoms}
               helperText={errors.symptoms?.message}
+              disabled={observationOnlyMode}
             />
             <TextField
-              label="Observaciones"
+              label="Signos clínicos"
+              {...register('signs')}
+              disabled={observationOnlyMode}
+            />
+            {observationOnlyMode && editingRow?.observations && (
+              <Alert severity="info" sx={{ whiteSpace: 'pre-line' }}>
+                {editingRow.observations}
+              </Alert>
+            )}
+            <TextField
+              label={observationOnlyMode ? 'Nueva observación' : 'Observaciones'}
               multiline
               minRows={2}
-              {...register('observations')}
+              {...(observationOnlyMode ? obsForm.register('observations') : register('observations'))}
+              error={observationOnlyMode && !!obsForm.formState.errors.observations}
+              helperText={observationOnlyMode ? obsForm.formState.errors.observations?.message : ''}
             />
             <Controller
               name="record_type"
               control={control}
               render={({ field }) => (
-                <TextField {...field} select label="Tipo">
+                <TextField {...field} select label="Tipo" disabled={observationOnlyMode}>
                   <MenuItem value="Rutina">Rutina</MenuItem>
                   <MenuItem value="Urgencia">Urgencia</MenuItem>
                 </TextField>
@@ -440,8 +489,12 @@ export default function SignosPage() {
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button type="submit" variant="contained" disabled={isSubmitting}>
-              Guardar
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={observationOnlyMode ? obsForm.formState.isSubmitting : isSubmitting}
+            >
+              {observationOnlyMode ? 'Agregar' : 'Guardar'}
             </Button>
           </DialogActions>
         </Box>

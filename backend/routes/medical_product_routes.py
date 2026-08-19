@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import get_jwt_identity, get_jwt
 from datetime import date, timedelta
 from models.db import db
-from models.medical_product import MedicalProduct
+from models.medical_product import MedicalProduct, DIAS_PARA_POR_VENCER
 from models.stock_movement import StockMovement
 from utils.role_required import role_required
 from enums import RoleEnum
@@ -10,6 +10,44 @@ from enums import RoleEnum
 medical_products_bp = Blueprint('medical_products', __name__, url_prefix='/api/medical-products')
 
 DIAS_REPORTE_POR_VENCEER = 60
+
+
+def _dar_de_baja(producto, id_nurse):
+    """Da de baja un producto puntual (is_active=False).
+
+    Si tiene stock remanente y hay un nurse a quien atribuírselo, primero registra un
+    StockMovement 'Desechado' por esa cantidad para dejar constancia del descarte.
+    No borra ninguna fila: mantiene intacto el historial de movimientos/trazabilidad.
+    """
+    if producto.current_stock > 0 and id_nurse is not None:
+        db.session.add(StockMovement(
+            id_product=producto.id_product,
+            id_nurse=id_nurse,
+            type_movement='Desechado',
+            quantity=producto.current_stock,
+        ))
+        producto.current_stock = 0
+
+    producto.is_active = False
+
+
+def _archivar_vencidos_y_sin_stock():
+    """Recorre los productos activos y da de baja los vencidos o sin stock."""
+    claims = get_jwt()
+    id_nurse = int(get_jwt_identity()) if claims.get('rol') == RoleEnum.NURSE.value else None
+
+    hoy = date.today()
+    productos = MedicalProduct.query.filter_by(is_active=True).all()
+    hubo_cambios = False
+
+    for producto in productos:
+        vencido = bool(producto.expiration_date and producto.expiration_date < hoy)
+        if vencido or producto.current_stock == 0:
+            _dar_de_baja(producto, id_nurse)
+            hubo_cambios = True
+
+    if hubo_cambios:
+        db.session.commit()
 
 @medical_products_bp.route('/', methods=['POST'])
 @role_required(RoleEnum.NURSE)
@@ -37,7 +75,8 @@ def create_medical_product():
             batch_number=data.get('batch_number'),
             current_stock=data.get('current_stock', 0),
             minimum_stock_level=data.get('minimum_stock_level', 0),
-            type_product=data.get('type_product')
+            type_product=data.get('type_product'),
+            is_active=True
         ).first()
 
         if existing_product:
@@ -77,7 +116,8 @@ def create_medical_product():
 @role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def get_medical_products():
     try:
-        products = MedicalProduct.query.all()
+        _archivar_vencidos_y_sin_stock()
+        products = MedicalProduct.query.filter_by(is_active=True).all()
         return jsonify([p.to_dict() for p in products]), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching medical products"}), 500
@@ -125,6 +165,34 @@ def get_expiring_soon():
         }), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching expiring products", "error": str(e)}), 500
+
+@medical_products_bp.route('/<int:product_id>/discard', methods=['PATCH'])
+@role_required(RoleEnum.NURSE)
+def discard_medical_product(product_id):
+    try:
+        producto = MedicalProduct.query.get(product_id)
+        if not producto or not producto.is_active:
+            return jsonify({"msg": "Medical product not found"}), 404
+
+        hoy = date.today()
+        vencido = bool(producto.expiration_date and producto.expiration_date < hoy)
+        por_vencer = bool(
+            producto.expiration_date
+            and not vencido
+            and (producto.expiration_date - hoy).days <= DIAS_PARA_POR_VENCER
+        )
+        if not (vencido or por_vencer):
+            return jsonify({"msg": "Solo se pueden dar de baja productos vencidos o por vencer"}), 400
+
+        id_nurse = int(get_jwt_identity())
+        _dar_de_baja(producto, id_nurse)
+        db.session.commit()
+
+        return jsonify(producto.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": "Error discarding medical product", "error": str(e)}), 500
+
 
 @medical_products_bp.route('/<int:product_id>', methods=['PUT'])
 @role_required(RoleEnum.NURSE)
@@ -184,6 +252,7 @@ def search_medical_products():
     try:
         query = request.args.get('query', '')
         products = MedicalProduct.query.filter(
+            MedicalProduct.is_active == True,
             (MedicalProduct.name_product.ilike(f'%{query}%')) |
             (MedicalProduct.type_product.ilike(f'%{query}%')) |
             (MedicalProduct.batch_number.ilike(f'%{query}%'))

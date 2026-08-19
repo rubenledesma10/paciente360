@@ -4,6 +4,7 @@ from models.db import db
 from models.user import User
 from models.patient import Patient
 from enums import RoleEnum
+from utils.email_service import send_welcome_email
 
 patients_bp = Blueprint('patients', __name__, url_prefix='/api/patients')
 
@@ -46,12 +47,14 @@ def create_patient():
 
         db.session.add(new_patient)
         db.session.commit()
-
+        send_welcome_email(new_patient.email, new_patient.username)
         return jsonify({"msg": "Patient created successfully", "patient_id": new_patient.id_user}), 201
+    
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error creating patient", "error": str(e)}), 500
 
+    
 
 @patients_bp.route('/', methods=['GET'])
 def get_patients():

@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
 from config.config import Config
+from config.email_config import init_mail
 from flask_jwt_extended import JWTManager
 from routes.administrative_route import administrative_bp
 from routes.auth_routes import auth_bp
@@ -43,6 +44,7 @@ app.config.from_object(Config)
 
 CORS(app)  # CORS para que react pueda conectarse
 jwt = JWTManager(app)
+init_mail(app)
 db.init_app(app)
 
 # Registro blueprints 

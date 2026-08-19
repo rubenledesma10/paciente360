@@ -29,14 +29,6 @@ def send_reset_password_email(to_email, new_password):
     msg.body = f"Tu nueva contraseña es: {new_password}\nPor favor cámbiala después de iniciar sesión."
     mail.send(msg)
 
-def send_welcome_email(to_email, username):
-    msg = Message(
-        subject="Bienvenido a Paciente360 🏥",
-        sender=current_app.config['MAIL_USERNAME'],
-        recipients=[to_email]
-    )
-    msg.body = f"Hola {username}, gracias por registrarte en Paciente360!"
-    mail.send(msg)
 
 def send_reactivated_email(to_email, new_password):
     msg = Message(

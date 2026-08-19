@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import get_jwt_identity
 from datetime import datetime, timedelta
+from sqlalchemy import case
 from models.db import db
 from models.traceability import Traceability
 from models.patient import Patient
@@ -21,9 +22,27 @@ def create_traceability():
 
         data = request.get_json()
 
-        product=MedicalProduct.query.get(data.get('id_product'))
-        if not product:
-            return jsonify({"msg": "Product not found"}), 404
+        if data.get('id_product'):
+            product = MedicalProduct.query.get(data.get('id_product'))
+            if not product:
+                return jsonify({"msg": "Product not found"}), 404
+        elif data.get('name_product'):
+            # FEFO: se usa el lote activo con stock disponible que vence antes.
+            # Los lotes sin fecha de vencimiento quedan al final (se prioriza lo que sí vence).
+            product = (
+                MedicalProduct.query
+                .filter_by(name_product=data.get('name_product'), is_active=True)
+                .filter(MedicalProduct.current_stock > 0)
+                .order_by(
+                    case((MedicalProduct.expiration_date.is_(None), 1), else_=0),
+                    MedicalProduct.expiration_date.asc(),
+                )
+                .first()
+            )
+            if not product:
+                return jsonify({"msg": "Sin stock disponible para ese producto"}), 400
+        else:
+            return jsonify({"msg": "Se requiere id_product o name_product"}), 400
 
         # Validamos que el paciente exista
         if not Patient.query.get(data.get('id_patient')):
@@ -53,7 +72,7 @@ def create_traceability():
 
         new_traceability = Traceability(
             id_patient=data.get('id_patient'),
-            id_product=data.get('id_product'),
+            id_product=product.id_product,
             id_nurse=id_nurse_logueado,
             quantity=quantity,
             id_stock_movement=movimiento.id_stock_movement,

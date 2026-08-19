@@ -263,6 +263,15 @@ export default function RegisterPage() {
             >
               {isSubmitting ? 'Creando cuenta…' : 'Crear cuenta'}
             </Button>
+            <Button
+              variant="contained"
+              size="large"
+              fullWidth
+              onClick={() => navigate(-1)}
+              sx={{ mt: 1.5 }}
+            >
+              Volver
+            </Button>
             <Typography variant="body2" align="center" sx={{ mt: 2 }} color={paletteRaw.gray}>
               ¿Ya tenés cuenta?{' '}
               <Link component={RouterLink} to="/login">

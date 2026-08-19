@@ -5,6 +5,7 @@ import * as yup from 'yup'
 import dayjs from 'dayjs'
 import {
   Alert,
+  Badge,
   Box,
   Button,
   Chip,
@@ -12,6 +13,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemText,
   MenuItem,
   Paper,
   Tab,
@@ -23,11 +29,15 @@ import {
   TableRow,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import AddIcon from '@mui/icons-material/Add'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import DeleteIcon from '@mui/icons-material/Delete'
 import { getPatients } from '../../api/patients'
-import { getMedicalProducts, createMedicalProduct } from '../../api/medicalProducts'
+import { getMedicalProducts, createMedicalProduct, discardMedicalProduct } from '../../api/medicalProducts'
 import { getStockMovements, createStockMovement } from '../../api/stockMovements'
 import { getTraceabilities, createTraceability } from '../../api/traceabilities'
 import { getWaitingPatients } from '../../api/signsAndSymptoms'
@@ -47,7 +57,7 @@ const movementSchema = yup.object({
 
 const traceSchema = yup.object({
   id_patient: yup.number().typeError('Elegí un paciente').required(),
-  id_product: yup.number().typeError('Elegí un producto').required(),
+  name_product: yup.string().required('Elegí un producto'),
   quantity: yup
     .number()
     .typeError('Ingresá la cantidad')
@@ -120,6 +130,13 @@ export default function StockPage() {
   const [productError, setProductError] = useState('')
   const [highlightedProductId, setHighlightedProductId] = useState(null)
   const [duplicateNotice, setDuplicateNotice] = useState('')
+  const [alertsOpen, setAlertsOpen] = useState(false)
+  const [deleteProductTarget, setDeleteProductTarget] = useState(null)
+  const [deleteProductError, setDeleteProductError] = useState('')
+  const [deletingProduct, setDeletingProduct] = useState(false)
+  const [movSearch, setMovSearch] = useState('')
+  const [movTypeFilter, setMovTypeFilter] = useState('')
+  const [movSelectedDate, setMovSelectedDate] = useState(dayjs())
   const productRowRefs = useRef({})
 
   const movForm = useForm({
@@ -208,13 +225,46 @@ export default function StockPage() {
   const expiringProducts = useMemo(() => products.filter((p) => p.por_vencer), [products])
   const expiredProducts = useMemo(() => products.filter((p) => p.vencido), [products])
 
-  const watchedTraceProductId = useWatch({
-    control: traceForm.control,
-    name: 'id_product',
-  })
-  const selectedTraceProduct = products.find(
-    (p) => p.id_product === Number(watchedTraceProductId),
+  // El backend manda date_time en UTC sin sufijo 'Z'; sin esto, dayjs lo toma como si ya
+  // fuera hora local y el día calculado queda corrido (ej. "hoy" a la noche cae mañana).
+  const toLocalDayjs = (isoString) =>
+    isoString ? dayjs(isoString.endsWith('Z') ? isoString : `${isoString}Z`) : null
+
+  const visibleMovements = useMemo(
+    () =>
+      movements.filter((m) => {
+        const matchesSearch =
+          !movSearch ||
+          (m.product_name || '').toLowerCase().includes(movSearch.trim().toLowerCase())
+        const matchesType = !movTypeFilter || m.type_movement === movTypeFilter
+        const matchesDate =
+          !movSelectedDate || toLocalDayjs(m.date_time)?.isSame(movSelectedDate, 'day')
+        return matchesSearch && matchesType && matchesDate
+      }),
+    [movements, movSearch, movTypeFilter, movSelectedDate],
   )
+
+  // Nombres únicos de producto para el selector de "Registrar uso": el lote puntual
+  // se resuelve por FEFO (acá a modo de preview, y de forma autoritativa en el backend).
+  const traceProductNames = useMemo(
+    () => [...new Set(products.map((p) => p.name_product))].sort(),
+    [products],
+  )
+
+  const fefoLotFor = (name) => {
+    const candidates = products.filter((p) => p.name_product === name && p.current_stock > 0)
+    return candidates.sort((a, b) => {
+      if (!a.expiration_date) return 1
+      if (!b.expiration_date) return -1
+      return a.expiration_date.localeCompare(b.expiration_date)
+    })[0]
+  }
+
+  const watchedTraceProductName = useWatch({
+    control: traceForm.control,
+    name: 'name_product',
+  })
+  const selectedTraceProduct = watchedTraceProductName ? fefoLotFor(watchedTraceProductName) : null
 
   const openMovDialog = () => {
     setMovError('')
@@ -224,7 +274,7 @@ export default function StockPage() {
 
   const openTraceDialog = async () => {
     setTraceError('')
-    traceForm.reset({ id_patient: '', id_product: '', quantity: 1 })
+    traceForm.reset({ id_patient: '', name_product: '', quantity: 1 })
     try {
       const res = await getWaitingPatients()
       setWaitingPatients(res.data)
@@ -232,6 +282,27 @@ export default function StockPage() {
       setTraceError('No se pudo cargar la lista de pacientes en espera.')
     }
     setTraceOpen(true)
+  }
+
+  const confirmDeleteProduct = async () => {
+    if (!deleteProductTarget) return
+    setDeletingProduct(true)
+    setDeleteProductError('')
+    try {
+      await discardMedicalProduct(deleteProductTarget.id_product)
+      setDeleteProductTarget(null)
+      loadAll()
+    } catch (err) {
+      setDeleteProductError(err.response?.data?.msg || 'No se pudo dar de baja el producto.')
+    } finally {
+      setDeletingProduct(false)
+    }
+  }
+
+  const goToProduct = (id) => {
+    setAlertsOpen(false)
+    setTab('inv')
+    setTimeout(() => setHighlightedProductId(id), 0)
   }
 
   const openProductDialog = () => {
@@ -271,15 +342,22 @@ export default function StockPage() {
 
   const onProductSubmit = async (values) => {
     setProductError('')
+    // Duplicado real = mismo nombre + mismo lote + mismo vencimiento. Si el lote o el
+    // vencimiento difieren, es una reposición con un lote nuevo y se permite crearlo.
     const normalizedName = values.name_product.trim().toLowerCase()
+    const normalizedBatch = (values.batch_number || '').trim().toLowerCase()
+    const normalizedExpiration = values.expiration_date || ''
     const duplicate = products.find(
-      (p) => p.name_product.trim().toLowerCase() === normalizedName,
+      (p) =>
+        p.name_product.trim().toLowerCase() === normalizedName &&
+        (p.batch_number || '').trim().toLowerCase() === normalizedBatch &&
+        (p.expiration_date || '') === normalizedExpiration,
     )
     if (duplicate) {
       setProductOpen(false)
       setTab('inv')
       setDuplicateNotice(
-        `Ya existe "${duplicate.name_product}" en el inventario. Te mostramos su fila abajo.`,
+        `Ya existe "${duplicate.name_product}" con ese mismo lote y vencimiento en el inventario. Te mostramos su fila abajo.`,
       )
       setHighlightedProductId(duplicate.id_product)
       return
@@ -316,37 +394,37 @@ export default function StockPage() {
             Insumos, movimientos y trazabilidad
           </Typography>
         </Box>
-        {tab === 'inv' && (
-          <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Badge badgeContent={lowStock.length + expiringProducts.length} color="warning">
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<WarningAmberIcon />}
+              onClick={() => setAlertsOpen(true)}
+            >
+              Alertas
+            </Button>
+          </Badge>
+          {tab === 'inv' && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={openProductDialog}>
               Nuevo producto
             </Button>
-          </Box>
-        )}
-        {tab === 'mov' && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openMovDialog}>
-            Movimiento
-          </Button>
-        )}
-        {tab === 'trz' && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openTraceDialog}>
-            Registrar uso
-          </Button>
-        )}
+          )}
+          {tab === 'mov' && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openMovDialog}>
+              Movimiento
+            </Button>
+          )}
+          {tab === 'trz' && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openTraceDialog}>
+              Registrar uso
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
       {duplicateNotice && <Alert severity="info" sx={{ mb: 2 }}>{duplicateNotice}</Alert>}
-      {lowStock.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Stock bajo: {lowStock.map((p) => p.name_product).join(', ')}
-        </Alert>
-      )}
-      {expiringProducts.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          PM por vencer: {expiringProducts.map((p) => p.name_product).join(', ')}
-        </Alert>
-      )}
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
         <Tab value="inv" label="Inventario" />
@@ -392,7 +470,33 @@ export default function StockPage() {
                     <TableCell>{p.batch_number || '—'}</TableCell>
                     <TableCell>{formatDate(p.expiration_date)}</TableCell>
                     <TableCell>
-                      <Chip size="small" label={low ? 'Reponer' : 'OK'} color={low ? 'error' : 'success'} />
+                      {p.por_vencer ? (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            '&:hover .discard-btn': { opacity: 1 },
+                          }}
+                        >
+                          <Chip size="small" label="Por vencer" color="warning" />
+                          <Tooltip title="Dar de baja (por vencer)">
+                            <IconButton
+                              size="small"
+                              className="discard-btn"
+                              sx={{ opacity: 0, transition: 'opacity 0.15s' }}
+                              onClick={() => {
+                                setDeleteProductError('')
+                                setDeleteProductTarget(p)
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" sx={{ color: paletteRaw.danger }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      ) : (
+                        <Chip size="small" label={low ? 'Reponer' : 'OK'} color={low ? 'error' : 'success'} />
+                      )}
                     </TableCell>
                   </TableRow>
                 )
@@ -403,40 +507,80 @@ export default function StockPage() {
       )}
 
       {tab === 'mov' && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Producto</TableCell>
-                <TableCell>Tipo</TableCell>
-                <TableCell>Cantidad</TableCell>
-                <TableCell>Fecha/Hora</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {movements.map((m) => (
-                <TableRow key={m.id_stock_movement}>
-                  <TableCell sx={{ fontWeight: 600 }}>{productName(m.id_product)}</TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      label={m.type_movement}
-                      color={
-                        m.type_movement === 'Entrada'
-                          ? 'success'
-                          : m.type_movement === 'Desechado'
-                            ? 'error'
-                            : 'warning'
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>{m.quantity}</TableCell>
-                  <TableCell sx={{ color: paletteRaw.gray }}>{formatDateTime(m.date_time)}</TableCell>
+        <>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <TextField
+              label="Buscar producto"
+              size="small"
+              value={movSearch}
+              onChange={(e) => setMovSearch(e.target.value)}
+            />
+            <TextField
+              select
+              label="Tipo"
+              size="small"
+              value={movTypeFilter}
+              onChange={(e) => setMovTypeFilter(e.target.value)}
+              sx={{ minWidth: 160 }}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              <MenuItem value="Entrada">Entrada</MenuItem>
+              <MenuItem value="Salida">Salida</MenuItem>
+              <MenuItem value="Desechado">Desechado</MenuItem>
+            </TextField>
+            <DatePicker
+              label="Día"
+              value={movSelectedDate}
+              onChange={(value) => setMovSelectedDate(value)}
+              slotProps={{ textField: { size: 'small' } }}
+            />
+            <Button size="small" onClick={() => setMovSelectedDate(dayjs())}>
+              Hoy
+            </Button>
+          </Box>
+
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Producto</TableCell>
+                  <TableCell>Tipo</TableCell>
+                  <TableCell>Cantidad</TableCell>
+                  <TableCell>Fecha/Hora</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {visibleMovements.map((m) => (
+                  <TableRow key={m.id_stock_movement}>
+                    <TableCell sx={{ fontWeight: 600 }}>{m.product_name || '—'}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={m.type_movement}
+                        color={
+                          m.type_movement === 'Entrada'
+                            ? 'success'
+                            : m.type_movement === 'Desechado'
+                              ? 'error'
+                              : 'warning'
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>{m.quantity}</TableCell>
+                    <TableCell sx={{ color: paletteRaw.gray }}>{formatDateTime(m.date_time)}</TableCell>
+                  </TableRow>
+                ))}
+                {visibleMovements.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ color: paletteRaw.gray }}>
+                      No hay movimientos para el filtro seleccionado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
       )}
 
       {tab === 'trz' && (
@@ -462,17 +606,16 @@ export default function StockPage() {
             </TableHead>
             <TableBody>
               {traceabilities.map((t) => {
-                const product = products.find((p) => p.id_product === t.id_product)
                 const patient = patients.find((p) => p.id_user === t.id_patient)
                 return (
                   <TableRow key={t.id_traceability}>
                     <TableCell sx={{ fontWeight: 600 }}>{patientName(t.id_patient)}</TableCell>
                     <TableCell>{getPatientDni(patient)}</TableCell>
                     <TableCell>{getPatientAge(patient?.date_of_birth) ?? '—'}</TableCell>
-                    <TableCell>{productName(t.id_product)}</TableCell>
+                    <TableCell>{t.product_name || '—'}</TableCell>
                     <TableCell>{t.quantity}</TableCell>
-                    <TableCell><Chip size="small" label={product?.batch_number || '—'} /></TableCell>
-                    <TableCell>{formatDate(product?.expiration_date)}</TableCell>
+                    <TableCell><Chip size="small" label={t.batch_number || '—'} /></TableCell>
+                    <TableCell>{formatDate(t.expiration_date)}</TableCell>
                     <TableCell sx={{ color: paletteRaw.gray }}>{formatDateTime(t.date_of_use)}</TableCell>
                   </TableRow>
                 )
@@ -569,7 +712,7 @@ export default function StockPage() {
               )}
             />
             <Controller
-              name="id_product"
+              name="name_product"
               control={traceForm.control}
               defaultValue=""
               render={({ field }) => (
@@ -577,12 +720,12 @@ export default function StockPage() {
                   {...field}
                   select
                   label="Producto"
-                  error={!!traceForm.formState.errors.id_product}
-                  helperText={traceForm.formState.errors.id_product?.message}
+                  error={!!traceForm.formState.errors.name_product}
+                  helperText={traceForm.formState.errors.name_product?.message}
                 >
-                  {products.map((p) => (
-                    <MenuItem key={p.id_product} value={p.id_product}>
-                      {p.name_product} — Lote {p.batch_number || '—'}
+                  {traceProductNames.map((name) => (
+                    <MenuItem key={name} value={name}>
+                      {name}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -598,7 +741,7 @@ export default function StockPage() {
             />
             {selectedTraceProduct && (
               <Alert severity="info">
-                Lote {selectedTraceProduct.batch_number || '—'} · Vence{' '}
+                Se descuenta del lote {selectedTraceProduct.batch_number || '—'} (FEFO) · Vence{' '}
                 {formatDate(selectedTraceProduct.expiration_date)}
               </Alert>
             )}
@@ -683,6 +826,89 @@ export default function StockPage() {
             </Button>
           </DialogActions>
         </Box>
+      </Dialog>
+
+      <Dialog open={alertsOpen} onClose={() => setAlertsOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Alertas de stock</DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700} color={paletteRaw.azulD} sx={{ mb: 1 }}>
+              Stock bajo
+            </Typography>
+            {lowStock.length === 0 ? (
+              <Typography variant="body2" color={paletteRaw.gray}>
+                No hay productos con stock bajo.
+              </Typography>
+            ) : (
+              <List dense sx={{ maxHeight: 220, overflow: 'auto' }}>
+                {lowStock.map((p) => (
+                  <ListItemButton key={p.id_product} onClick={() => goToProduct(p.id_product)}>
+                    <ListItemText
+                      primary={p.name_product}
+                      secondary={`Stock actual: ${p.current_stock} · Mínimo: ${p.minimum_stock_level}`}
+                    />
+                  </ListItemButton>
+                ))}
+              </List>
+            )}
+          </Box>
+
+          <Divider />
+
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700} color={paletteRaw.azulD} sx={{ mb: 1 }}>
+              Por vencer
+            </Typography>
+            {expiringProducts.length === 0 ? (
+              <Typography variant="body2" color={paletteRaw.gray}>
+                No hay productos por vencer.
+              </Typography>
+            ) : (
+              <List dense sx={{ maxHeight: 220, overflow: 'auto' }}>
+                {expiringProducts.map((p) => (
+                  <ListItemButton key={p.id_product} onClick={() => goToProduct(p.id_product)}>
+                    <ListItemText
+                      primary={p.name_product}
+                      secondary={`Vence: ${formatDate(p.expiration_date)}`}
+                    />
+                  </ListItemButton>
+                ))}
+              </List>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setAlertsOpen(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={!!deleteProductTarget}
+        onClose={() => setDeleteProductTarget(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Dar de baja producto por vencer</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {deleteProductError && <Alert severity="error">{deleteProductError}</Alert>}
+          <Typography variant="body2">
+            ¿Seguro que querés dar de baja
+            {deleteProductTarget ? ` "${deleteProductTarget.name_product}"` : ' este producto'}?
+            Deja de verse en el inventario, pero su historial de movimientos y trazabilidad
+            se conserva.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteProductTarget(null)}>Cancelar</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={confirmDeleteProduct}
+            disabled={deletingProduct}
+          >
+            Dar de baja
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   )

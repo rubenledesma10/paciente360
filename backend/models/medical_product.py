@@ -12,6 +12,7 @@ class MedicalProduct(db.Model):
     current_stock = db.Column(db.Integer, nullable=False, default=0)
     minimum_stock_level = db.Column(db.Integer, nullable=False, default=0)
     type_product = db.Column(db.String(100), nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
 
     traceabilities = db.relationship('Traceability', back_populates='product', cascade="all, delete-orphan")
     stock_movements = db.relationship('StockMovement', back_populates='product', cascade="all, delete-orphan")
@@ -41,5 +42,6 @@ class MedicalProduct(db.Model):
             'sin_stock':sin_stock,
             'stock_bajo':stock_bajo,
             'vencido':vencido,
-            'por_vencer':por_vencer
+            'por_vencer':por_vencer,
+            'is_active': self.is_active,
         }

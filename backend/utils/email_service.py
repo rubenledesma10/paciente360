@@ -2,22 +2,22 @@ from flask_mail import Message
 from config.email_config import mail
 from flask import current_app
 
-def send_welcome_email(to_email, username):
+def send_welcome_email(to_email, first_name):
     msg = Message(
         subject="Bienvenido a Paciente360 🏥",
         sender=current_app.config['MAIL_USERNAME'],
         recipients=[to_email]
     )
-    msg.body = f"Hola {username}, gracias por registrarte en Paciente360!"
+    msg.body = f"Hola {first_name}, gracias por registrarte en Paciente360!"
     mail.send(msg)
 
-def send_welcome_email_admin(to_email, username):
+def send_welcome_email_admin(to_email, first_name):
     msg = Message(
         subject="Bienvenido a Paciente360 🏥",
         sender=current_app.config['MAIL_USERNAME'],
         recipients=[to_email]
     )
-    msg.body = f"Hola {username}, gracias por registrarte en Paciente360! Recuerda que tu contraseña es la misma que tu DNI. Recuerda cambiarla!"
+    msg.body = f"Hola {first_name}, gracias por registrarte en Paciente360! Recuerda que tu contraseña es la misma que tu DNI. Recuerda cambiarla!"
     mail.send(msg)
 
 def send_reset_password_email(to_email, new_password):

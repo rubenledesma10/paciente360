@@ -1,6 +1,6 @@
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom';
 import { AppBar, Box, Button, Stack, Toolbar, Typography } from '@mui/material';
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import Logo from '../Logo';
 import { paletteRaw } from '../../theme/theme';
 
 const NAV_LINKS = [
@@ -30,20 +30,7 @@ export default function PublicShell() {
               textDecoration: 'none',
             }}
           >
-            <Box
-              sx={{
-                width: 38,
-                height: 38,
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: paletteRaw.celesteXL,
-                color: paletteRaw.azul,
-              }}
-            >
-              <LocalHospitalIcon fontSize="small" />
-            </Box>
+            <Logo size={40} />
             <Typography
               variant="subtitle1"
               fontWeight={800}

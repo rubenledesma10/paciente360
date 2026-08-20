@@ -18,7 +18,16 @@ import {
   getDoctorsBySpecialty,
   getAvailableSlots,
   createMyAppointment,
+  getAppointmentsByPatient,
 } from '../../api/appointments';
+import { useAuth } from '../../context/useAuth';
+
+const APPOINTMENT_MINUTES = 20;
+
+const toMinutes = (hhmm) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -46,6 +55,11 @@ function StepTitle({ number, children }) {
 
 export default function SacarTurnoPage() {
   const navigate = useNavigate();
+  const { userId } = useAuth();
+
+  // Turnos que el paciente ya tiene ese dia: no puede estar en dos
+  // consultorios a la vez, aunque sean profesionales distintos.
+  const [myAppointments, setMyAppointments] = useState([]);
 
   const [specialties, setSpecialties] = useState([]);
   const [specialtyId, setSpecialtyId] = useState('');
@@ -113,9 +127,19 @@ export default function SacarTurnoPage() {
 
     setLoadingSlots(true);
     try {
-      const res = await getAvailableSlots(doctor.id_user, value);
+      const [slotsRes, mineRes] = await Promise.all([
+        getAvailableSlots(doctor.id_user, value),
+        getAppointmentsByPatient(userId),
+      ]);
       // Los pasados no se muestran: no aportan nada y ensucian la grilla
-      setGrid((res.data.grid || []).filter((g) => g.status !== 'past'));
+      setGrid((slotsRes.data.grid || []).filter((g) => g.status !== 'past'));
+      setMyAppointments(
+        (mineRes.data || []).filter(
+          (a) =>
+            a.date === value &&
+            (a.status === 'Reservado' || a.status === 'En espera'),
+        ),
+      );
     } catch (err) {
       setError(
         err.response?.data?.msg || 'No se pudieron cargar los horarios.',
@@ -153,7 +177,25 @@ export default function SacarTurnoPage() {
     }
   };
 
-  const freeCount = grid.filter((g) => g.status === 'available').length;
+  // Un horario choca si se pisa con otro turno propio dentro de los 20 minutos
+  const findMyConflict = (slotHour) =>
+    myAppointments.find(
+      (a) =>
+        a.hour &&
+        Math.abs(toMinutes(a.hour) - toMinutes(slotHour)) < APPOINTMENT_MINUTES,
+    );
+
+  const displayGrid = grid.map((slot) => {
+    if (slot.status === 'taken') return { ...slot, conflict: null };
+    return { ...slot, conflict: findMyConflict(slot.hour) || null };
+  });
+
+  const takenHours = grid
+    .filter((g) => g.status === 'taken')
+    .map((g) => g.hour);
+  const freeCount = displayGrid.filter(
+    (g) => g.status === 'available' && !g.conflict,
+  ).length;
   const canSubmit = doctor && date && hour && !saving;
 
   return (
@@ -277,21 +319,42 @@ export default function SacarTurnoPage() {
             </Typography>
           )}
 
+          {takenHours.length > 0 && (
+            <Alert severity="info" sx={{ mb: 1.5 }}>
+              Horarios ya reservados con este profesional:{' '}
+              {takenHours.join(' · ')}
+            </Alert>
+          )}
+
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {grid.map((slot) => {
+            {displayGrid.map((slot) => {
               const isTaken = slot.status === 'taken';
+              const conflict = slot.conflict;
+              const blocked = isTaken || Boolean(conflict);
+
+              let title = '';
+              if (isTaken) title = 'Ese horario ya está reservado';
+              else if (conflict)
+                title = `Ya tenés un turno a esta hora con ${conflict.doctor_name}`;
+
               return (
                 <Tooltip
                   key={slot.hour}
-                  title={isTaken ? 'Ese horario ya está reservado' : ''}
-                  disableHoverListener={!isTaken}
+                  title={title}
+                  disableHoverListener={!blocked}
                 >
                   <span>
                     <Chip
                       label={slot.hour}
-                      disabled={isTaken}
-                      onClick={isTaken ? undefined : () => setHour(slot.hour)}
-                      color={hour === slot.hour ? 'primary' : 'default'}
+                      disabled={blocked}
+                      onClick={blocked ? undefined : () => setHour(slot.hour)}
+                      color={
+                        hour === slot.hour
+                          ? 'primary'
+                          : conflict
+                            ? 'warning'
+                            : 'default'
+                      }
                       variant={hour === slot.hour ? 'filled' : 'outlined'}
                       sx={{
                         fontWeight: 600,
@@ -304,13 +367,23 @@ export default function SacarTurnoPage() {
             })}
           </Box>
 
+          {/* Aviso especifico: no es que el medico este ocupado, es que el
+              paciente ya tiene otra consulta a esa hora */}
+          {displayGrid.some((g) => g.conflict) && (
+            <Alert severity="warning" sx={{ mt: 1.5 }}>
+              Los horarios en naranja no están disponibles porque ya tenés otro
+              turno a esa hora. No podés estar con dos profesionales al mismo
+              tiempo.
+            </Alert>
+          )}
+
           {grid.length > 0 && (
             <Typography
               variant="caption"
               color="#5b7387"
               sx={{ mt: 1, display: 'block' }}
             >
-              {freeCount} horario(s) libre(s) · los tachados ya están reservados
+              {freeCount} horario(s) disponible(s) para vos
             </Typography>
           )}
         </Card>

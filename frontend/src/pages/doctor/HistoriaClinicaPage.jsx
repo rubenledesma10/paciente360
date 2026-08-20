@@ -23,11 +23,13 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import { searchPatients } from '../../api/patients'
 import { getMedicalHistory } from '../../api/medicalHistory'
 import { createMedicalIndication, updateMedicalIndication } from '../../api/medicalIndications'
 import { getAppointmentsByPatient } from '../../api/appointments'
 import { useAuth } from '../../context/useAuth'
+import { downloadMedicalHistoryPdf } from '../../utils/medicalHistoryPdf'
 import { formatDateTime } from '../../utils/dateFormat'
 import { formatPatientLabel, getPatientAge, getPatientDni } from '../../utils/patientDisplay'
 import { paletteRaw } from '../../theme/theme'
@@ -54,7 +56,7 @@ function EventDetail({ evento }) {
   const { detalle } = evento
   if (evento.tipo === 'Signos y Síntomas') {
     return (
-      <Typography variant="body2" color={paletteRaw.ink}>
+      <Typography variant="body2" color={paletteRaw.ink} sx={{ whiteSpace: 'pre-line' }}>
         Temp. {detalle.temperature}°C · Presión {detalle.blood_pressure || '—'}
         {detalle.symptoms && <> · Síntomas: {detalle.symptoms}</>}
         {detalle.observations && <> · {detalle.observations}</>}
@@ -63,7 +65,7 @@ function EventDetail({ evento }) {
   }
   if (evento.tipo === 'Seguimiento') {
     return (
-      <Typography variant="body2" color={paletteRaw.ink}>
+      <Typography variant="body2" color={paletteRaw.ink} sx={{ whiteSpace: 'pre-line' }}>
         {detalle.observations || 'Sin observaciones'}
         {detalle.next_check_up && <> · Próximo control: {detalle.next_check_up}</>}
       </Typography>
@@ -249,9 +251,29 @@ export default function HistoriaClinicaPage() {
           </Typography>
         </Box>
         {selectedPatient && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
-            Nueva indicación
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            {filteredEvents.length > 0 && (
+              <Button
+                variant="outlined"
+                startIcon={<PictureAsPdfIcon />}
+                onClick={() =>
+                  downloadMedicalHistoryPdf({
+                    patientName: `${selectedPatientObj.first_name} ${selectedPatientObj.last_name}`,
+                    patientDni: getPatientDni(selectedPatientObj),
+                    patientAge: getPatientAge(selectedPatientObj.date_of_birth),
+                    healthPlanName: selectedPatientObj.health_plan_name,
+                    memberNumber: selectedPatientObj.member_number,
+                    events: filteredEvents,
+                  })
+                }
+              >
+                Descargar PDF
+              </Button>
+            )}
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
+              Nueva indicación
+            </Button>
+          </Box>
         )}
       </Box>
 

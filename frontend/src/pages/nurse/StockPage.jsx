@@ -27,6 +27,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Tabs,
   TextField,
   Tooltip,
@@ -137,6 +138,7 @@ export default function StockPage() {
   const [movSearch, setMovSearch] = useState('')
   const [movTypeFilter, setMovTypeFilter] = useState('')
   const [movSelectedDate, setMovSelectedDate] = useState(dayjs())
+  const [movSortOrder, setMovSortOrder] = useState('desc')
   const productRowRefs = useRef({})
 
   const movForm = useForm({
@@ -242,6 +244,15 @@ export default function StockPage() {
         return matchesSearch && matchesType && matchesDate
       }),
     [movements, movSearch, movTypeFilter, movSelectedDate],
+  )
+
+  const sortedMovements = useMemo(
+    () =>
+      [...visibleMovements].sort((a, b) => {
+        const diff = toLocalDayjs(a.date_time)?.valueOf() - toLocalDayjs(b.date_time)?.valueOf()
+        return movSortOrder === 'asc' ? diff : -diff
+      }),
+    [visibleMovements, movSortOrder],
   )
 
   // Nombres únicos de producto para el selector de "Registrar uso": el lote puntual
@@ -537,6 +548,9 @@ export default function StockPage() {
             <Button size="small" onClick={() => setMovSelectedDate(dayjs())}>
               Hoy
             </Button>
+            <Button size="small" onClick={() => setMovSelectedDate(null)}>
+              Todos
+            </Button>
           </Box>
 
           <TableContainer component={Paper}>
@@ -546,11 +560,19 @@ export default function StockPage() {
                   <TableCell>Producto</TableCell>
                   <TableCell>Tipo</TableCell>
                   <TableCell>Cantidad</TableCell>
-                  <TableCell>Fecha/Hora</TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active
+                      direction={movSortOrder}
+                      onClick={() => setMovSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                    >
+                      Fecha/Hora
+                    </TableSortLabel>
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {visibleMovements.map((m) => (
+                {sortedMovements.map((m) => (
                   <TableRow key={m.id_stock_movement}>
                     <TableCell sx={{ fontWeight: 600 }}>{m.product_name || '—'}</TableCell>
                     <TableCell>
@@ -570,7 +592,7 @@ export default function StockPage() {
                     <TableCell sx={{ color: paletteRaw.gray }}>{formatDateTime(m.date_time)}</TableCell>
                   </TableRow>
                 ))}
-                {visibleMovements.length === 0 && (
+                {sortedMovements.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} align="center" sx={{ color: paletteRaw.gray }}>
                       No hay movimientos para el filtro seleccionado.

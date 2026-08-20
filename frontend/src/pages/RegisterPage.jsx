@@ -9,6 +9,8 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
+  IconButton,
+  InputAdornment,
   Link,
   MenuItem,
   Paper,
@@ -16,6 +18,8 @@ import {
   Typography,
 } from '@mui/material'
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { createPatient } from '../api/patients'
 import { gradients, paletteRaw } from '../theme/theme'
 
@@ -43,6 +47,8 @@ export default function RegisterPage() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const {
     register,
@@ -235,21 +241,55 @@ export default function RegisterPage() {
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 label="Contraseña"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 fullWidth
                 margin="dense"
                 {...register('password')}
                 error={!!errors.password}
                 helperText={errors.password?.message}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword((v) => !v)}
+                          edge="end"
+                          size="small"
+                          aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
               />
               <TextField
                 label="Confirmar contraseña"
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 fullWidth
                 margin="dense"
                 {...register('confirmPassword')}
                 error={!!errors.confirmPassword}
                 helperText={errors.confirmPassword?.message}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowConfirmPassword((v) => !v)}
+                          edge="end"
+                          size="small"
+                          aria-label={
+                            showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
+                          }
+                        >
+                          {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
               />
             </Box>
 

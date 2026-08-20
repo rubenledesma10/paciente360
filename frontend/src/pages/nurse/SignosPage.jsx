@@ -107,6 +107,8 @@ export default function SignosPage() {
       name,
       dni: patient ? getPatientDni(patient) : null,
       age: patient ? getPatientAge(patient.date_of_birth) : null,
+      healthPlan: patient?.health_plan_name || null,
+      memberNumber: patient?.member_number || null,
     })
     setHistoryOpen(true)
   }
@@ -525,6 +527,8 @@ export default function SignosPage() {
         patientName={historyPatient.name}
         patientDni={historyPatient.dni}
         patientAge={historyPatient.age}
+        patientHealthPlan={historyPatient.healthPlan}
+        patientMemberNumber={historyPatient.memberNumber}
       />
     </Box>
   )

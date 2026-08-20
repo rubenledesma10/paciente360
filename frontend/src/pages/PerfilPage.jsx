@@ -13,11 +13,15 @@ import {
   DialogTitle,
   Divider,
   Grid,
+  IconButton,
+  InputAdornment,
   TextField,
   Typography,
 } from '@mui/material';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import {
   getMyProfile,
   updateMyProfile,
@@ -75,6 +79,9 @@ export default function PerfilPage() {
   const [repeatPassword, setRepeatPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
   const isPatient = rol === 'Patient';
   const fields = isPatient ? [...EDITABLE, ...PATIENT_EDITABLE] : EDITABLE;
@@ -416,26 +423,74 @@ export default function PerfilPage() {
         >
           {passwordError && <Alert severity="error">{passwordError}</Alert>}
           <TextField
-            type="password"
+            type={showCurrentPassword ? 'text' : 'password'}
             label="Contraseña actual"
             size="small"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowCurrentPassword((v) => !v)}
+                      edge="end"
+                      size="small"
+                      aria-label={showCurrentPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      {showCurrentPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
           <TextField
-            type="password"
+            type={showNewPassword ? 'text' : 'password'}
             label="Nueva contraseña"
             size="small"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             helperText="Mínimo 6 caracteres"
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowNewPassword((v) => !v)}
+                      edge="end"
+                      size="small"
+                      aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
           <TextField
-            type="password"
+            type={showRepeatPassword ? 'text' : 'password'}
             label="Repetir nueva contraseña"
             size="small"
             value={repeatPassword}
             onChange={(e) => setRepeatPassword(e.target.value)}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowRepeatPassword((v) => !v)}
+                      edge="end"
+                      size="small"
+                      aria-label={showRepeatPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      {showRepeatPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

@@ -217,7 +217,7 @@ def _crear_turno_validado(data, status_default, is_overbooking=False,
     # que ya quedo guardado.
     if es_paciente_nuevo:
         try:
-            send_welcome_email(paciente.email, paciente.username)
+            send_welcome_email(paciente.email, paciente.first_name)
         except Exception as mail_error:
             print(f"No se pudo enviar el mail de bienvenida: {mail_error}")
 

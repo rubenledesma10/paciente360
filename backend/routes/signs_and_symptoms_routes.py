@@ -92,7 +92,7 @@ def delete_signs_and_symptoms(id_signs_and_symptoms):
         return jsonify({'error': 'Signs and Symptoms not found'}), 404
     id_nurse_logueado = int(get_jwt_identity())
     if signs_and_symptoms.id_nurse != id_nurse_logueado:
-        return jsonify({"error": "Only the nurse who recorded this can delete it."}), 403
+        return jsonify({"error": "Solo el enfermero que registró esto puede eliminarlo."}), 403
     try:
         db.session.delete(signs_and_symptoms)
         db.session.commit()
@@ -113,7 +113,7 @@ def update_signs_and_symptoms(id_signs_and_symptoms):
     
     id_nurse_logueado = int(get_jwt_identity())
     if signs_and_symptoms.id_nurse != id_nurse_logueado:
-        return jsonify({"error": "Only the nurse who recorded this can edit it."}), 403
+        return jsonify({"error": "Solo el enfermero que registró esto puede modificarlo."}), 403
     
     now = datetime.utcnow()
     time_limit = signs_and_symptoms.date_and_time + timedelta(minutes=5)

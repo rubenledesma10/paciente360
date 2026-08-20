@@ -8,10 +8,14 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { getMedicalHistory } from '../api/medicalHistory';
+import { downloadMedicalHistoryPdf } from '../utils/medicalHistoryPdf';
+import { paletteRaw } from '../theme/theme';
 
 const typeColor = (tipo) => {
   if (tipo === 'Seguimiento') return 'info';
@@ -27,6 +31,8 @@ export default function MedicalHistoryDialog({
   patientName,
   patientDni,
   patientAge,
+  patientHealthPlan,
+  patientMemberNumber,
 }) {
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
@@ -47,7 +53,7 @@ export default function MedicalHistoryDialog({
     if (evento.tipo === 'Seguimiento') {
       return (
         <>
-          <Typography variant="body2" color="#34495e">
+          <Typography variant="body2" color="#34495e" sx={{ whiteSpace: 'pre-line' }}>
             {d.observations}
           </Typography>
           {d.next_check_up && (
@@ -71,7 +77,11 @@ export default function MedicalHistoryDialog({
             {d.blood_pressure && `Presión: ${d.blood_pressure}`}
           </Typography>
           {d.observations && (
-            <Typography variant="caption" color="#5b7387" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography
+              variant="caption"
+              color="#5b7387"
+              sx={{ display: 'block', mt: 0.5, whiteSpace: 'pre-line' }}
+            >
               Observación: {d.observations}
             </Typography>
           )}
@@ -114,9 +124,31 @@ export default function MedicalHistoryDialog({
             {patientAge != null && ` — ${patientAge} años`}
           </Typography>
         </Box>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon />
-        </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Tooltip title="Descargar PDF">
+            <span>
+              <IconButton
+                size="small"
+                disabled={events.length === 0}
+                onClick={() =>
+                  downloadMedicalHistoryPdf({
+                    patientName,
+                    patientDni,
+                    patientAge,
+                    healthPlanName: patientHealthPlan,
+                    memberNumber: patientMemberNumber,
+                    events,
+                  })
+                }
+              >
+                <PictureAsPdfIcon fontSize="small" sx={{ color: paletteRaw.azul }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
       </DialogTitle>
       <DialogContent dividers>
         {error && <Alert severity="error">{error}</Alert>}

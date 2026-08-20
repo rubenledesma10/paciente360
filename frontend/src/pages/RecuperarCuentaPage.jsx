@@ -6,6 +6,7 @@ import * as yup from 'yup'
 import { Alert, Box, Button, Link, Paper, TextField, Typography } from '@mui/material'
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital'
 import { gradients, paletteRaw } from '../theme/theme'
+import { forgotPassword } from '../api/auth'
 
 const schema = yup.object({
   email: yup.string().email('Ingresá un email válido').required('Ingresá tu email'),
@@ -20,8 +21,15 @@ export default function RecuperarCuentaPage() {
     formState: { errors, isSubmitting },
   } = useForm({ resolver: yupResolver(schema) })
 
-  const onSubmit = async () => {
-    setSent(true)
+  const onSubmit = async ({ email }) => {
+    try {
+      await forgotPassword(email)
+    } catch {
+      // Se ignora el error (incluido 404 "User not found") a propósito:
+      // no debe revelarse si un email está registrado o no.
+    } finally {
+      setSent(true)
+    }
   }
 
   return (
@@ -96,7 +104,7 @@ export default function RecuperarCuentaPage() {
                 disabled={isSubmitting}
                 sx={{ mt: 2 }}
               >
-                Enviar instrucciones
+                Recuperar contraseña
               </Button>
               <Typography variant="body2" align="center" sx={{ mt: 2 }} color={paletteRaw.gray}>
                 <Link component={RouterLink} to="/login">

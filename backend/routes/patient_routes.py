@@ -47,7 +47,7 @@ def create_patient():
 
         db.session.add(new_patient)
         db.session.commit()
-        send_welcome_email(new_patient.email, new_patient.username)
+        send_welcome_email(new_patient.email, new_patient.first_name)
         return jsonify({"msg": "Patient created successfully", "patient_id": new_patient.id_user}), 201
     
     except Exception as e:

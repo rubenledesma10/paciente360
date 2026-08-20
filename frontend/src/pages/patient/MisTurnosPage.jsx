@@ -142,8 +142,8 @@ export default function MisTurnosPage() {
     })
     .sort((a, b) => parseDate(a.date) - parseDate(b.date));
 
-  // El backend ya decide quién puede confirmar: no repetimos la regla acá
-  const toConfirmCount = rows.filter((ap) => ap.patient_can_confirm).length;
+  // Sin cartel de "turnos por confirmar": confirmar es opcional, el paciente
+  // puede presentarse igual. El boton alcanza como invitacion.
 
   const statusChip = (ap) => {
     if (ap.status === STATUS_ATTENDED)
@@ -187,11 +187,6 @@ export default function MisTurnosPage() {
           onClose={() => setActionOk('')}
         >
           {actionOk}
-        </Alert>
-      )}
-      {toConfirmCount > 0 && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Tenés {toConfirmCount} turno(s) por confirmar
         </Alert>
       )}
 

@@ -20,7 +20,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import Logo from '../components/Logo';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -103,23 +103,24 @@ export default function LoginPage() {
         >
           <Box sx={{ width: '100%', maxWidth: 400 }}>
             <Box sx={{ textAlign: 'center', mb: 3 }}>
+              {/* Badge blanco: el logo es azul y sobre el fondo celeste
+                  del panel pierde contraste. El circulo va bien mas grande
+                  que el logo para que respire y no se vea apretado. */}
               <Box
                 sx={{
-                  width: 76,
-                  height: 76,
+                  width: 132,
+                  height: 132,
                   mx: 'auto',
                   mb: 2,
-                  borderRadius: 4,
+                  borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   background: '#fff',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
                 }}
               >
-                <LocalHospitalIcon
-                  sx={{ fontSize: 40, color: paletteRaw.celeste }}
-                />
+                <Logo size={92} />
               </Box>
               <Typography variant="h4" fontWeight={800} color="#fff">
                 Paciente<span style={{ color: paletteRaw.celesteL }}>360º</span>

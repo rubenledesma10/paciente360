@@ -415,6 +415,16 @@ export default function SacarTurnoPublicoPage() {
             </Alert>
           )}
 
+          {grid.filter((g) => g.status === 'taken').length > 0 && (
+            <Alert severity="info" sx={{ mb: 1.5 }}>
+              Horarios ya reservados:{' '}
+              {grid
+                .filter((g) => g.status === 'taken')
+                .map((g) => g.hour)
+                .join(' · ')}
+            </Alert>
+          )}
+
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {grid.map((slot) => {
               const isTaken = slot.status === 'taken';

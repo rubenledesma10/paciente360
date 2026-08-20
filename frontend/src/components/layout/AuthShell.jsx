@@ -15,11 +15,11 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import { useAuth } from '../../context/useAuth';
 import { menuForRole, routeTitle, ROLE_LABELS } from './menuConfig';
 import { paletteRaw } from '../../theme/theme';
 import NotificationsBell from '../NotificationsBell';
+import Logo from '../Logo';
 import { mediaUrl } from '../../utils/mediaUrl';
 
 const DRAWER_WIDTH = 260;
@@ -56,20 +56,7 @@ export default function AuthShell() {
           borderBottom: '1px solid #E3EEF6',
         }}
       >
-        <Box
-          sx={{
-            width: 38,
-            height: 38,
-            borderRadius: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: paletteRaw.celesteXL,
-            color: paletteRaw.azul,
-          }}
-        >
-          <LocalHospitalIcon fontSize="small" />
-        </Box>
+        <Logo size={40} />
         <Box>
           <Typography
             variant="subtitle1"

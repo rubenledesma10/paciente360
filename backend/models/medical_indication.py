@@ -20,5 +20,6 @@ class MedicalIndication(db.Model):
             'id_doctor': self.id_doctor,
             'indication': self.indication,
             'treatment': self.treatment,
-            'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None
+            'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
+            'doctor_name': f"{self.doctor.first_name} {self.doctor.last_name}" if self.doctor else None
         }

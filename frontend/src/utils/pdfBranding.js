@@ -1,23 +1,50 @@
 import { paletteRaw } from '../theme/theme'
+import logoUrl from '../assets/logo.png'
 
 const PAGE_WIDTH = 210
 const HEADER_HEIGHT = 30
 
+// jsPDF.addImage necesita un data URL, no la URL de archivo que devuelve el import de
+// Vite (logo.png pesa más que el límite de inlineo automático). Se busca una sola vez
+// y se cachea la conversión para no repetirla en cada PDF.
+let logoDataUrlPromise = null
+function getLogoDataUrl() {
+  if (!logoDataUrlPromise) {
+    logoDataUrlPromise = new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        // Recorta el logo a círculo (con fondo blanco donde el PNG es transparente)
+        // antes de pasarlo a addImage, que no soporta recortes por sí solo.
+        const size = img.naturalWidth || 512
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')
+        ctx.beginPath()
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+        ctx.closePath()
+        ctx.fillStyle = '#ffffff'
+        ctx.fill()
+        ctx.clip()
+        ctx.drawImage(img, 0, 0, size, size)
+        resolve(canvas.toDataURL('image/png'))
+      }
+      img.onerror = reject
+      img.src = logoUrl
+    })
+  }
+  return logoDataUrlPromise
+}
+
 // Dibuja el encabezado institucional (marca + título del documento) en la página actual.
-export function drawPdfHeader(doc, documentTitle) {
+export async function drawPdfHeader(doc, documentTitle) {
   doc.setFillColor(paletteRaw.azulD)
   doc.rect(0, 0, PAGE_WIDTH, HEADER_HEIGHT, 'F')
   doc.setFillColor(paletteRaw.celeste)
   doc.rect(0, HEADER_HEIGHT, PAGE_WIDTH, 1.2, 'F')
 
-  // Isotipo: cruz de salud dentro de un círculo blanco.
-  const cx = 22
-  const cy = 15
-  doc.setFillColor('#ffffff')
-  doc.circle(cx, cy, 9, 'F')
-  doc.setFillColor(paletteRaw.azul)
-  doc.rect(cx - 1.8, cy - 5.5, 3.6, 11, 'F')
-  doc.rect(cx - 5.5, cy - 1.8, 11, 3.6, 'F')
+  const logoDataUrl = await getLogoDataUrl()
+  doc.addImage(logoDataUrl, 'PNG', 13, 6, 18, 18)
 
   doc.setTextColor('#ffffff')
   doc.setFont('helvetica', 'bold')

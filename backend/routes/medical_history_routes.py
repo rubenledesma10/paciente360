@@ -31,6 +31,7 @@ def get_medical_history(patient_id):
             "fecha": (s.date_and_time.isoformat() + 'Z') if s.date_and_time else None,
             "tipo":"Signos y Síntomas",
             "id_nurse":s.id_nurse,
+            "nurse_name": f"{s.nurse.first_name} {s.nurse.last_name}" if s.nurse else None,
             "detalle":{
                 "temperature": s.temperature,
                 "blood_pressure": s.blood_pressure,
@@ -48,6 +49,7 @@ def get_medical_history(patient_id):
             "fecha": (f.date_time.isoformat() + 'Z') if f.date_time else None,
             "tipo":"Seguimiento",
             "id_nurse":f.id_nurse,
+            "nurse_name": f"{f.nurse.first_name} {f.nurse.last_name}" if f.nurse else None,
             "detalle":{
                 "observations": f.observations,
                 "next_check_up": f.next_check_up.isoformat() if f.next_check_up else None,
@@ -62,6 +64,7 @@ def get_medical_history(patient_id):
             "fecha": (i.created_at.isoformat() + 'Z') if i.created_at else None,
             "tipo":"Indicación Médica",
             "id_doctor":i.id_doctor,
+            "doctor_name": f"{i.doctor.first_name} {i.doctor.last_name}" if i.doctor else None,
             "detalle":{
                 "indication": i.indication,
                 "treatment": i.treatment

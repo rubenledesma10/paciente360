@@ -31,13 +31,13 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import HistoryIcon from '@mui/icons-material/History'
 import { getPatients } from '../../api/patients'
+import { getPatientsByStatus } from '../../api/appointments'
 import MedicalHistoryDialog from '../../components/MedicalHistoryDialog'
 import {
   getSignsAndSymptoms,
   createSignsAndSymptoms,
   updateSignsAndSymptoms,
   deleteSignsAndSymptoms,
-  getWaitingPatients,
 } from '../../api/signsAndSymptoms'
 import { formatDateTime } from '../../utils/dateFormat'
 import { getPatientAge, getPatientDni } from '../../utils/patientDisplay'
@@ -65,7 +65,7 @@ const obsSchema = yup.object({
 export default function SignosPage() {
   const [rows, setRows] = useState([])
   const [patients, setPatients] = useState([])
-  const [waitingPatients, setWaitingPatients] = useState([])
+  const [availablePatients, setAvailablePatients] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [open, setOpen] = useState(false)
@@ -118,9 +118,9 @@ export default function SignosPage() {
         id: p.id_user,
         label: `${p.first_name} ${p.last_name} — DNI ${getPatientDni(p)} — ${getPatientAge(p.date_of_birth) ?? '—'} años`,
       }))
-    : waitingPatients.map((p) => ({
-        id: p.id_patient,
-        label: `${p.patient_name} — DNI ${p.dni}`,
+    : availablePatients.map((p) => ({
+        id: p.id_user,
+        label: `${p.first_name} ${p.last_name} — DNI ${getPatientDni(p)}`,
       }))
 
   const visibleRows = rows.filter(
@@ -185,10 +185,10 @@ export default function SignosPage() {
       record_type: 'Rutina',
     })
     try {
-      const res = await getWaitingPatients()
-      setWaitingPatients(res.data)
+      const res = await getPatientsByStatus()
+      setAvailablePatients(res.data)
     } catch {
-      setFormError('No se pudo cargar la lista de pacientes en espera.')
+      setFormError('No se pudo cargar la lista de pacientes atendidos/en espera.')
     }
     setOpen(true)
   }
@@ -420,7 +420,7 @@ export default function SignosPage() {
                   helperText={
                     errors.id_patient?.message ||
                     (!editingRow && patientOptions.length === 0
-                      ? 'No hay pacientes en espera en este momento.'
+                      ? 'No hay pacientes atendidos o en espera en este momento.'
                       : '')
                   }
                 >

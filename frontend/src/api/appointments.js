@@ -33,6 +33,13 @@ export function getAttendedPatients(params) {
   return client.get('/appointments/attended-patients', { params });
 }
 
+// Pacientes con turno hoy en estado En espera y/o Atendido.
+// Lo usan Indicaciones médicas y Signos y síntomas para sus desplegables de alta.
+export function getPatientsByStatus(params) {
+  // params: { date: 'YYYY-MM-DD', id_doctor: 1, status: 'En espera,Atendido' } — todos opcionales
+  return client.get('/appointments/patients-by-status', { params });
+}
+
 export function getAvailableSlots(doctorId, date) {
   return client.get('/appointments/available-slots', {
     params: { id_doctor: doctorId, date },

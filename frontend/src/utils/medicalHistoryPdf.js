@@ -24,7 +24,13 @@ function buildEventDetailText(evento) {
   return parts.join('\n')
 }
 
-export function downloadMedicalHistoryPdf({
+function getAttendedByName(evento) {
+  if (evento.doctor_name) return `Médico: ${evento.doctor_name}`
+  if (evento.nurse_name) return `Enfermero/a: ${evento.nurse_name}`
+  return '—'
+}
+
+export async function downloadMedicalHistoryPdf({
   patientName,
   patientDni,
   patientAge,
@@ -60,18 +66,19 @@ export function downloadMedicalHistoryPdf({
   autoTable(doc, {
     startY: patientBoxTop + 26,
     margin: { top: PDF_HEADER_HEIGHT + 6 },
-    head: [['Tipo', 'Fecha', 'Detalle']],
+    head: [['Tipo', 'Fecha', 'Detalle', 'Atendido por']],
     body: events.map((evento) => [
       evento.tipo,
       evento.fecha ? formatDateTime(evento.fecha) : '—',
       buildEventDetailText(evento),
+      getAttendedByName(evento),
     ]),
     headStyles: { fillColor: paletteRaw.azulD, textColor: '#ffffff' },
     styles: { textColor: paletteRaw.ink, lineColor: paletteRaw.celeste },
-    columnStyles: { 2: { cellWidth: 90 } },
+    columnStyles: { 2: { cellWidth: 74 }, 3: { cellWidth: 38 } },
   })
 
-  drawPdfHeader(doc, 'Historia Clínica')
+  await drawPdfHeader(doc, 'Historia Clínica')
   drawPdfFooter(doc)
 
   const dateSuffix = dayjs().format('YYYY-MM-DD')

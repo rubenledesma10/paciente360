@@ -859,3 +859,69 @@ def get_attended_patients():
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"msg": "Error al obtener los pacientes atendidos", "error": str(e)}), 500
+
+
+@appointments_bp.route('/patients-by-status', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE)
+def get_patients_by_status():
+    """Pacientes con turno en una fecha, en uno o mas estados.
+
+    Generaliza get_attended_patients para los desplegables de pacientes de
+    Indicaciones medicas y Signos y sintomas, que necesitan tanto los
+    pacientes "En espera" como los ya "Atendido".
+
+    Parametros opcionales:
+      ?date=YYYY-MM-DD             (por defecto, hoy)
+      ?id_doctor=<id>              (para ver solo los de un medico)
+      ?status=En espera,Atendido   (coma-separado; por defecto ambos)
+    """
+    try:
+        date_str = request.args.get('date')
+        if date_str:
+            try:
+                target_date = date.fromisoformat(date_str)
+            except ValueError:
+                return jsonify({"msg": "Fecha invalida. Formato esperado YYYY-MM-DD"}), 400
+        else:
+            target_date = date.today()
+
+        status_param = request.args.get('status', 'En espera,Atendido')
+        try:
+            statuses = [
+                AppointmentStatusEnum(value.strip())
+                for value in status_param.split(',')
+                if value.strip()
+            ]
+        except ValueError:
+            return jsonify({"msg": "Estado invalido"}), 400
+
+        query = MedicalAppointment.query.filter(
+            MedicalAppointment.date == target_date,
+            MedicalAppointment.status.in_(statuses)
+        )
+
+        id_doctor = request.args.get('id_doctor', type=int)
+        if id_doctor:
+            query = query.filter(MedicalAppointment.id_doctor == id_doctor)
+
+        appointments = query.order_by(MedicalAppointment.hour.asc()).all()
+
+        # Un paciente puede tener mas de un turno el mismo dia; se devuelve
+        # una sola vez, con el dato del primer turno de la jornada.
+        result = []
+        seen = set()
+        for appointment in appointments:
+            if appointment.id_patient in seen or not appointment.patient:
+                continue
+            seen.add(appointment.id_patient)
+
+            patient_data = appointment.patient.to_dict()
+            patient_data['status'] = appointment.status.value
+            patient_data['hour'] = appointment.hour
+            patient_data['id_doctor'] = appointment.id_doctor
+            patient_data['id_medical_appointment'] = appointment.id_medical_appointment
+            result.append(patient_data)
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"msg": "Error al obtener los pacientes", "error": str(e)}), 500

@@ -28,6 +28,7 @@ class SignsAndSymptoms(db.Model):
             'date_and_time': (self.date_and_time.isoformat() + 'Z') if self.date_and_time else None,
             'signs': self.signs,
             'symptoms': self.symptoms,
-            'record_type': self.record_type
+            'record_type': self.record_type,
+            'nurse_name': f"{self.nurse.first_name} {self.nurse.last_name}" if self.nurse else None
         }
 

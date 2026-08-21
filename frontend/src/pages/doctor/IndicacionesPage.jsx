@@ -31,12 +31,14 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { getPatients } from '../../api/patients'
+import { getPatientsByStatus } from '../../api/appointments'
 import {
   getMedicalIndications,
   createMedicalIndication,
   updateMedicalIndication,
   deleteMedicalIndication,
 } from '../../api/medicalIndications'
+import { useAuth } from '../../context/useAuth'
 import { formatDateTime } from '../../utils/dateFormat'
 import { formatPatientLabel, getPatientAge, getPatientDni } from '../../utils/patientDisplay'
 import { drawPdfHeader, drawPdfFooter, PDF_HEADER_HEIGHT } from '../../utils/pdfBranding'
@@ -51,8 +53,10 @@ const schema = yup.object({
 })
 
 export default function IndicacionesPage() {
+  const { userId } = useAuth()
   const [rows, setRows] = useState([])
   const [patients, setPatients] = useState([])
+  const [eligiblePatients, setEligiblePatients] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [open, setOpen] = useState(false)
@@ -82,7 +86,7 @@ export default function IndicacionesPage() {
     (a, b) => dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf(),
   )
 
-  const downloadIndicationPdf = (row) => {
+  const downloadIndicationPdf = async (row) => {
     const patient = patients.find((p) => p.id_user === row.id_patient)
     if (!patient) return
     const doc = new jsPDF()
@@ -98,7 +102,11 @@ export default function IndicacionesPage() {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
     doc.setTextColor(paletteRaw.gray)
-    doc.text(`Indicación del ${formatDateTime(row.created_at)}`, 20, patientBoxTop + 15)
+    doc.text(
+      `Indicación del ${formatDateTime(row.created_at)} — Médico: ${row.doctor_name || '—'}`,
+      20,
+      patientBoxTop + 15,
+    )
 
     autoTable(doc, {
       startY: patientBoxTop + 26,
@@ -109,7 +117,7 @@ export default function IndicacionesPage() {
       styles: { textColor: paletteRaw.ink, lineColor: paletteRaw.celeste },
     })
 
-    drawPdfHeader(doc, 'Indicaciones Médicas')
+    await drawPdfHeader(doc, 'Indicaciones Médicas')
     drawPdfFooter(doc)
     const dateSuffix = dayjs(row.created_at).format('YYYY-MM-DD')
     doc.save(`indicacion_${patient.last_name}_${getPatientDni(patient)}_${dateSuffix}.pdf`)
@@ -159,10 +167,16 @@ export default function IndicacionesPage() {
     }
   }, [])
 
-  const openCreateDialog = () => {
+  const openCreateDialog = async () => {
     setFormError('')
     setEditingRow(null)
     reset({ id_patient: '', indication: '', treatment: '' })
+    try {
+      const res = await getPatientsByStatus({ id_doctor: userId })
+      setEligiblePatients(res.data)
+    } catch {
+      setFormError('No se pudo cargar la lista de pacientes atendidos/en espera.')
+    }
     setOpen(true)
   }
 
@@ -326,9 +340,14 @@ export default function IndicacionesPage() {
                   label="Paciente"
                   disabled={!!editingRow}
                   error={!!errors.id_patient}
-                  helperText={errors.id_patient?.message}
+                  helperText={
+                    errors.id_patient?.message ||
+                    (!editingRow && eligiblePatients.length === 0
+                      ? 'No hay pacientes atendidos o en espera en este momento.'
+                      : '')
+                  }
                 >
-                  {patients.map((p) => (
+                  {(editingRow ? patients : eligiblePatients).map((p) => (
                     <MenuItem key={p.id_user} value={p.id_user}>
                       {formatPatientLabel(p)}
                     </MenuItem>

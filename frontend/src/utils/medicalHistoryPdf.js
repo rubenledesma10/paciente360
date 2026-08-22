@@ -36,14 +36,16 @@ export async function downloadMedicalHistoryPdf({
   patientAge,
   healthPlanName,
   memberNumber,
+  allergies,
   events,
 }) {
   const doc = new jsPDF()
   const patientBoxTop = PDF_HEADER_HEIGHT + 10
+  const boxHeight = allergies ? 27 : 20
 
   doc.setDrawColor(paletteRaw.celeste)
   doc.setFillColor(paletteRaw.celesteXL)
-  doc.roundedRect(14, patientBoxTop, 182, 20, 2, 2, 'FD')
+  doc.roundedRect(14, patientBoxTop, 182, boxHeight, 2, 2, 'FD')
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
   doc.setTextColor(paletteRaw.azulD)
@@ -62,9 +64,14 @@ export async function downloadMedicalHistoryPdf({
     .filter(Boolean)
     .join(' — ')
   doc.text(subtitle || ' ', 20, patientBoxTop + 15)
+  if (allergies) {
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(paletteRaw.danger)
+    doc.text(`Alergias: ${allergies}`, 20, patientBoxTop + 22)
+  }
 
   autoTable(doc, {
-    startY: patientBoxTop + 26,
+    startY: patientBoxTop + boxHeight + 6,
     margin: { top: PDF_HEADER_HEIGHT + 6 },
     head: [['Tipo', 'Fecha', 'Detalle', 'Atendido por']],
     body: events.map((evento) => [

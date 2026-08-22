@@ -5,6 +5,7 @@ from models.user import User
 from models.patient import Patient
 from enums import RoleEnum
 from utils.email_service import send_welcome_email
+from utils.role_required import role_required
 
 patients_bp = Blueprint('patients', __name__, url_prefix='/api/patients')
 
@@ -41,7 +42,8 @@ def create_patient():
             rol=RoleEnum.PATIENT,
             health_plan_status=data.get('health_plan_status', False),
             health_plan_name=data.get('health_plan_name'),
-            member_number=data.get('member_number')
+            member_number=data.get('member_number'),
+            allergies=data.get('allergies')
         )
         new_patient.set_password(data.get('password'))
 
@@ -132,12 +134,31 @@ def update_patient(patient_id):
             patient.health_plan_name = data.get('health_plan_name')
         if 'member_number' in data:
             patient.member_number = data.get('member_number')
+        if 'allergies' in data:
+            patient.allergies = data.get('allergies')
 
         db.session.commit()
         return jsonify({"msg": "Patient updated successfully"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error updating patient"}), 500
+
+
+@patients_bp.route('/<int:patient_id>/allergies', methods=['PATCH'])
+@role_required(RoleEnum.NURSE)
+def update_patient_allergies(patient_id):
+    try:
+        patient = Patient.query.get(patient_id)
+        if not patient:
+            return jsonify({"msg": "Patient not found"}), 404
+
+        data = request.get_json() or {}
+        patient.allergies = (data.get('allergies') or '').strip() or None
+        db.session.commit()
+        return jsonify({"msg": "Allergies updated successfully", "allergies": patient.allergies}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": "Error updating allergies"}), 500
 
 
 @patients_bp.route('/<int:patient_id>', methods=['DELETE'])

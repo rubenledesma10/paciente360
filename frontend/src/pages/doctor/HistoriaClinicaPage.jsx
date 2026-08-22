@@ -263,6 +263,7 @@ export default function HistoriaClinicaPage() {
                     patientAge: getPatientAge(selectedPatientObj.date_of_birth),
                     healthPlanName: selectedPatientObj.health_plan_name,
                     memberNumber: selectedPatientObj.member_number,
+                    allergies: selectedPatientObj.allergies,
                     events: filteredEvents,
                   })
                 }
@@ -355,6 +356,11 @@ export default function HistoriaClinicaPage() {
               <Typography variant="body2" fontWeight={600}>{selectedPatientObj.member_number || '—'}</Typography>
             </Grid>
           </Grid>
+          {selectedPatientObj.allergies && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Alergias: {selectedPatientObj.allergies}
+            </Alert>
+          )}
         </Card>
       )}
 

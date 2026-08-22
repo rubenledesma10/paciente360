@@ -11,3 +11,7 @@ export function createPatient(payload) {
 export function searchPatients(query) {
   return client.get('/patients/search', { params: { query } })
 }
+
+export function updatePatientAllergies(id, allergies) {
+  return client.patch(`/patients/${id}/allergies`, { allergies })
+}

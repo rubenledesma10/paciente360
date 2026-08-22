@@ -30,7 +30,8 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import HistoryIcon from '@mui/icons-material/History'
-import { getPatients } from '../../api/patients'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import { getPatients, updatePatientAllergies } from '../../api/patients'
 import { getPatientsByStatus } from '../../api/appointments'
 import MedicalHistoryDialog from '../../components/MedicalHistoryDialog'
 import {
@@ -78,6 +79,10 @@ export default function SignosPage() {
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [selectedDate, setSelectedDate] = useState(dayjs())
+  const [allergyTarget, setAllergyTarget] = useState(null)
+  const [allergyValue, setAllergyValue] = useState('')
+  const [allergyError, setAllergyError] = useState('')
+  const [allergySaving, setAllergySaving] = useState(false)
 
   const {
     register,
@@ -109,8 +114,31 @@ export default function SignosPage() {
       age: patient ? getPatientAge(patient.date_of_birth) : null,
       healthPlan: patient?.health_plan_name || null,
       memberNumber: patient?.member_number || null,
+      allergies: patient?.allergies || null,
     })
     setHistoryOpen(true)
+  }
+
+  const openAllergyDialog = (patientId, name) => {
+    const patient = patients.find((p) => p.id_user === patientId)
+    setAllergyError('')
+    setAllergyValue(patient?.allergies || '')
+    setAllergyTarget({ id: patientId, name })
+  }
+
+  const saveAllergies = async () => {
+    if (!allergyTarget) return
+    setAllergySaving(true)
+    setAllergyError('')
+    try {
+      await updatePatientAllergies(allergyTarget.id, allergyValue)
+      setAllergyTarget(null)
+      loadAll()
+    } catch (err) {
+      setAllergyError(err.response?.data?.msg || 'No se pudieron guardar las alergias.')
+    } finally {
+      setAllergySaving(false)
+    }
   }
 
   const patientOptions = editingRow
@@ -324,7 +352,17 @@ export default function SignosPage() {
               const editable = isEditable(r)
               return (
                 <TableRow key={r.id_signs_and_symptoms}>
-                  <TableCell sx={{ fontWeight: 600 }}>{patientName(r.id_patient)}</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>
+                    {patientName(r.id_patient)}
+                    {patient?.allergies && (
+                      <Tooltip title={`Alergias: ${patient.allergies}`}>
+                        <WarningAmberIcon
+                          fontSize="small"
+                          sx={{ color: paletteRaw.danger, ml: 0.5, verticalAlign: 'middle' }}
+                        />
+                      </Tooltip>
+                    )}
+                  </TableCell>
                   <TableCell>{getPatientDni(patient)}</TableCell>
                   <TableCell>{getPatientAge(patient?.date_of_birth) ?? '—'}</TableCell>
                   <TableCell
@@ -352,6 +390,14 @@ export default function SignosPage() {
                         onClick={() => openHistory(r.id_patient, patientName(r.id_patient))}
                       >
                         <HistoryIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Alergias">
+                      <IconButton
+                        size="small"
+                        onClick={() => openAllergyDialog(r.id_patient, patientName(r.id_patient))}
+                      >
+                        <WarningAmberIcon fontSize="small" sx={{ color: paletteRaw.danger }} />
                       </IconButton>
                     </Tooltip>
                     <Tooltip
@@ -529,7 +575,30 @@ export default function SignosPage() {
         patientAge={historyPatient.age}
         patientHealthPlan={historyPatient.healthPlan}
         patientMemberNumber={historyPatient.memberNumber}
+        patientAllergies={historyPatient.allergies}
       />
+
+      <Dialog open={!!allergyTarget} onClose={() => setAllergyTarget(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Alergias{allergyTarget ? ` — ${allergyTarget.name}` : ''}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {allergyError && <Alert severity="error">{allergyError}</Alert>}
+          <TextField
+            label="Alergias"
+            multiline
+            minRows={3}
+            fullWidth
+            placeholder="Ej: Penicilina, polen"
+            value={allergyValue}
+            onChange={(e) => setAllergyValue(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setAllergyTarget(null)}>Cancelar</Button>
+          <Button variant="contained" onClick={saveAllergies} disabled={allergySaving}>
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

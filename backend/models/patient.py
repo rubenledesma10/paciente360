@@ -9,6 +9,7 @@ class Patient(User):
     health_plan_status = db.Column(db.Boolean, default=False, nullable=False)
     health_plan_name = db.Column(db.String(120), nullable=True)
     member_number = db.Column(db.String(50), nullable=True)
+    allergies = db.Column(db.Text, nullable=True)
 
     signs_and_symptoms = db.relationship('SignsAndSymptoms',back_populates='patient',cascade="all, delete-orphan")
     follow_ups = db.relationship('PatientFollowUp', back_populates='patient', cascade="all, delete-orphan")
@@ -34,5 +35,6 @@ class Patient(User):
             'is_active': self.is_active,
             'health_plan_status': self.health_plan_status,
             'health_plan_name': self.health_plan_name,
-            'member_number': self.member_number
+            'member_number': self.member_number,
+            'allergies': self.allergies
         }

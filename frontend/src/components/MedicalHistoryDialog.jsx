@@ -33,6 +33,7 @@ export default function MedicalHistoryDialog({
   patientAge,
   patientHealthPlan,
   patientMemberNumber,
+  patientAllergies,
 }) {
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
@@ -137,6 +138,7 @@ export default function MedicalHistoryDialog({
                     patientAge,
                     healthPlanName: patientHealthPlan,
                     memberNumber: patientMemberNumber,
+                    allergies: patientAllergies,
                     events,
                   })
                 }
@@ -152,6 +154,11 @@ export default function MedicalHistoryDialog({
       </DialogTitle>
       <DialogContent dividers>
         {error && <Alert severity="error">{error}</Alert>}
+        {patientAllergies && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Alergias: {patientAllergies}
+          </Alert>
+        )}
         {loading && (
           <Typography color="#5b7387">Cargando historia clínica...</Typography>
         )}

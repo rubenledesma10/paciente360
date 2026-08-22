@@ -86,6 +86,7 @@ export default function Seguimiento() {
     name: '',
     dni: null,
     age: null,
+    allergies: null,
   });
 
   // Estados para el diálogo de reprogramar
@@ -190,6 +191,7 @@ export default function Seguimiento() {
       name,
       dni: patient ? getPatientDni(patient) : null,
       age: patient ? getPatientAge(patient.date_of_birth) : null,
+      allergies: patient?.allergies || null,
     });
     setHistoryOpen(true);
   };
@@ -546,6 +548,7 @@ export default function Seguimiento() {
         patientName={historyPatient.name}
         patientDni={historyPatient.dni}
         patientAge={historyPatient.age}
+        patientAllergies={historyPatient.allergies}
       />
     </Box>
   );

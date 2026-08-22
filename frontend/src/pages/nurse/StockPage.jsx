@@ -41,7 +41,7 @@ import { getPatients } from '../../api/patients'
 import { getMedicalProducts, createMedicalProduct, discardMedicalProduct } from '../../api/medicalProducts'
 import { getStockMovements, createStockMovement } from '../../api/stockMovements'
 import { getTraceabilities, createTraceability } from '../../api/traceabilities'
-import { getWaitingPatients } from '../../api/signsAndSymptoms'
+import { getPatientsByStatus } from '../../api/appointments'
 import { formatDate, formatDateTime } from '../../utils/dateFormat'
 import { getPatientAge, getPatientDni } from '../../utils/patientDisplay'
 import { paletteRaw } from '../../theme/theme'
@@ -121,7 +121,7 @@ export default function StockPage() {
   const [movements, setMovements] = useState([])
   const [traceabilities, setTraceabilities] = useState([])
   const [patients, setPatients] = useState([])
-  const [waitingPatients, setWaitingPatients] = useState([])
+  const [availablePatients, setAvailablePatients] = useState([])
   const [loadError, setLoadError] = useState('')
   const [movOpen, setMovOpen] = useState(false)
   const [movError, setMovError] = useState('')
@@ -287,10 +287,10 @@ export default function StockPage() {
     setTraceError('')
     traceForm.reset({ id_patient: '', name_product: '', quantity: 1 })
     try {
-      const res = await getWaitingPatients()
-      setWaitingPatients(res.data)
+      const res = await getPatientsByStatus()
+      setAvailablePatients(res.data)
     } catch {
-      setTraceError('No se pudo cargar la lista de pacientes en espera.')
+      setTraceError('No se pudo cargar la lista de pacientes atendidos/en espera.')
     }
     setTraceOpen(true)
   }
@@ -720,14 +720,14 @@ export default function StockPage() {
                   error={!!traceForm.formState.errors.id_patient}
                   helperText={
                     traceForm.formState.errors.id_patient?.message ||
-                    (waitingPatients.length === 0
-                      ? 'No hay pacientes en espera en este momento.'
+                    (availablePatients.length === 0
+                      ? 'No hay pacientes atendidos o en espera en este momento.'
                       : '')
                   }
                 >
-                  {waitingPatients.map((p) => (
-                    <MenuItem key={p.id_patient} value={p.id_patient}>
-                      {p.patient_name} — DNI {p.dni}
+                  {availablePatients.map((p) => (
+                    <MenuItem key={p.id_user} value={p.id_user}>
+                      {p.first_name} {p.last_name} — DNI {getPatientDni(p)}
                     </MenuItem>
                   ))}
                 </TextField>

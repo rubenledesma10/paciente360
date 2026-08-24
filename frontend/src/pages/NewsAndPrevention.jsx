@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Box,
+  Button,
   Card,
   CardActionArea,
   CardMedia,
@@ -10,10 +11,15 @@ import {
   Typography,
 } from '@mui/material';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useAuth } from '../context/useAuth';
 import { getNews } from '../api/news';
 import { mediaUrl } from '../utils/mediaUrl';
 
 export default function NewsAndPrevention() {
+  // Con sesion iniciada esta pantalla vive dentro del AuthShell y ya tiene
+  // el menu lateral: la flecha de volver solo hace falta en la vista publica.
+  const { isAuthenticated } = useAuth();
   const [news, setNews] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const navigate = useNavigate();
@@ -42,6 +48,17 @@ export default function NewsAndPrevention() {
 
   return (
     <Box>
+      {!isAuthenticated && (
+        <Button
+          component={RouterLink}
+          to="/"
+          startIcon={<ArrowBackIcon />}
+          sx={{ mb: 1, color: '#1565A8', fontWeight: 600 }}
+        >
+          Volver al inicio
+        </Button>
+      )}
+
       <Box sx={{ textAlign: 'center', mb: 3 }}>
         <Typography variant="h4" fontWeight={800} color="#0E4C82">
           Noticias y Prevención

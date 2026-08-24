@@ -925,3 +925,50 @@ def get_patients_by_status():
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"msg": "Error al obtener los pacientes", "error": str(e)}), 500
+
+@appointments_bp.route('/public/busy-hours', methods=['POST'])
+def get_public_busy_hours():
+    """Horas en las que la persona ya tiene turno ese dia.
+
+    Lo usa la pantalla publica para avisar antes de reservar que no puede
+    tener dos turnos a la misma hora con profesionales distintos.
+
+    Se identifica con DNI + fecha de nacimiento, igual que la reserva publica.
+    Si los datos no coinciden devuelve una lista vacia (no un error): asi
+    nadie puede usar este endpoint para averiguar que DNI esta registrado.
+
+    Devuelve SOLO las horas, nunca con que medico. Sin sesion iniciada,
+    decir con quien se atiende una persona seria exponer datos medicos.
+    """
+    try:
+        if not request.is_json:
+            return jsonify({"busy": []}), 200
+        data = request.get_json()
+
+        dni = data.get('dni')
+        birth_str = data.get('date_of_birth')
+        date_str = data.get('date')
+
+        if not dni or not birth_str or not date_str:
+            return jsonify({"busy": []}), 200
+
+        try:
+            birth_date = date.fromisoformat(birth_str)
+            target_date = date.fromisoformat(date_str)
+        except ValueError:
+            return jsonify({"busy": []}), 200
+
+        paciente = Patient.query.filter_by(dni=dni).first()
+        # Silencio deliberado: mismo resultado si no existe o si no coincide
+        if not paciente or paciente.date_of_birth != birth_date:
+            return jsonify({"busy": []}), 200
+
+        turnos = MedicalAppointment.query.filter(
+            MedicalAppointment.id_patient == paciente.id_user,
+            MedicalAppointment.date == target_date,
+            MedicalAppointment.status != AppointmentStatusEnum.CANCELADO
+        ).all()
+
+        return jsonify({"busy": [t.hour for t in turnos if t.hour]}), 200
+    except Exception as e:
+        return jsonify({"msg": "Error al consultar los horarios", "error": str(e)}), 500

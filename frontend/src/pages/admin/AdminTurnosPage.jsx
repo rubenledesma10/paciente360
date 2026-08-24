@@ -112,7 +112,7 @@ export default function AdminTurnosPage() {
   const [doctors, setDoctors] = useState([]);
   const [doctorId, setDoctorId] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
-  const [slots, setSlots] = useState([]);
+  const [grid, setGrid] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [hour, setHour] = useState('');
   const [reason, setReason] = useState('');
@@ -164,6 +164,11 @@ export default function AdminTurnosPage() {
     });
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [rows]);
+
+  const takenSlots = grid
+    .filter((g) => g.status === 'taken')
+    .map((g) => g.hour);
+  const freeSlotCount = grid.filter((g) => g.status === 'available').length;
 
   const visibleRows = useMemo(() => {
     const filtered = filterDoctor
@@ -240,7 +245,7 @@ export default function AdminTurnosPage() {
     setDoctors([]);
     setDoctorId('');
     setAppointmentDate('');
-    setSlots([]);
+    setGrid([]);
     setHour('');
     setReason('');
     setIsOverbooking(false);
@@ -270,7 +275,7 @@ export default function AdminTurnosPage() {
     setDoctorId('');
     setDoctors([]);
     setAppointmentDate('');
-    setSlots([]);
+    setGrid([]);
     setHour('');
     if (!value) return;
     try {
@@ -284,21 +289,21 @@ export default function AdminTurnosPage() {
   const handleDoctorChange = (value) => {
     setDoctorId(value);
     setAppointmentDate('');
-    setSlots([]);
+    setGrid([]);
     setHour('');
   };
 
   const handleDateChange = async (value) => {
     setAppointmentDate(value);
     setHour('');
-    setSlots([]);
+    setGrid([]);
     if (!value || !doctorId) return;
-    // En un sobreturno no se ofrece la grilla: justamente se pisa un horario ocupado
-    if (isOverbooking) return;
+    // La grilla se carga siempre: en un sobreturno tambien hay que ver
+    // que horarios estan ocupados, porque justamente se elige pisar uno.
     setLoadingSlots(true);
     try {
       const res = await getAvailableSlots(doctorId, value);
-      setSlots(res.data.slots || []);
+      setGrid((res.data.grid || []).filter((g) => g.status !== 'past'));
     } catch (err) {
       setCreateError(readError(err, 'No se pudieron cargar los horarios.'));
     } finally {
@@ -308,12 +313,9 @@ export default function AdminTurnosPage() {
 
   const handleOverbookingToggle = (checked) => {
     setIsOverbooking(checked);
+    // Se limpia la hora: un horario valido para sobreturno puede no serlo
+    // para un turno normal, y al reves.
     setHour('');
-    setSlots([]);
-    // Si vuelve a turno normal y ya había fecha, se recargan los horarios libres
-    if (!checked && appointmentDate && doctorId) {
-      handleDateChange(appointmentDate);
-    }
   };
 
   const handleCreate = async () => {
@@ -884,39 +886,70 @@ export default function AdminTurnosPage() {
             }}
           />
 
-          {isOverbooking ? (
-            <TextField
-              size="small"
-              label="Horario (HH:MM)"
-              placeholder="14:20"
-              value={hour}
-              onChange={(e) => setHour(e.target.value)}
-              disabled={!appointmentDate}
-              helperText="Entre 08:00 y 19:40. Al ser sobreturno puede pisar otro turno del profesional."
-            />
-          ) : (
-            <>
-              {loadingSlots && <CircularProgress size={22} />}
-              {!loadingSlots && appointmentDate && slots.length === 0 && (
-                <Typography variant="body2" color="#5b7387">
-                  No quedan horarios libres ese día. Probá otra fecha o cargalo
-                  como sobreturno.
-                </Typography>
-              )}
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {slots.map((s) => (
-                  <Chip
-                    key={s}
-                    label={s}
-                    onClick={() => setHour(s)}
-                    color={hour === s ? 'primary' : 'default'}
-                    variant={hour === s ? 'filled' : 'outlined'}
-                    sx={{ fontWeight: 600 }}
-                  />
-                ))}
-              </Box>
-            </>
+          {loadingSlots && <CircularProgress size={22} />}
+
+          {!loadingSlots &&
+            appointmentDate &&
+            freeSlotCount === 0 &&
+            grid.length > 0 &&
+            !isOverbooking && (
+              <Alert severity="warning">
+                No quedan horarios libres ese día. Elegí otra fecha, o marcá
+                sobreturno para asignar uno igual.
+              </Alert>
+            )}
+
+          {!loadingSlots && isOverbooking && takenSlots.length > 0 && (
+            <Alert severity="info">
+              Horarios ya ocupados: {takenSlots.join(' · ')}. Como es un
+              sobreturno, podés elegir uno de esos igual.
+            </Alert>
           )}
+
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {grid.map((slot) => {
+              const isTaken = slot.status === 'taken';
+              // En un sobreturno los ocupados TAMBIEN se pueden elegir:
+              // esa es justamente la razon de ser del sobreturno.
+              const selectable = !isTaken || isOverbooking;
+              return (
+                <Tooltip
+                  key={slot.hour}
+                  title={
+                    isTaken
+                      ? isOverbooking
+                        ? 'Ocupado — se agenda como sobreturno'
+                        : 'Ya reservado'
+                      : ''
+                  }
+                  disableHoverListener={!isTaken}
+                >
+                  <span>
+                    <Chip
+                      label={slot.hour}
+                      disabled={!selectable}
+                      onClick={
+                        selectable ? () => setHour(slot.hour) : undefined
+                      }
+                      color={
+                        hour === slot.hour
+                          ? 'primary'
+                          : isTaken
+                            ? 'warning'
+                            : 'default'
+                      }
+                      variant={hour === slot.hour ? 'filled' : 'outlined'}
+                      sx={{
+                        fontWeight: 600,
+                        textDecoration:
+                          isTaken && !isOverbooking ? 'line-through' : 'none',
+                      }}
+                    />
+                  </span>
+                </Tooltip>
+              );
+            })}
+          </Box>
 
           <TextField
             size="small"

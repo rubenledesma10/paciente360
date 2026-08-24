@@ -52,6 +52,13 @@ export function createPublicAppointment(payload) {
   return client.post('/appointments/public', payload);
 }
 
+// Horas en las que la persona ya tiene turno ese dia, para la pantalla
+// publica. Se identifica con DNI + fecha de nacimiento; si no coinciden
+// devuelve vacio.
+export function getPublicBusyHours(payload) {
+  return client.post('/appointments/public/busy-hours', payload);
+}
+
 // Reserva del paciente logueado
 export function createMyAppointment(payload) {
   return client.post('/appointments/me', payload);

@@ -16,12 +16,21 @@ import {
   Typography,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
   getSpecialties,
   getDoctorsBySpecialty,
   getAvailableSlots,
   createPublicAppointment,
+  getPublicBusyHours,
 } from '../api/appointments';
+
+const APPOINTMENT_MINUTES = 20;
+
+const toMinutes = (hhmm) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -85,6 +94,8 @@ export default function SacarTurnoPublicoPage() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [hour, setHour] = useState('');
   const [reason, setReason] = useState('');
+  // Horas en las que esta persona ya tiene turno ese dia (con cualquier medico)
+  const [busyHours, setBusyHours] = useState([]);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -131,9 +142,25 @@ export default function SacarTurnoPublicoPage() {
     setError('');
     if (!value || !doctor) return;
     setLoadingSlots(true);
+    setBusyHours([]);
     try {
       const res = await getAvailableSlots(doctor.id_user, value);
       setGrid((res.data.grid || []).filter((g) => g.status !== 'past'));
+
+      // Solo si ya cargo DNI y fecha de nacimiento podemos saber si tiene
+      // otros turnos. Si los datos no coinciden, el backend devuelve vacio.
+      if (form.dni && form.date_of_birth) {
+        try {
+          const mine = await getPublicBusyHours({
+            dni: form.dni.trim(),
+            date_of_birth: form.date_of_birth,
+            date: value,
+          });
+          setBusyHours(mine.data.busy || []);
+        } catch {
+          setBusyHours([]);
+        }
+      }
     } catch (err) {
       setError(readError(err, 'No se pudieron cargar los horarios.'));
     } finally {
@@ -180,7 +207,20 @@ export default function SacarTurnoPublicoPage() {
     }
   };
 
-  const freeCount = grid.filter((g) => g.status === 'available').length;
+  // Choca si se pisa con otro turno propio dentro de los 20 minutos
+  const hasOwnConflict = (slotHour) =>
+    busyHours.some(
+      (h) => Math.abs(toMinutes(h) - toMinutes(slotHour)) < APPOINTMENT_MINUTES,
+    );
+
+  const displayGrid = grid.map((slot) => ({
+    ...slot,
+    ownConflict: slot.status === 'taken' ? false : hasOwnConflict(slot.hour),
+  }));
+
+  const freeCount = displayGrid.filter(
+    (g) => g.status === 'available' && !g.ownConflict,
+  ).length;
 
   // Pantalla de confirmación
   if (booked) {
@@ -231,6 +271,15 @@ export default function SacarTurnoPublicoPage() {
 
   return (
     <Box sx={{ maxWidth: 780, mx: 'auto' }}>
+      <Button
+        component={RouterLink}
+        to="/"
+        startIcon={<ArrowBackIcon />}
+        sx={{ mb: 1, color: '#1565A8', fontWeight: 600 }}
+      >
+        Volver al inicio
+      </Button>
+
       <Box sx={{ mb: 3, textAlign: 'center' }}>
         <Typography variant="h4" fontWeight={800} color="#0E4C82">
           Sacar turno
@@ -426,20 +475,33 @@ export default function SacarTurnoPublicoPage() {
           )}
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {grid.map((slot) => {
+            {displayGrid.map((slot) => {
               const isTaken = slot.status === 'taken';
+              const blocked = isTaken || slot.ownConflict;
+
+              let title = '';
+              if (isTaken) title = 'Ese horario ya está reservado';
+              else if (slot.ownConflict)
+                title = 'Ya tenés un turno a esta hora';
+
               return (
                 <Tooltip
                   key={slot.hour}
-                  title={isTaken ? 'Ese horario ya está reservado' : ''}
-                  disableHoverListener={!isTaken}
+                  title={title}
+                  disableHoverListener={!blocked}
                 >
                   <span>
                     <Chip
                       label={slot.hour}
-                      disabled={isTaken}
-                      onClick={isTaken ? undefined : () => setHour(slot.hour)}
-                      color={hour === slot.hour ? 'primary' : 'default'}
+                      disabled={blocked}
+                      onClick={blocked ? undefined : () => setHour(slot.hour)}
+                      color={
+                        hour === slot.hour
+                          ? 'primary'
+                          : slot.ownConflict
+                            ? 'warning'
+                            : 'default'
+                      }
                       variant={hour === slot.hour ? 'filled' : 'outlined'}
                       sx={{
                         fontWeight: 600,
@@ -451,6 +513,14 @@ export default function SacarTurnoPublicoPage() {
               );
             })}
           </Box>
+
+          {displayGrid.some((g) => g.ownConflict) && (
+            <Alert severity="warning" sx={{ mt: 1.5 }}>
+              Los horarios en naranja no están disponibles porque ya tenés otro
+              turno a esa hora. No podés estar con dos profesionales al mismo
+              tiempo.
+            </Alert>
+          )}
 
           {grid.length > 0 && (
             <Typography

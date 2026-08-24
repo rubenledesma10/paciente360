@@ -20,9 +20,10 @@ export default function PublicShell() {
         sx={{ borderBottom: '1px solid #E3EEF6' }}
       >
         <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }}>
+          {/* El logo hace de "inicio": lleva a la pantalla principal */}
           <Box
             component={RouterLink}
-            to="/noticias"
+            to="/"
             sx={{
               display: 'flex',
               alignItems: 'center',

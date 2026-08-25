@@ -11,6 +11,7 @@ scheduler = APScheduler()
 def send_daily_reminders(app):
     """Esta función busca turnos a <= 24hs y manda los mails."""
     with app.app_context():
+        print("🤖 [ROBOT] Despertando... Buscando turnos...")
         hoy = date.today()
         manana = hoy + timedelta(days=1)
 

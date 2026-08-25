@@ -38,6 +38,7 @@ from models.guard_pass import GuardPass
 from models.guard_pass_checklist import GuardPassChecklist
 from models.health_plan import HealthPlan
 from routes.health_plan_routes import health_plans_bp
+from tasks import scheduler, send_daily_reminders
 
 app= Flask(__name__)
 app.config.from_object(Config)
@@ -46,6 +47,14 @@ CORS(app)  # CORS para que react pueda conectarse
 jwt = JWTManager(app)
 init_mail(app)
 db.init_app(app)
+
+scheduler.init_app(app)
+scheduler.start()
+
+# Programamos el robot para que revise cada 1 hora (o los minutos que quieras)
+@scheduler.task('interval', id='job_reminders', hours=1)
+def job_reminders():
+    send_daily_reminders(app)
 
 # Registro blueprints 
 

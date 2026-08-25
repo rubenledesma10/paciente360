@@ -9,7 +9,8 @@ from models.doctor import Doctor
 from models.specialty import Specialty
 from enums import AppointmentStatusEnum, RoleEnum
 from utils.role_required import role_required
-from utils.email_service import send_welcome_email
+from utils.email_service import send_welcome_email, send_appointment_reminder_email
+from utils.email_tokens import leer_token_accion_turno
 
 appointments_bp = Blueprint('appointments', __name__, url_prefix='/api/appointments')
 
@@ -211,6 +212,12 @@ def _crear_turno_validado(data, status_default, is_overbooking=False,
     )
     db.session.add(new_appointment)
     db.session.commit()
+
+    try:
+        from utils.email_service import send_appointment_booking_email
+        send_appointment_booking_email(paciente.email, paciente.first_name, new_appointment)
+    except Exception as mail_error:
+        print(f"No se pudo enviar el mail de reserva: {mail_error}")
 
     # Si el paciente se creo con este turno, se le manda el mail de bienvenida.
     # Va en try/except aparte: que falle el mail no puede tirar abajo un turno
@@ -972,3 +979,40 @@ def get_public_busy_hours():
         return jsonify({"busy": [t.hour for t in turnos if t.hour]}), 200
     except Exception as e:
         return jsonify({"msg": "Error al consultar los horarios", "error": str(e)}), 500
+    
+@appointments_bp.route('/action/<token>', methods=['GET'])
+def process_email_action(token):
+    """
+    Ruta pública a la que llega el paciente al hacer click en el email.
+    Devuelve HTML para que el paciente vea el resultado directo en su navegador.
+    """
+    data, error = leer_token_accion_turno(token)
+    
+    if error:
+        return f"<h3 style='color: red;'>Error: {error}</h3>", 400
+
+    appointment_id = data.get('appointment_id')
+    accion = data.get('accion')
+
+    appointment = MedicalAppointment.query.get(appointment_id)
+    if not appointment:
+        return "<h3 style='color: red;'>El turno ya no existe en el sistema.</h3>", 404
+
+    if not appointment.is_open():
+        return f"<h3>El turno ya se encuentra '{appointment.status.value}'.</h3>", 400
+
+    # Procesar la acción
+    if accion == 'confirm':
+        if appointment.confirmed:
+            return "<h3 style='color: green;'>¡Tu turno ya estaba confirmado! Te esperamos.</h3>", 200
+        appointment.confirmed = True
+        msg = "<h3 style='color: green;'>¡Turno confirmado con éxito! Gracias por avisar.</h3>"
+        
+    elif accion == 'cancel':
+        appointment.status = AppointmentStatusEnum.CANCELADO
+        msg = "<h3>Tu turno fue cancelado correctamente.</h3>"
+    else:
+        return "<h3 style='color: red;'>Acción desconocida.</h3>", 400
+
+    db.session.commit()
+    return msg, 200

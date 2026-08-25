@@ -43,7 +43,7 @@ class MedicalAppointment(db.Model):
     # Un sobreturno se agenda por urgencia salteando la validacion de solapamiento.
     # Queda marcado para poder identificarlo y contarlo despues.
     is_overbooking = db.Column(db.Boolean, default=False, nullable=False)
-
+    reminder_sent = db.Column(db.Boolean, default=False, nullable=False)
     patient = db.relationship('Patient', back_populates='appointments')
     doctor = db.relationship('Doctor', back_populates='appointments')
 
@@ -106,6 +106,7 @@ class MedicalAppointment(db.Model):
             'confirmed': self.confirmed,
             'is_overbooking': self.is_overbooking,
             # El front no repite las reglas: pregunta y muestra los botones segun esto
+            'reminder_sent': self.reminder_sent,
             'patient_can_confirm': self.patient_can_confirm(),
             'patient_can_cancel': self.patient_can_cancel(),
             'patient_name': f"{self.patient.first_name} {self.patient.last_name}" if self.patient else None,

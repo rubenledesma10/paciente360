@@ -23,3 +23,28 @@ class FollowUpStatusEnum(enum.Enum):
     PENDING = "pending"
     SCHEDULED = "scheduled"
     FINISHED = "finished"
+
+class DiseaseTypeEnum(enum.Enum):
+    """
+    Categorías principales de enfermedades (basado en sistemas anatómicos y etiología).
+    Ideal para usar como etiquetas (tags) en la historia clínica o estadísticas.
+    """
+    INFECCIOSA = 'Infecciosa o Parasitaria'
+    CARDIOVASCULAR = 'Cardiovascular'
+    RESPIRATORIA = 'Respiratoria'
+    GASTROINTESTINAL = 'Gastrointestinal o Digestiva'
+    NEUROLOGICA = 'Neurológica'
+    ENDOCRINA = 'Endocrina o Metabólica'         
+    ONCOLOGICA = 'Oncológica (Cáncer/Neoplasia)'
+    INMUNOLOGICA = 'Inmunológica o Autoinmune'    
+    HEMATOLOGICA = 'Hematológica'                
+    DERMATOLOGICA = 'Dermatológica'
+    MUSCULOESQUELETICA = 'Musculoesquelética o Reumatológica' 
+    GENITOURINARIA = 'Genitourinaria o Renal'
+    PSIQUIATRICA = 'Psiquiátrica o Salud Mental'
+    CONGENITA = 'Congénita o Genética'
+    TRAUMATISMO = 'Traumatismo o Lesión física'   
+    OFTALMOLOGICA = 'Oftalmológica'               
+    OTORRINOLARINGOLOGICA = 'Otorrinolaringológica' 
+    CONSULTAMEDICA= 'Consulta médica general'
+    OTRA = 'Otra'

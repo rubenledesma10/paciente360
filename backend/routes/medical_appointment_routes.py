@@ -7,7 +7,7 @@ from models.patient import Patient
 from models.user import User
 from models.doctor import Doctor
 from models.specialty import Specialty
-from enums import AppointmentStatusEnum, RoleEnum
+from enums import AppointmentStatusEnum, RoleEnum, DiseaseTypeEnum
 from utils.role_required import role_required
 from utils.email_service import send_welcome_email, send_appointment_reminder_email
 from utils.email_tokens import leer_token_accion_turno
@@ -1016,3 +1016,54 @@ def process_email_action(token):
 
     db.session.commit()
     return msg, 200
+
+@appointments_bp.route('/<int:appointment_id>/diagnosis', methods=['PATCH'])
+@role_required(RoleEnum.DOCTOR)
+def update_appointment_diagnosis(appointment_id):
+    """
+    Ruta exclusiva para que el Médico cargue el diagnóstico y 
+    la categoría de la enfermedad durante o después de la consulta.
+    """
+    try:
+        appointment = MedicalAppointment.query.get(appointment_id)
+        if not appointment:
+            return jsonify({"msg": "Turno no encontrado"}), 404
+
+
+        id_doctor_logueado = int(get_jwt_identity()) #solo el medico asignado a este turno puede cargar el diagnostico
+        if appointment.id_doctor != id_doctor_logueado:
+            return jsonify({"msg": "Solo el médico asignado a este turno puede editar su diagnóstico"}), 403
+
+        if not request.is_json:
+            return jsonify({"msg": "Falta el JSON en la petición"}), 400
+
+        data = request.get_json()
+
+        #actualizamos los campos si vienen en el JSON
+        if 'diagnosis' in data:
+            appointment.diagnosis = data.get('diagnosis')
+            
+        if 'disease_details' in data:
+            appointment.disease_details = data.get('disease_details')
+
+        if 'disease_type' in data:
+            tipo = data.get('disease_type')
+            try:
+                appointment.disease_type = DiseaseTypeEnum(tipo)
+            except ValueError:
+                valid_types = [t.value for t in DiseaseTypeEnum]
+                return jsonify({"msg": f"Tipo de enfermedad inválido. Opciones: {valid_types}"}), 400
+
+        
+        if appointment.disease_type == DiseaseTypeEnum.OTRA and not appointment.disease_details: #aca hacemos que si la el tipo de enfermedad es otra, se tiene que completar los detalles
+            return jsonify({"msg": "Si selecciona la categoría 'Otra', debe especificar cuál es en los detalles."}), 400
+
+        db.session.commit()
+        return jsonify({
+            "msg": "Diagnóstico guardado exitosamente", 
+            "appointment": appointment.to_dict()
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": "Error al actualizar el diagnóstico", "error": str(e)}), 500

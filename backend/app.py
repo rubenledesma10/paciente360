@@ -52,7 +52,7 @@ scheduler.init_app(app)
 scheduler.start()
 
 # Programamos el robot para que revise cada 1 hora (o los minutos que quieras)
-@scheduler.task('interval', id='job_reminders', minutes=1)
+@scheduler.task('interval', id='job_reminders', hours=1)
 def job_reminders():
     send_daily_reminders(app)
 

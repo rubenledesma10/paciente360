@@ -1,6 +1,6 @@
 from datetime import datetime
 from models.db import db
-from enums import AppointmentStatusEnum
+from enums import AppointmentStatusEnum, DiseaseTypeEnum
 
 
 # Transiciones de estado permitidas.
@@ -40,6 +40,9 @@ class MedicalAppointment(db.Model):
     status = db.Column(db.Enum(AppointmentStatusEnum), default=AppointmentStatusEnum.RESERVADO, nullable=False)
     reason = db.Column(db.String(255), nullable=True)
     confirmed = db.Column(db.Boolean, default=False, nullable=False)
+    diagnosis = db.Column(db.String(255), nullable=True) #aca el medico pone el diagnostico
+    disease_type = db.Column(db.Enum(DiseaseTypeEnum), nullable=True) #aca se guarda la categoria del enum
+    disease_details = db.Column(db.String(255), nullable=True) #aca el medico aclara
     # Un sobreturno se agenda por urgencia salteando la validacion de solapamiento.
     # Queda marcado para poder identificarlo y contarlo despues.
     is_overbooking = db.Column(db.Boolean, default=False, nullable=False)
@@ -104,6 +107,9 @@ class MedicalAppointment(db.Model):
             'status': self.status.value if self.status else None,
             'reason': self.reason,
             'confirmed': self.confirmed,
+            'diagnosis': self.diagnosis,
+            'disease_type': self.disease_type.value if self.disease_type else None,
+            'disease_details': self.disease_details,
             'is_overbooking': self.is_overbooking,
             # El front no repite las reglas: pregunta y muestra los botones segun esto
             'reminder_sent': self.reminder_sent,

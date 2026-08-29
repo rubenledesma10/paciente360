@@ -107,7 +107,7 @@ def get_news_and_prevention_by_category(category):
 # ---------- rutas privadas (administrativo) ----------
 
 @news_and_prevention_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def create_news_and_prevention():
     data = read_text_fields()
     title = data.get('title')
@@ -144,7 +144,7 @@ def create_news_and_prevention():
 
 
 @news_and_prevention_bp.route('/<int:id_news_and_prevention>', methods=['PUT'])
-@role_required(RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_news_and_prevention(id_news_and_prevention):
     news_and_prevention = NewsAndPrevention.query.get(id_news_and_prevention)
     if not news_and_prevention:
@@ -184,7 +184,7 @@ def update_news_and_prevention(id_news_and_prevention):
 
 
 @news_and_prevention_bp.route('/<int:id_news_and_prevention>', methods=['DELETE'])
-@role_required(RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_news_and_prevention(id_news_and_prevention):
     news_and_prevention = NewsAndPrevention.query.get(id_news_and_prevention)
     if not news_and_prevention:

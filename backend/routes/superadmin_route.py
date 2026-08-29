@@ -9,14 +9,15 @@ from utils.email_service import send_welcome_email_admin
 from werkzeug.utils import secure_filename
 import os
 
-administrative_bp = Blueprint('administrative', __name__,url_prefix='/api/administrative')
+superadministrator_bp = Blueprint('superadministrator_bp', __name__,url_prefix='/api/superadministrator')
 
 UPLOAD_FOLDER = 'static/uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
-@administrative_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
-def create_administrative():
+
+@superadministrator_bp.route('/', methods=['POST'])
+@role_required(RoleEnum.SUPERADMINISTRADOR)
+def create_superadministrator():
     try:
         if not request.is_json:
             return jsonify({"msg": "Missing JSON in request"}), 400
@@ -32,6 +33,7 @@ def create_administrative():
                     
         if User.query.filter_by(dni=request.json.get('dni')).first():
             return jsonify({"msg": "DNI already exists"}), 400
+        
 
         new_user=User(
             first_name=request.json.get('first_name'),
@@ -42,18 +44,17 @@ def create_administrative():
             date_of_birth=date.fromisoformat(request.json.get('date_of_birth')) if request.json.get('date_of_birth') else None,
             profile_photo=None,
             country=request.json.get('country'),
-            phone_number=request.json.get('phone_number'), # Este es el campo válido
+            phone_number=request.json.get('phone_number'),
             is_active=request.json.get('is_active', True),
             gender=request.json.get('gender'),
             address=request.json.get('address'),
             emergency_contact=request.json.get('emergency_contact'),
-            rol=RoleEnum.ADMINISTRATIVE
+            rol=RoleEnum.SUPERADMINISTRADOR
         )
         password=request.json.get('password') or request.json.get('dni')
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.flush()
-        
         if 'profile_photo' in request.files:
             profile_photo = request.files['profile_photo']
             if profile_photo.filename != '':
@@ -67,29 +68,28 @@ def create_administrative():
         try:
             send_welcome_email_admin(new_user.email, new_user.first_name)
         except Exception as mail_error:
-            print(f"Error al enviar correo al administrativo: {mail_error}")
-            
-        return jsonify({"msg": "Administrative user created successfully", "user_id": new_user.id_user}), 201
+            print(f"Error al enviar correo al doctor: {mail_error}")
+        return jsonify({"msg": "superadministrator user created successfully"}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Error creating administrative user", "error": str(e)}), 500
+        return jsonify({"msg": "Error creating superadministrator user", "error": str(e)}), 500
     
-@administrative_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
-def get_administrative_users():
+@superadministrator_bp.route('/', methods=['GET'])
+@role_required(RoleEnum.SUPERADMINISTRADOR)
+def get_superadministrator_users():
     try:
-        administrative_users = User.query.filter_by(rol=RoleEnum.ADMINISTRATOR).all()
-        return jsonify([user.to_dict() for user in administrative_users]), 200
+        administrator_users = User.query.filter_by(rol=RoleEnum.SUPERADMINISTRADOR).all()
+        return jsonify([user.to_dict() for user in administrator_users]), 200
     except Exception as e:
-        return jsonify({"msg": "Error fetching administrative users", "error": str(e)}), 500
+        return jsonify({"msg": "Error fetching superadministrator users", "error": str(e)}), 500
     
-@administrative_bp.route('/<int:user_id>', methods=['PUT'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
-def update_administrative(user_id):
+@superadministrator_bp.route('/<int:user_id>', methods=['PUT'])
+@role_required(RoleEnum.SUPERADMINISTRADOR)
+def update_superadministrator(user_id):
     try:
         user = User.query.get(user_id)
         if not user:
-            return jsonify({"msg": "Administrative user not found"}), 404
+            return jsonify({"msg": "superadministrator user not found"}), 404
         
         if not request.is_json and request.files.get('profile_photo') is None:
             return jsonify({"msg": "Missing JSON in request"}), 400
@@ -144,64 +144,64 @@ def update_administrative(user_id):
             user.is_active = request.json.get('is_active')
 
         db.session.commit()
-        return jsonify({"msg": "Administrative user updated successfully"}), 200
+        return jsonify({"msg": "superadministrator user updated successfully"}), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Error updating administrative user", "error": str(e)}), 500
+        return jsonify({"msg": "Error updating superadministrator user", "error": str(e)}), 500
 
-@administrative_bp.route('/<int:user_id>', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
-def get_administrative_user(user_id):
+@superadministrator_bp.route('/<int:user_id>', methods=['GET'])
+@role_required(RoleEnum.SUPERADMINISTRADOR)
+def get_superadministrator_user(user_id):
     try:
         user = User.query.get(user_id)
         if not user:
-            return jsonify({"msg": "Administrative user not found"}), 404
+            return jsonify({"msg": "administrator user not found"}), 404
         return jsonify(user.to_dict()), 200
     except Exception as e:
-        return jsonify({"msg": "Error fetching administrative user", "error": str(e)}), 500 
+        return jsonify({"msg": "Error fetching superadministrator user", "error": str(e)}), 500 
 
-@administrative_bp.route('/<int:user_id>', methods=['DELETE'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
-def delete_administrative(user_id):
+@superadministrator_bp.route('/<int:user_id>', methods=['DELETE'])
+@role_required(RoleEnum.SUPERADMINISTRADOR)
+def delete_superadministrator(user_id):
     try:
         user = User.query.get(user_id)
         if not user:
-            return jsonify({"msg": "Administrative user not found"}), 404
+            return jsonify({"msg": "superadministrator user not found"}), 404
         
         user.is_active=False
         db.session.commit()
-        return jsonify({"msg": "Administrative user deleted successfully"}), 200
+        return jsonify({"msg": "superadministrator user deleted successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Error deleting administrative user", "error": str(e)}), 500
+        return jsonify({"msg": "Error deleting superadministrator user", "error": str(e)}), 500
 
-@administrative_bp.route('/search', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
-def search_administrative_users():
+@superadministrator_bp.route('/search', methods=['GET'])
+@role_required(RoleEnum.SUPERADMINISTRADOR)
+def search_superadministrator_users():
     try:
         query = request.args.get('query', '')
-        administrative_users = User.query.filter(User.rol == RoleEnum.ADMINISTRATOR).filter(
+        superadministrator_users = User.query.filter(User.rol == RoleEnum.SUPERADMINISTRADOR).filter(
             (User.first_name.ilike(f'%{query}%')) |
             (User.last_name.ilike(f'%{query}%')) |
             (User.email.ilike(f'%{query}%')) |
             (User.username.ilike(f'%{query}%'))
         ).all()
-        return jsonify([user.to_dict() for user in administrative_users]), 200
+        return jsonify([user.to_dict() for user in superadministrator_users]), 200
     except Exception as e:
-        return jsonify({"msg": "Error searching administrative users", "error": str(e)}), 500
+        return jsonify({"msg": "Error searching superadministrator users", "error": str(e)}), 500
 
-@administrative_bp.route('/<int:user_id>/toggle', methods=['PATCH'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
-def toggle_administrative_active_status(user_id): #activar
+@superadministrator_bp.route('/<int:user_id>/toggle', methods=['PATCH'])
+@role_required(RoleEnum.SUPERADMINISTRADOR)
+def toggle_administrator_active_status(user_id): #activar
     try:
         user = User.query.get(user_id)
         if not user:
-            return jsonify({"msg": "Administrative user not found"}), 404
+            return jsonify({"msg": "superadministrator user not found"}), 404
         
         user.is_active = not user.is_active
         db.session.commit()
-        return jsonify({"msg": f"Administrative user {'activated' if user.is_active else 'deactivated'} successfully"}), 200
+        return jsonify({"msg": f"superadministrator user {'activated' if user.is_active else 'deactivated'} successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Error toggling administrative user status", "error": str(e)}), 500   
+        return jsonify({"msg": "Error toggling superadministrator user status", "error": str(e)}), 500   

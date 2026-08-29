@@ -2,11 +2,15 @@ from flask import Blueprint, request, jsonify
 from models.db import db
 from models.health_plan import HealthPlan
 from models.doctor import Doctor
+from enums import RoleEnum
+from utils.role_required import role_required
+
 
 health_plans_bp = Blueprint('health_plans', __name__, url_prefix='/api/health-plans')
 
 
 @health_plans_bp.route('/', methods=['POST'])
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def create_health_plan():
     try:
         if not request.is_json:
@@ -33,6 +37,7 @@ def create_health_plan():
 
 
 @health_plans_bp.route('/', methods=['GET'])
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_health_plans():
     try:
         health_plans = HealthPlan.query.all()
@@ -42,6 +47,7 @@ def get_health_plans():
 
 
 @health_plans_bp.route('/<int:health_plan_id>', methods=['GET'])
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_health_plan(health_plan_id):
     try:
         health_plan = HealthPlan.query.get(health_plan_id)
@@ -53,6 +59,7 @@ def get_health_plan(health_plan_id):
 
 
 @health_plans_bp.route('/<int:health_plan_id>', methods=['PUT'])
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_health_plan(health_plan_id):
     try:
         health_plan = HealthPlan.query.get(health_plan_id)
@@ -77,6 +84,7 @@ def update_health_plan(health_plan_id):
 
 
 @health_plans_bp.route('/<int:health_plan_id>', methods=['DELETE'])
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_health_plan(health_plan_id):
     try:
         health_plan = HealthPlan.query.get(health_plan_id)
@@ -93,6 +101,7 @@ def delete_health_plan(health_plan_id):
 # Rutas para vincular/desvincular doctor con O.S
 
 @health_plans_bp.route('/doctor/<int:doctor_id>', methods=['POST'])
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def add_health_plan_to_doctor(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)
@@ -121,6 +130,7 @@ def add_health_plan_to_doctor(doctor_id):
 
 
 @health_plans_bp.route('/doctor/<int:doctor_id>', methods=['DELETE'])
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def remove_health_plan_from_doctor(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)
@@ -147,6 +157,7 @@ def remove_health_plan_from_doctor(doctor_id):
 
 
 @health_plans_bp.route('/doctor/<int:doctor_id>', methods=['GET'])
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_doctor_health_plans(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)

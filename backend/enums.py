@@ -5,6 +5,8 @@ class RoleEnum(enum.Enum):
     PATIENT = 'Patient'
     DOCTOR = 'Doctor'
     ADMINISTRATIVE = 'Administrative'
+    ADMINISTRATOR = 'Administrator'
+    SUPERADMINISTRADOR = 'Superadministrador'
 
 class AppointmentStatusEnum(enum.Enum):
     """

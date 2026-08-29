@@ -261,7 +261,7 @@ def create_appointment_public():
 
 
 @appointments_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR, RoleEnum.NURSE, RoleEnum.DOCTOR)
 def create_appointment():
     """Asignación de turno por Administrativo. Permite enviar 'is_overbooking': true."""
     try:
@@ -355,7 +355,7 @@ def create_my_appointment():
 # ENDPOINTS DE CONSULTA Y EDICIÓN
 
 @appointments_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_appointments():
     """Listado de turnos. Acepta filtros opcionales para la pantalla del administrativo:
     ?date=YYYY-MM-DD, ?id_doctor=<id>, ?status=<estado>
@@ -392,7 +392,7 @@ def get_appointments():
 
 
 @appointments_bp.route('/<int:appointment_id>', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE, RoleEnum.PATIENT)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE, RoleEnum.PATIENT, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_appointment(appointment_id):
     try:
         appointment = MedicalAppointment.query.get(appointment_id)
@@ -410,7 +410,7 @@ def get_appointment(appointment_id):
 
 
 @appointments_bp.route('/patient/<int:patient_id>', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE, RoleEnum.PATIENT)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE, RoleEnum.PATIENT, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_appointments_by_patient(patient_id):
     try:
         claims = get_jwt()
@@ -425,7 +425,7 @@ def get_appointments_by_patient(patient_id):
 
 
 @appointments_bp.route('/<int:appointment_id>', methods=['PUT'])
-@role_required(RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_appointment(appointment_id):
     try:
         appointment = MedicalAppointment.query.get(appointment_id)
@@ -502,7 +502,7 @@ def update_appointment(appointment_id):
 
 
 @appointments_bp.route('/<int:appointment_id>', methods=['DELETE'])
-@role_required(RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_appointment(appointment_id):
     try:
         appointment = MedicalAppointment.query.get(appointment_id)
@@ -518,7 +518,7 @@ def delete_appointment(appointment_id):
 
 
 @appointments_bp.route('/<int:appointment_id>/status', methods=['PATCH'])
-@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.DOCTOR, RoleEnum.NURSE)
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_appointment_status(appointment_id):
     """Cambia el estado del turno respetando el camino válido:
     Reservado -> En espera -> Atendido, y Cancelado desde cualquiera de los dos primeros.
@@ -560,7 +560,7 @@ def update_appointment_status(appointment_id):
 
 
 @appointments_bp.route('/<int:appointment_id>/transitions', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.DOCTOR, RoleEnum.NURSE)
+@role_required(RoleEnum.ADMINISTRATIVE, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_allowed_transitions(appointment_id):
     """Estados a los que puede pasar este turno.
 
@@ -582,7 +582,7 @@ def get_allowed_transitions(appointment_id):
 # ENDPOINTS DE CANCELACIÓN
 
 @appointments_bp.route('/<int:appointment_id>/cancel', methods=['PATCH'])
-@role_required(RoleEnum.PATIENT, RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.PATIENT, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def cancel_appointment(appointment_id):
     """Cancela un turno.
 
@@ -811,7 +811,7 @@ def get_available_slots():
 
 
 @appointments_bp.route('/attended-patients', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_attended_patients():
     """Pacientes efectivamente atendidos por un medico en una fecha.
 
@@ -869,7 +869,7 @@ def get_attended_patients():
 
 
 @appointments_bp.route('/patients-by-status', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_patients_by_status():
     """Pacientes con turno en una fecha, en uno o mas estados.
 

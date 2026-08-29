@@ -50,7 +50,7 @@ def _archivar_vencidos_y_sin_stock():
         db.session.commit()
 
 @medical_products_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def create_medical_product():
     try:
         if not request.is_json:
@@ -113,7 +113,7 @@ def create_medical_product():
 
 
 @medical_products_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_medical_products():
     try:
         _archivar_vencidos_y_sin_stock()
@@ -124,7 +124,7 @@ def get_medical_products():
 
 
 @medical_products_bp.route('/<int:product_id>', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_medical_product(product_id):
     try:
         product = MedicalProduct.query.get(product_id)
@@ -135,7 +135,7 @@ def get_medical_product(product_id):
         return jsonify({"msg": "Error fetching medical product"}), 500
 
 @medical_products_bp.route('/expiring-soon', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_expiring_soon():
 
     try:
@@ -167,7 +167,7 @@ def get_expiring_soon():
         return jsonify({"msg": "Error fetching expiring products", "error": str(e)}), 500
 
 @medical_products_bp.route('/<int:product_id>/discard', methods=['PATCH'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def discard_medical_product(product_id):
     try:
         producto = MedicalProduct.query.get(product_id)
@@ -195,7 +195,7 @@ def discard_medical_product(product_id):
 
 
 @medical_products_bp.route('/<int:product_id>', methods=['PUT'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_medical_product(product_id):
     try:
         product = MedicalProduct.query.get(product_id)
@@ -231,7 +231,7 @@ def update_medical_product(product_id):
         return jsonify({"msg": "Error updating medical product", "error": str(e)}), 500
 
 @medical_products_bp.route('/<int:product_id>', methods=['DELETE'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_medical_product(product_id):
     try:
         product = MedicalProduct.query.get(product_id)
@@ -247,7 +247,7 @@ def delete_medical_product(product_id):
 
 
 @medical_products_bp.route('/search', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def search_medical_products():
     try:
         query = request.args.get('query', '')

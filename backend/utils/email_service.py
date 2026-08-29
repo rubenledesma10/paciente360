@@ -17,7 +17,7 @@ def send_welcome_email_admin(to_email, first_name):
         sender=current_app.config['MAIL_USERNAME'],
         recipients=[to_email]
     )
-    msg.body = f"Hola {first_name}, gracias por registrarte en Paciente360! Recuerda que tu contraseña es la misma que tu DNI. Recuerda cambiarla!"
+    msg.body = f"Hola {first_name}, gracias por registrarte en Paciente360! Recuerda que tu contraseña es la misma que le pediste al administrador que te colocara. En caso de que no le hayas pasado ninguna contraseña, proba colocando tu DNI ;) !"
     mail.send(msg)
 
 def send_reset_password_email(to_email, new_password):

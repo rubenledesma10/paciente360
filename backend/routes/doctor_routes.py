@@ -5,11 +5,14 @@ from models.user import User
 from models.doctor import Doctor
 from models.specialty import Specialty
 from enums import RoleEnum
+from utils.role_required import role_required
+from utils.email_service import send_welcome_email_admin
 
 doctors_bp = Blueprint('doctors', __name__, url_prefix='/api/doctors')
 
 
 @doctors_bp.route('/', methods=['POST'])
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def create_doctor():
     try:
         if not request.is_json:
@@ -47,10 +50,16 @@ def create_doctor():
             medical_license=data.get('medical_license'),
             id_especialidad=data.get('id_especialidad')
         )
-        new_doctor.set_password(data.get('password'))
+        password = data.get('password') or data.get('dni')
+        new_doctor.set_password(password)
 
         db.session.add(new_doctor)
         db.session.commit()
+
+        try:
+            send_welcome_email_admin(new_doctor.email, new_doctor.first_name)
+        except Exception as mail_error:
+            print(f"Error al enviar el correo al doctor: {mail_error}")
 
         return jsonify({"msg": "Doctor created successfully", "doctor_id": new_doctor.id_user}), 201
     except Exception as e:
@@ -59,6 +68,7 @@ def create_doctor():
 
 
 @doctors_bp.route('/', methods=['GET'])
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_doctors():
     try:
         doctors = Doctor.query.all()
@@ -68,6 +78,7 @@ def get_doctors():
 
 
 @doctors_bp.route('/<int:doctor_id>', methods=['GET'])
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_doctor(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)
@@ -79,6 +90,7 @@ def get_doctor(doctor_id):
 
 
 @doctors_bp.route('/<int:doctor_id>', methods=['PUT'])
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_doctor(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)
@@ -143,22 +155,25 @@ def update_doctor(doctor_id):
         return jsonify({"msg": "Error updating doctor"}), 500
 
 
-@doctors_bp.route('/<int:doctor_id>', methods=['DELETE'])
+@doctors_bp.route('/<int:doctor_id>', methods=['DELETE']) #desactivar
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_doctor(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)
         if not doctor:
-            return jsonify({"msg": "Doctor not found"}), 404
+            return jsonify({"msg": "Doctor no encontrado"}), 404
 
-        db.session.delete(doctor)
+        doctor.is_active = False
         db.session.commit()
-        return jsonify({"msg": "Doctor deleted successfully"}), 200
+        
+        return jsonify({"msg": "Doctor eliminado (desactivado) exitosamente"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Error deleting doctor", "error": str(e)}), 500
+        return jsonify({"msg": "Error al eliminar el doctor", "error": str(e)}), 500
 
 
 @doctors_bp.route('/search', methods=['GET'])
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def search_doctors():
     try:
         query = request.args.get('query', '')
@@ -174,7 +189,8 @@ def search_doctors():
         return jsonify({"msg": "Error searching doctors"}), 500
 
 
-@doctors_bp.route('/<int:doctor_id>/toggle', methods=['PATCH'])
+@doctors_bp.route('/<int:doctor_id>/toggle', methods=['PATCH']) #activar 
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def toggle_doctor_status(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)

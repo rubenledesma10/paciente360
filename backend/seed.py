@@ -17,7 +17,6 @@ from models.traceability import Traceability
 from models.medical_product import MedicalProduct
 from models.stock_movement import StockMovement
 from models.medical_indication import MedicalIndication
-# IMPORTACIÓN ACTUALIZADA: Se agregó DiseaseTypeEnum
 from enums import RoleEnum, AppointmentStatusEnum, DiseaseTypeEnum 
 
 
@@ -54,7 +53,6 @@ SPECIALTY_NAMES = [
 ]
 
 
-# Medicos de prueba: (nombre, apellido, usuario, dni, matricula, fecha nac, genero, especialidad)
 DOCTORS_SEED = [
     ("Javier", "Ríos", "jrios", "30112233", "MP-12456", date(1980, 6, 3), "Masculino", "clínica médica"),
     ("Carolina", "Vega", "cvega", "31445566", "MP-13890", date(1983, 2, 17), "Femenino", "pediatría"),
@@ -155,7 +153,7 @@ def seed():
 
         medico = doctors["jrios"]
 
-        # ---------- Administrativo ----------
+        # ---------- Administrativo, Administrador y Superadministrador ----------
         administrativo = User(
             first_name="Lucía", last_name="Paredes", username="lparedes",
             dni="33221144", email="lucia.paredes@paciente360.com",
@@ -164,7 +162,26 @@ def seed():
             rol=RoleEnum.ADMINISTRATIVE,
         )
         administrativo.set_password("admin123")
-        db.session.add(administrativo)
+
+        administrador = User(
+            first_name="Carlos", last_name="García", username="cgarcia",
+            dni="22334455", email="carlos.garcia@paciente360.com",
+            date_of_birth=date(1980, 5, 10),
+            gender="Masculino",
+            rol=RoleEnum.ADMINISTRATOR,
+        )
+        administrador.set_password("admin123")
+
+        superadmin = User(
+            first_name="Admin", last_name="Supremo", username="superadmin",
+            dni="11223344", email="superadmin@paciente360.com",
+            date_of_birth=date(1975, 1, 1),
+            gender="Masculino",
+            rol=RoleEnum.SUPERADMINISTRADOR,
+        )
+        superadmin.set_password("superadmin123")
+
+        db.session.add_all([administrativo, administrador, superadmin])
         db.session.commit()
 
         # ---------- Pacientes ----------
@@ -275,7 +292,6 @@ def seed():
             status=AppointmentStatusEnum.EN_ESPERA, reason="Fiebre y malestar general",
         )
         
-        # ACTULIZADO: Turno atendido con diagnóstico y enfermedad seteada
         turno3 = MedicalAppointment(
             id_patient=paciente3.id_user, id_doctor=medico.id_user,
             date=date.today(), hour="08:30",
@@ -363,6 +379,9 @@ def seed():
         print("==================================================")
         print("✅ Seed completado exitosamente:")
         print("==================================================")
+        print(f"  - Administrativo: {administrativo.username} (id={administrativo.id_user})")
+        print(f"  - Administrador: {administrador.username} (id={administrador.id_user})")
+        print(f"  - Superadmin: {superadmin.username} (id={superadmin.id_user})")
 
 if __name__ == "__main__":
     seed()

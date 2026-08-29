@@ -58,7 +58,7 @@ def create_nurse():
             emergency_contact=request.json.get('emergency_contact'),
             license_number=request.json.get('license_number'),
             is_reference=request.json.get('is_reference', False),
-            role='nurse'
+            rol=RoleEnum.NURSE
         )
         password = data.get('password') or data.get('dni')
         new_user.set_password(password)
@@ -180,7 +180,7 @@ def delete_nurse(nurse_id):
         nurse = User.query.get(nurse_id)
         if not nurse:
             return jsonify({"msg": "Nurse not found"}), 404
-        nurse.is_activate=False
+        nurse.is_active=False
         db.session.commit()
         return jsonify({"msg": "Nurse deleted successfully"}), 200
     except Exception as e:

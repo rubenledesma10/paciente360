@@ -50,7 +50,7 @@ def create_superadministrator():
             gender=request.json.get('gender'),
             address=request.json.get('address'),
             emergency_contact=request.json.get('emergency_contact'),
-            rol='superadministrator'
+            rol=RoleEnum.SUPERADMINISTRADOR
         )
         password=request.json.get('password') or request.json.get('dni')
         new_user.set_password(password)
@@ -79,7 +79,7 @@ def create_superadministrator():
 @role_required(RoleEnum.SUPERADMINISTRADOR)
 def get_superadministrator_users():
     try:
-        administrator_users = User.query.filter_by(rol='administrator').all()
+        administrator_users = User.query.filter_by(rol=RoleEnum.SUPERADMINISTRADOR).all()
         return jsonify([user.to_dict() for user in administrator_users]), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching superadministrator users", "error": str(e)}), 500
@@ -182,13 +182,13 @@ def delete_superadministrator(user_id):
 def search_superadministrator_users():
     try:
         query = request.args.get('query', '')
-        administrator_users = User.query.filter(User.rol == 'administrator').filter(
+        superadministrator_users = User.query.filter(User.rol == RoleEnum.SUPERADMINISTRADOR).filter(
             (User.first_name.ilike(f'%{query}%')) |
             (User.last_name.ilike(f'%{query}%')) |
             (User.email.ilike(f'%{query}%')) |
             (User.username.ilike(f'%{query}%'))
         ).all()
-        return jsonify([user.to_dict() for user in administrator_users]), 200
+        return jsonify([user.to_dict() for user in superadministrator_users]), 200
     except Exception as e:
         return jsonify({"msg": "Error searching superadministrator users", "error": str(e)}), 500
 

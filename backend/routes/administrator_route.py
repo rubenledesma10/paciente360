@@ -50,7 +50,7 @@ def create_administrator():
             gender=request.json.get('gender'),
             address=request.json.get('address'),
             emergency_contact=request.json.get('emergency_contact'),
-            rol='administrator'
+            rol=RoleEnum.ADMINISTRATOR
         )
         password=request.json.get('password') or request.json.get('dni')
         new_user.set_password(password)

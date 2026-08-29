@@ -50,7 +50,7 @@ def create_administrative():
             gender=request.json.get('gender'),
             address=request.json.get('address'),
             emergency_contact=request.json.get('emergency_contact'),
-            role='administrative'
+            rol=RoleEnum.ADMINISTRATIVE
         )
         password=request.json.get('password') or request.json.get('dni')
         new_user.set_password(password)
@@ -79,7 +79,7 @@ def create_administrative():
 @role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_administrative_users():
     try:
-        administrative_users = User.query.filter_by(role='administrative').all()
+        administrative_users = User.query.filter_by(rol=RoleEnum.ADMINISTRATOR).all()
         return jsonify([user.to_dict() for user in administrative_users]), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching administrative users", "error": str(e)}), 500
@@ -170,7 +170,7 @@ def delete_administrative(user_id):
         if not user:
             return jsonify({"msg": "Administrative user not found"}), 404
         
-        user.is_activate=False
+        user.is_active=False
         db.session.commit()
         return jsonify({"msg": "Administrative user deleted successfully"}), 200
     except Exception as e:
@@ -182,7 +182,7 @@ def delete_administrative(user_id):
 def search_administrative_users():
     try:
         query = request.args.get('query', '')
-        administrative_users = User.query.filter(User.role == 'administrative').filter(
+        administrative_users = User.query.filter(User.rol == RoleEnum.ADMINISTRATOR).filter(
             (User.first_name.ilike(f'%{query}%')) |
             (User.last_name.ilike(f'%{query}%')) |
             (User.email.ilike(f'%{query}%')) |

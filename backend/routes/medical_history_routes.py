@@ -10,7 +10,7 @@ from enums import RoleEnum
 medical_history_bp = Blueprint('medical_history', __name__, url_prefix='/api/medical-history')
 
 @medical_history_bp.route('/<int:patient_id>', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.PATIENT)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.PATIENT, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_medical_history(patient_id):
 
     claims = get_jwt()

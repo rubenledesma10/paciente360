@@ -25,7 +25,10 @@ def create_patient():
         if User.query.filter_by(dni=data.get('dni')).first():
             return jsonify({"msg": "DNI already exists"}), 400
 
-        # Creación por herencia directa: inserta en 'users' y 'patients' de una.
+        phone = data.get('phone_number') or data.get('phone')
+        if phone and User.query.filter_by(phone_number=phone).first():
+            return jsonify({"msg": "Phone number already exists"}), 400
+
         new_patient = Patient(
             first_name=data.get('first_name'),
             last_name=data.get('last_name'),
@@ -34,7 +37,7 @@ def create_patient():
             email=data.get('email'),
             date_of_birth=date.fromisoformat(data.get('date_of_birth')) if data.get('date_of_birth') else None,
             country=data.get('country'),
-            phone_number=data.get('phone_number'),
+            phone_number=phone,
             is_active=data.get('is_active', True),
             gender=data.get('gender'),
             address=data.get('address'),
@@ -45,20 +48,81 @@ def create_patient():
             member_number=data.get('member_number'),
             allergies=data.get('allergies')
         )
-        new_patient.set_password(data.get('password'))
+        new_patient.set_password(data.get('password') or data.get('dni'))
 
         db.session.add(new_patient)
         db.session.commit()
-        send_welcome_email(new_patient.email, new_patient.first_name)
+        
+        try:
+            send_welcome_email(new_patient.email, new_patient.first_name)
+        except Exception as mail_error:
+            print(f"Error al enviar correo: {mail_error}")
+            
         return jsonify({"msg": "Patient created successfully", "patient_id": new_patient.id_user}), 201
     
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error creating patient", "error": str(e)}), 500
 
+
+@patients_bp.route('/private', methods=['POST'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
+def create_patient_private():
+    try:
+        if not request.is_json:
+            return jsonify({"msg": "Missing JSON in request"}), 400
+
+        data = request.get_json()
+
+        if User.query.filter_by(email=data.get('email')).first():
+            return jsonify({"msg": "Email already exists"}), 400
+        if User.query.filter_by(username=data.get('username')).first():
+            return jsonify({"msg": "Username already exists"}), 400
+        if User.query.filter_by(dni=data.get('dni')).first():
+            return jsonify({"msg": "DNI already exists"}), 400
+            
+        phone = data.get('phone_number') or data.get('phone')
+        if phone and User.query.filter_by(phone_number=phone).first():
+            return jsonify({"msg": "Phone number already exists"}), 400
+
+        new_patient = Patient(
+            first_name=data.get('first_name'),
+            last_name=data.get('last_name'),
+            username=data.get('username'),
+            dni=data.get('dni'),
+            email=data.get('email'),
+            date_of_birth=date.fromisoformat(data.get('date_of_birth')) if data.get('date_of_birth') else None,
+            country=data.get('country'),
+            phone_number=phone,
+            is_active=data.get('is_active', True),
+            gender=data.get('gender'),
+            address=data.get('address'),
+            emergency_contact=data.get('emergency_contact'),
+            rol=RoleEnum.PATIENT,
+            health_plan_status=data.get('health_plan_status', False),
+            health_plan_name=data.get('health_plan_name'),
+            member_number=data.get('member_number'),
+            allergies=data.get('allergies')
+        )
+        new_patient.set_password(data.get('password') or data.get('dni'))
+
+        db.session.add(new_patient)
+        db.session.commit()
+        
+        try:
+            send_welcome_email(new_patient.email, new_patient.first_name)
+        except Exception as mail_error:
+            print(f"Error al enviar correo: {mail_error}")
+            
+        return jsonify({"msg": "Patient created successfully", "patient_id": new_patient.id_user}), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": "Error creating patient", "error": str(e)}), 500
     
 
 @patients_bp.route('/', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_patients():
     try:
         patients = Patient.query.all()
@@ -68,6 +132,7 @@ def get_patients():
 
 
 @patients_bp.route('/<int:patient_id>', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.PATIENT, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_patient(patient_id):
     try:
         patient = Patient.query.get(patient_id)
@@ -79,6 +144,7 @@ def get_patient(patient_id):
 
 
 @patients_bp.route('/<int:patient_id>', methods=['PUT'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.PATIENT, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_patient(patient_id):
     try:
         patient = Patient.query.get(patient_id)
@@ -127,7 +193,6 @@ def update_patient(patient_id):
         if 'password' in data:
             patient.set_password(data.get('password'))
 
-        # Campos propios de Patient
         if 'health_plan_status' in data:
             patient.health_plan_status = data.get('health_plan_status')
         if 'health_plan_name' in data:
@@ -145,7 +210,7 @@ def update_patient(patient_id):
 
 
 @patients_bp.route('/<int:patient_id>/allergies', methods=['PATCH'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
 def update_patient_allergies(patient_id):
     try:
         patient = Patient.query.get(patient_id)
@@ -162,13 +227,14 @@ def update_patient_allergies(patient_id):
 
 
 @patients_bp.route('/<int:patient_id>', methods=['DELETE'])
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_patient(patient_id):
     try:
         patient = Patient.query.get(patient_id)
         if not patient:
             return jsonify({"msg": "Patient not found"}), 404
-
-        db.session.delete(patient)
+                
+        patient.is_active = False
         db.session.commit()
         return jsonify({"msg": "Patient deleted successfully"}), 200
     except Exception as e:
@@ -178,6 +244,7 @@ def delete_patient(patient_id):
 
 
 @patients_bp.route('/search', methods=['GET'])
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def search_patients():
     try:
         query = request.args.get('query', '')
@@ -195,6 +262,7 @@ def search_patients():
 
 
 @patients_bp.route('/<int:patient_id>/toggle', methods=['PATCH'])
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def toggle_patient_status(patient_id):
     try:
         patient = Patient.query.get(patient_id)

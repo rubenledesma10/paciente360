@@ -13,7 +13,7 @@ stock_movements_bp = Blueprint('stock_movements', __name__, url_prefix='/api/sto
 TIPOS_VALIDOS=['Entrada','Salida','Desechado']
 
 @stock_movements_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def create_stock_movement():
     try:
         if not request.is_json:
@@ -64,7 +64,7 @@ def create_stock_movement():
 
 
 @stock_movements_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_stock_movements():
     try:
         movements = StockMovement.query.all()
@@ -74,7 +74,7 @@ def get_stock_movements():
 
 
 @stock_movements_bp.route('/<int:movement_id>', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_stock_movement(movement_id):
     try:
         movement = StockMovement.query.get(movement_id)
@@ -86,7 +86,7 @@ def get_stock_movement(movement_id):
 
 
 @stock_movements_bp.route('/product/<int:product_id>', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_stock_movements_by_product(product_id):
     try:
         movements = StockMovement.query.filter_by(id_product=product_id).all()
@@ -96,7 +96,7 @@ def get_stock_movements_by_product(product_id):
 
 
 @stock_movements_bp.route('/<int:movement_id>', methods=['PUT'])
-@role_required(RoleEnum.NURSE) #solo permite editar date_time. si se edita despues de que se haya hecho un movimiento, no se actualiza el stock. Se podria hacer que si se edita la cantidad, se actualice el stock, pero eso es mas complejo y no lo implemento por ahora
+@role_required(RoleEnum.NURSE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR) #solo permite editar date_time. si se edita despues de que se haya hecho un movimiento, no se actualiza el stock. Se podria hacer que si se edita la cantidad, se actualice el stock, pero eso es mas complejo y no lo implemento por ahora
 def update_stock_movement(movement_id):
     try:
         movement = StockMovement.query.get(movement_id)
@@ -125,7 +125,7 @@ def update_stock_movement(movement_id):
 
 
 @stock_movements_bp.route('/<int:movement_id>', methods=['DELETE'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_stock_movement(movement_id):
     try:
         movement = StockMovement.query.get(movement_id)

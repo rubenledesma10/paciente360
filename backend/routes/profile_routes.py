@@ -96,7 +96,7 @@ def read_text_fields():
 
 
 @profile_bp.route('/me', methods=['GET'])
-@role_required(RoleEnum.PATIENT, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.PATIENT, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_my_profile():
     """Datos del usuario logueado, con lo especifico de su rol."""
     try:
@@ -112,7 +112,7 @@ def get_my_profile():
 
 
 @profile_bp.route('/me', methods=['PUT'])
-@role_required(RoleEnum.PATIENT, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.PATIENT, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_my_profile():
     """Actualiza los datos de contacto y la foto del usuario logueado."""
     try:
@@ -169,7 +169,7 @@ def update_my_profile():
 
 
 @profile_bp.route('/me/photo', methods=['DELETE'])
-@role_required(RoleEnum.PATIENT, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.PATIENT, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_my_photo():
     """Saca la foto de perfil y vuelve a la inicial del nombre."""
     try:
@@ -189,7 +189,7 @@ def delete_my_photo():
 
 
 @profile_bp.route('/me/password', methods=['PATCH'])
-@role_required(RoleEnum.PATIENT, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATIVE)
+@role_required(RoleEnum.PATIENT, RoleEnum.DOCTOR, RoleEnum.NURSE, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def change_my_password():
     """Cambio de contrasena. Pide la actual: sin eso, alguien que agarre una
     sesion abierta podria dejar al dueno afuera de su propia cuenta."""

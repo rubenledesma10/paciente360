@@ -28,7 +28,7 @@ def create_administrator():
         if User.query.filter_by(username=request.json.get('username')).first():
             return jsonify({"msg": "Username already exists"}), 400
         
-        if User.query.filter_by(phone_number=request.json.get('phone')).first():
+        if User.query.filter_by(phone_number=request.json.get('phone_number')).first():
             return jsonify({"msg": "Phone number already exists"}), 400
                     
         if User.query.filter_by(dni=request.json.get('dni')).first():
@@ -41,11 +41,10 @@ def create_administrator():
             username=request.json.get('username'),
             dni=request.json.get('dni'),
             email=request.json.get('email'),
-            phone=request.json.get('phone'),
             date_of_birth=date.fromisoformat(request.json.get('date_of_birth')) if request.json.get('date_of_birth') else None,
             profile_photo=None,
             country=request.json.get('country'),
-            phone_number=request.json.get('phone'),
+            phone_number=request.json.get('phone_number'),
             is_active=request.json.get('is_active', True),
             gender=request.json.get('gender'),
             address=request.json.get('address'),

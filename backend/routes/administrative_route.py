@@ -14,7 +14,6 @@ administrative_bp = Blueprint('administrative', __name__,url_prefix='/api/admini
 UPLOAD_FOLDER = 'static/uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
-
 @administrative_bp.route('/', methods=['POST'])
 @role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def create_administrative():
@@ -28,12 +27,11 @@ def create_administrative():
         if User.query.filter_by(username=request.json.get('username')).first():
             return jsonify({"msg": "Username already exists"}), 400
         
-        if User.query.filter_by(phone_number=request.json.get('phone')).first():
+        if User.query.filter_by(phone_number=request.json.get('phone_number')).first():
             return jsonify({"msg": "Phone number already exists"}), 400
                     
         if User.query.filter_by(dni=request.json.get('dni')).first():
             return jsonify({"msg": "DNI already exists"}), 400
-        
 
         new_user=User(
             first_name=request.json.get('first_name'),
@@ -41,11 +39,10 @@ def create_administrative():
             username=request.json.get('username'),
             dni=request.json.get('dni'),
             email=request.json.get('email'),
-            phone=request.json.get('phone'),
             date_of_birth=date.fromisoformat(request.json.get('date_of_birth')) if request.json.get('date_of_birth') else None,
             profile_photo=None,
             country=request.json.get('country'),
-            phone_number=request.json.get('phone'),
+            phone_number=request.json.get('phone_number'), # Este es el campo válido
             is_active=request.json.get('is_active', True),
             gender=request.json.get('gender'),
             address=request.json.get('address'),
@@ -56,6 +53,7 @@ def create_administrative():
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.flush()
+        
         if 'profile_photo' in request.files:
             profile_photo = request.files['profile_photo']
             if profile_photo.filename != '':
@@ -69,8 +67,9 @@ def create_administrative():
         try:
             send_welcome_email_admin(new_user.email, new_user.first_name)
         except Exception as mail_error:
-            print(f"Error al enviar correo al doctor: {mail_error}")
-        return jsonify({"msg": "Administrative user created successfully"}), 201
+            print(f"Error al enviar correo al administrativo: {mail_error}")
+            
+        return jsonify({"msg": "Administrative user created successfully", "user_id": new_user.id_user}), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error creating administrative user", "error": str(e)}), 500

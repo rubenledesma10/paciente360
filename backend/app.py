@@ -39,6 +39,8 @@ from models.news_and_prevention import NewsAndPrevention
 from models.guard_pass import GuardPass
 from models.guard_pass_checklist import GuardPassChecklist
 from models.health_plan import HealthPlan
+from utils.bitacora_events import setup_auditing
+from routes.bitacora_bp import bitacora_bp
 from routes.health_plan_routes import health_plans_bp
 from tasks import scheduler, send_daily_reminders
 
@@ -80,6 +82,7 @@ app.register_blueprint(medical_history_bp)
 app.register_blueprint(profile_bp)
 app.register_blueprint(administrator_bp)
 app.register_blueprint(superadministrator_bp)
+app.register_blueprint(bitacora_bp)
 
 with app.app_context():
     from models.user import User
@@ -91,9 +94,8 @@ with app.app_context():
     from models.guard_pass import GuardPass
     from models.guard_pass_checklist import GuardPassChecklist
     from models.health_plan import HealthPlan
+    setup_auditing()
     db.create_all()
-
-
 
 if __name__ == '__main__':
     print("Running Paciente360 application...")

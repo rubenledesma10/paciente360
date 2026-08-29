@@ -3,6 +3,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import date
 from models.db import db
 from models.user import User
+from enums import RoleEnum
+from utils.role_required import role_required
+from utils.email_service import send_welcome_email_admin
 from werkzeug.utils import secure_filename
 import os
 
@@ -13,6 +16,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 @administrative_bp.route('/', methods=['POST'])
+@role_required(RoleEnum.ADMINISTRATOR)
 def create_administrative():
     try:
         if not request.is_json:
@@ -48,7 +52,8 @@ def create_administrative():
             emergency_contact=request.json.get('emergency_contact'),
             role='administrative'
         )
-        new_user.set_password(request.json.get('password'))
+        password=request.json.get('password') or request.json.get('dni')
+        new_user.set_password(password)
         db.session.add(new_user)
         db.session.flush()
         if 'profile_photo' in request.files:
@@ -60,12 +65,18 @@ def create_administrative():
                 new_user.profile_photo = file_path
 
         db.session.commit()
+
+        try:
+            send_welcome_email_admin(new_user.email, new_user.first_name)
+        except Exception as mail_error:
+            print(f"Error al enviar correo al doctor: {mail_error}")
         return jsonify({"msg": "Administrative user created successfully"}), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error creating administrative user", "error": str(e)}), 500
     
 @administrative_bp.route('/', methods=['GET'])
+@role_required(RoleEnum.ADMINISTRATOR)
 def get_administrative_users():
     try:
         administrative_users = User.query.filter_by(role='administrative').all()
@@ -74,6 +85,7 @@ def get_administrative_users():
         return jsonify({"msg": "Error fetching administrative users", "error": str(e)}), 500
     
 @administrative_bp.route('/<int:user_id>', methods=['PUT'])
+@role_required(RoleEnum.ADMINISTRATOR)
 def update_administrative(user_id):
     try:
         user = User.query.get(user_id)
@@ -140,6 +152,7 @@ def update_administrative(user_id):
         return jsonify({"msg": "Error updating administrative user", "error": str(e)}), 500
 
 @administrative_bp.route('/<int:user_id>', methods=['GET'])
+@role_required(RoleEnum.ADMINISTRATOR)
 def get_administrative_user(user_id):
     try:
         user = User.query.get(user_id)
@@ -150,13 +163,14 @@ def get_administrative_user(user_id):
         return jsonify({"msg": "Error fetching administrative user", "error": str(e)}), 500 
 
 @administrative_bp.route('/<int:user_id>', methods=['DELETE'])
+@role_required(RoleEnum.ADMINISTRATOR)
 def delete_administrative(user_id):
     try:
         user = User.query.get(user_id)
         if not user:
             return jsonify({"msg": "Administrative user not found"}), 404
         
-        db.session.delete(user)
+        user.is_activate=False
         db.session.commit()
         return jsonify({"msg": "Administrative user deleted successfully"}), 200
     except Exception as e:
@@ -178,7 +192,8 @@ def search_administrative_users():
         return jsonify({"msg": "Error searching administrative users", "error": str(e)}), 500
 
 @administrative_bp.route('/<int:user_id>/toggle', methods=['PATCH'])
-def toggle_administrative_active_status(user_id):
+@role_required(RoleEnum.ADMINISTRATOR)
+def toggle_administrative_active_status(user_id): #activar
     try:
         user = User.query.get(user_id)
         if not user:

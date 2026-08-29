@@ -16,7 +16,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 @administrative_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def create_administrative():
     try:
         if not request.is_json:
@@ -76,7 +76,7 @@ def create_administrative():
         return jsonify({"msg": "Error creating administrative user", "error": str(e)}), 500
     
 @administrative_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_administrative_users():
     try:
         administrative_users = User.query.filter_by(role='administrative').all()
@@ -85,7 +85,7 @@ def get_administrative_users():
         return jsonify({"msg": "Error fetching administrative users", "error": str(e)}), 500
     
 @administrative_bp.route('/<int:user_id>', methods=['PUT'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_administrative(user_id):
     try:
         user = User.query.get(user_id)
@@ -152,7 +152,7 @@ def update_administrative(user_id):
         return jsonify({"msg": "Error updating administrative user", "error": str(e)}), 500
 
 @administrative_bp.route('/<int:user_id>', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_administrative_user(user_id):
     try:
         user = User.query.get(user_id)
@@ -163,7 +163,7 @@ def get_administrative_user(user_id):
         return jsonify({"msg": "Error fetching administrative user", "error": str(e)}), 500 
 
 @administrative_bp.route('/<int:user_id>', methods=['DELETE'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_administrative(user_id):
     try:
         user = User.query.get(user_id)
@@ -178,6 +178,7 @@ def delete_administrative(user_id):
         return jsonify({"msg": "Error deleting administrative user", "error": str(e)}), 500
 
 @administrative_bp.route('/search', methods=['GET'])
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def search_administrative_users():
     try:
         query = request.args.get('query', '')
@@ -192,7 +193,7 @@ def search_administrative_users():
         return jsonify({"msg": "Error searching administrative users", "error": str(e)}), 500
 
 @administrative_bp.route('/<int:user_id>/toggle', methods=['PATCH'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def toggle_administrative_active_status(user_id): #activar
     try:
         user = User.query.get(user_id)

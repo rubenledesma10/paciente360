@@ -12,7 +12,7 @@ doctors_bp = Blueprint('doctors', __name__, url_prefix='/api/doctors')
 
 
 @doctors_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def create_doctor():
     try:
         if not request.is_json:
@@ -68,7 +68,7 @@ def create_doctor():
 
 
 @doctors_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_doctors():
     try:
         doctors = Doctor.query.all()
@@ -78,7 +78,7 @@ def get_doctors():
 
 
 @doctors_bp.route('/<int:doctor_id>', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_doctor(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)
@@ -90,7 +90,7 @@ def get_doctor(doctor_id):
 
 
 @doctors_bp.route('/<int:doctor_id>', methods=['PUT'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_doctor(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)
@@ -156,7 +156,7 @@ def update_doctor(doctor_id):
 
 
 @doctors_bp.route('/<int:doctor_id>', methods=['DELETE']) #desactivar
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_doctor(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)
@@ -173,7 +173,7 @@ def delete_doctor(doctor_id):
 
 
 @doctors_bp.route('/search', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def search_doctors():
     try:
         query = request.args.get('query', '')
@@ -190,7 +190,7 @@ def search_doctors():
 
 
 @doctors_bp.route('/<int:doctor_id>/toggle', methods=['PATCH']) #activar 
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def toggle_doctor_status(doctor_id):
     try:
         doctor = Doctor.query.get(doctor_id)

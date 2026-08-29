@@ -17,7 +17,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 @nurses_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def create_nurse():
     try:
         if not request.is_json:
@@ -83,7 +83,7 @@ def create_nurse():
         return jsonify({"msg": "Error creating nurse"}), 500
     
 @nurses_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_nurses():
     try:
         nurses = Nurse.query.all()
@@ -93,7 +93,7 @@ def get_nurses():
     
 
 @nurses_bp.route('/<int:nurse_id>', methods=['PUT'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_nurse(nurse_id):
     try:
         nurse = User.query.get(nurse_id)
@@ -174,7 +174,7 @@ def update_nurse(nurse_id):
         return jsonify({"msg": "Error updating nurse"}), 500
     
 @nurses_bp.route('/<int:nurse_id>', methods=['DELETE'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_nurse(nurse_id):
     try:
         nurse = User.query.get(nurse_id)
@@ -188,7 +188,7 @@ def delete_nurse(nurse_id):
         return jsonify({"msg": "Error deleting nurse"}), 500
     
 @nurses_bp.route('/<int:nurse_id>', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_nurse(nurse_id):
     try:
         nurse = User.query.get(nurse_id)
@@ -200,7 +200,7 @@ def get_nurse(nurse_id):
         return jsonify({"msg": "Error fetching nurse"}), 500
     
 @nurses_bp.route('/search', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def search_nurses():
     try:
         query = request.args.get('query', '')
@@ -218,7 +218,7 @@ def search_nurses():
         return jsonify({"msg": "Error searching nurses"}), 500
     
 @nurses_bp.route('/<int:nurse_id>/toggle',methods=['PATCH']) #activar
-@role_required(RoleEnum.ADMINISTRATOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def toggle_nurse_status(nurse_id):
     try:
         nurse = User.query.get(nurse_id)

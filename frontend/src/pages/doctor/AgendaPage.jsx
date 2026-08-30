@@ -17,12 +17,16 @@ import {
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import {
   getAppointments,
   getAllowedTransitions,
   updateAppointmentStatus,
+  updateAppointmentDiagnosis,
 } from '../../api/appointments';
 import { useAuth } from '../../context/useAuth';
+import { DISEASE_TYPES, DISEASE_TYPE_OTHER } from '../../utils/diseaseTypes';
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -58,6 +62,18 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [actionOk, setActionOk] = useState('');
+
+  // Diálogo de cierre de consulta / edición de diagnóstico
+  const [diagnosisTarget, setDiagnosisTarget] = useState(null);
+  // 'close' cierra la consulta (guarda y pasa a Atendido); 'edit' solo corrige
+  const [diagnosisMode, setDiagnosisMode] = useState('close');
+  const [diagnosisForm, setDiagnosisForm] = useState({
+    disease_type: '',
+    diagnosis: '',
+    disease_details: '',
+  });
+  const [diagnosisError, setDiagnosisError] = useState('');
+  const [savingDiagnosis, setSavingDiagnosis] = useState(false);
 
   const [statusTarget, setStatusTarget] = useState(null);
   const [allowedStatuses, setAllowedStatuses] = useState([]);
@@ -109,6 +125,61 @@ export default function AgendaPage() {
   const pendingCount = rows.filter(
     (ap) => ap.status === 'Reservado' || ap.status === 'En espera',
   ).length;
+
+  const openDiagnosisDialog = (appointment, mode) => {
+    setDiagnosisTarget(appointment);
+    setDiagnosisMode(mode);
+    setDiagnosisForm({
+      disease_type: appointment.disease_type || '',
+      diagnosis: appointment.diagnosis || '',
+      disease_details: appointment.disease_details || '',
+    });
+    setDiagnosisError('');
+  };
+
+  const handleSaveDiagnosis = async () => {
+    if (!diagnosisTarget) return;
+    setDiagnosisError('');
+
+    if (!diagnosisForm.disease_type || !diagnosisForm.diagnosis.trim()) {
+      setDiagnosisError('Completá el tipo de enfermedad y el diagnóstico.');
+      return;
+    }
+    if (
+      diagnosisForm.disease_type === DISEASE_TYPE_OTHER &&
+      !diagnosisForm.disease_details.trim()
+    ) {
+      setDiagnosisError('Si elegís "Otra", aclará cuál en los detalles.');
+      return;
+    }
+
+    const id = diagnosisTarget.id_medical_appointment;
+    setSavingDiagnosis(true);
+    try {
+      // Primero el diagnóstico. Si esto falla, el turno NO se marca como
+      // atendido: quedaría una consulta cerrada sin registro clínico.
+      await updateAppointmentDiagnosis(id, {
+        disease_type: diagnosisForm.disease_type,
+        diagnosis: diagnosisForm.diagnosis.trim(),
+        disease_details: diagnosisForm.disease_details.trim() || null,
+      });
+
+      if (diagnosisMode === 'close') {
+        await updateAppointmentStatus(id, 'Atendido');
+        setActionOk('Consulta cerrada y diagnóstico registrado.');
+      } else {
+        setActionOk('Diagnóstico actualizado.');
+      }
+
+      setDiagnosisTarget(null);
+      await loadAgenda();
+      notifyChange();
+    } catch (err) {
+      setDiagnosisError(readError(err, 'No se pudo guardar el diagnóstico.'));
+    } finally {
+      setSavingDiagnosis(false);
+    }
+  };
 
   const openStatusDialog = async (appointment) => {
     setStatusTarget(appointment);
@@ -256,8 +327,24 @@ export default function AgendaPage() {
                 <Typography fontWeight={700} color="#0E4C82">
                   {patientName}
                 </Typography>
-                <Typography variant="caption" color="#5b7387">
+                <Typography variant="caption" color="#5b7387" component="div">
                   {ap.reason || 'Consulta médica'}
+                  {ap.diagnosis && (
+                    <>
+                      {/* La barra separa el motivo (lo que trajo al paciente)
+                          del diagnostico (lo que el medico concluyo) */}
+                      <Box component="span" sx={{ mx: 0.75, color: '#c3d0da' }}>
+                        |
+                      </Box>
+                      <Box
+                        component="span"
+                        sx={{ color: '#1565A8', fontWeight: 700 }}
+                      >
+                        Diagnóstico: {ap.diagnosis}
+                        {ap.disease_type ? ` (${ap.disease_type})` : ''}
+                      </Box>
+                    </>
+                  )}
                 </Typography>
               </Box>
 
@@ -278,19 +365,32 @@ export default function AgendaPage() {
                 {ap.confirmed && (
                   <Chip size="small" label="Confirmado" variant="outlined" />
                 )}
+                {ap.status === 'Atendido' && !ap.diagnosis && (
+                  <Chip size="small" label="Sin diagnóstico" color="warning" />
+                )}
               </Box>
 
               <Box sx={{ display: 'flex', gap: 1 }}>
-                {/* Atajo para el caso más común: el paciente entra y se lo atiende */}
+                {/* Cerrar la consulta exige diagnóstico: no se puede dar por
+                    atendido un turno sin dejar registro de qué se encontró */}
                 {ap.status === 'En espera' && (
                   <Button
                     size="small"
                     variant="contained"
-                    onClick={() =>
-                      applyStatus(ap.id_medical_appointment, 'Atendido')
-                    }
+                    startIcon={<AssignmentTurnedInIcon />}
+                    onClick={() => openDiagnosisDialog(ap, 'close')}
                   >
-                    Marcar atendido
+                    Cerrar consulta
+                  </Button>
+                )}
+                {ap.status === 'Atendido' && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<EditNoteIcon />}
+                    onClick={() => openDiagnosisDialog(ap, 'edit')}
+                  >
+                    {ap.diagnosis ? 'Ver diagnóstico' : 'Cargar diagnóstico'}
                   </Button>
                 )}
                 {!isClosed && (
@@ -308,6 +408,104 @@ export default function AgendaPage() {
           );
         })}
       </Box>
+
+      {/* Diálogo de diagnóstico */}
+      <Dialog
+        open={Boolean(diagnosisTarget)}
+        onClose={() => setDiagnosisTarget(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {diagnosisMode === 'close'
+            ? 'Cerrar consulta'
+            : 'Diagnóstico de la consulta'}
+        </DialogTitle>
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
+          {diagnosisError && <Alert severity="error">{diagnosisError}</Alert>}
+
+          {diagnosisTarget && (
+            <Typography variant="body2" color="#5b7387">
+              {diagnosisTarget.patient_name} —{' '}
+              {formatDate(diagnosisTarget.date)} a las {diagnosisTarget.hour}
+              {diagnosisTarget.reason ? ` · ${diagnosisTarget.reason}` : ''}
+            </Typography>
+          )}
+
+          <TextField
+            select
+            label="Tipo de enfermedad"
+            required
+            value={diagnosisForm.disease_type}
+            onChange={(e) =>
+              setDiagnosisForm({
+                ...diagnosisForm,
+                disease_type: e.target.value,
+              })
+            }
+            helperText="Se usa para los reportes por período"
+          >
+            {DISEASE_TYPES.map((t) => (
+              <MenuItem key={t} value={t}>
+                {t}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            label="Diagnóstico"
+            required
+            multiline
+            minRows={2}
+            value={diagnosisForm.diagnosis}
+            onChange={(e) =>
+              setDiagnosisForm({ ...diagnosisForm, diagnosis: e.target.value })
+            }
+          />
+
+          <TextField
+            label={
+              diagnosisForm.disease_type === DISEASE_TYPE_OTHER
+                ? 'Especificá cuál'
+                : 'Detalles (opcional)'
+            }
+            required={diagnosisForm.disease_type === DISEASE_TYPE_OTHER}
+            multiline
+            minRows={2}
+            value={diagnosisForm.disease_details}
+            onChange={(e) =>
+              setDiagnosisForm({
+                ...diagnosisForm,
+                disease_details: e.target.value,
+              })
+            }
+          />
+
+          {diagnosisMode === 'close' && (
+            <Alert severity="info">
+              Al guardar, el turno queda marcado como <strong>Atendido</strong>.
+              El paciente va a aparecer en la lista de seguimiento del
+              enfermero.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDiagnosisTarget(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveDiagnosis}
+            disabled={savingDiagnosis}
+          >
+            {savingDiagnosis
+              ? 'Guardando...'
+              : diagnosisMode === 'close'
+                ? 'Guardar y cerrar consulta'
+                : 'Guardar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Diálogo de cambio de estado */}
       <Dialog

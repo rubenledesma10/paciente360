@@ -4,6 +4,10 @@ export function getMedicalIndications() {
   return client.get('/medical-indications/')
 }
 
+export function getMedicalIndicationsByPatient(patientId) {
+  return client.get(`/medical-indications/patient/${patientId}`)
+}
+
 export function createMedicalIndication(payload) {
   return client.post('/medical-indications/', payload)
 }

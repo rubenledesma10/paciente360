@@ -317,7 +317,35 @@ def seed():
             status=AppointmentStatusEnum.RESERVADO, reason="Consulta dermatológica", confirmed=False,
         )
 
-        db.session.add_all([turno1, turno2, turno3, turno_por_confirmar, turno_confirmado, turno_limite])
+        turno_atendido_1 = MedicalAppointment(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=20), hour="09:30",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Control de rutina",
+            disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
+            diagnosis="Presión arterial levemente elevada.",
+            disease_details="Se indica reposo y control de sal en la dieta."
+        )
+        turno_atendido_2 = MedicalAppointment(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=10), hour="10:00",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Seguimiento de presión arterial",
+            disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
+            diagnosis="Presión arterial sin mejoras significativas.",
+            disease_details="Se ajusta dosis de medicación antihipertensiva."
+        )
+        turno_atendido_3 = MedicalAppointment(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=3), hour="11:15",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Control post-tratamiento",
+            disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
+            diagnosis="Presión arterial estabilizada.",
+            disease_details="Paciente responde bien al ajuste de medicación."
+        )
+
+        db.session.add_all([
+            turno1, turno2, turno3, turno_por_confirmar, turno_confirmado, turno_limite,
+            turno_atendido_1, turno_atendido_2, turno_atendido_3,
+        ])
         db.session.commit()
 
         # ---------- Indicaciones médicas ----------
@@ -327,15 +355,42 @@ def seed():
         )
         indicacion2 = MedicalIndication(
             id_patient=paciente2.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno2.id_medical_appointment,
             indication="Control de temperatura cada 4hs", treatment="Paracetamol 500mg si fiebre mayor a 38°",
         )
         indicacion3 = MedicalIndication(
             id_patient=paciente3.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno3.id_medical_appointment,
             indication="Dieta hiposódica", treatment="Enalapril 10mg cada 24hs",
             created_at=datetime.utcnow() - timedelta(minutes=10),
         )
 
-        db.session.add_all([indicacion1, indicacion2, indicacion3])
+        indicacion_marta_1 = MedicalIndication(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno_atendido_1.id_medical_appointment,
+            indication="Reducir consumo de sal y controlar presión a diario",
+            treatment="Enalapril 5mg cada 24hs",
+            created_at=datetime.utcnow() - timedelta(days=20),
+        )
+        indicacion_marta_2 = MedicalIndication(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno_atendido_2.id_medical_appointment,
+            indication="Aumentar dosis de antihipertensivo",
+            treatment="Enalapril 10mg cada 24hs",
+            created_at=datetime.utcnow() - timedelta(days=10),
+        )
+        indicacion_marta_3 = MedicalIndication(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno_atendido_3.id_medical_appointment,
+            indication="Alta de control, continuar con medicación habitual",
+            treatment="Enalapril 10mg cada 24hs",
+            created_at=datetime.utcnow() - timedelta(days=3),
+        )
+
+        db.session.add_all([
+            indicacion1, indicacion2, indicacion3,
+            indicacion_marta_1, indicacion_marta_2, indicacion_marta_3,
+        ])
         db.session.commit()
 
         # ---------- Productos médicos ----------

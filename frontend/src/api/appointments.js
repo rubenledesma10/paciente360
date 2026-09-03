@@ -93,6 +93,12 @@ export function updateAppointmentStatus(id, status) {
   return client.patch(`/appointments/${id}/status`, { status });
 }
 
+// Diagnostico de la consulta. Solo lo puede cargar el medico asignado
+// al turno. payload: { disease_type, diagnosis, disease_details }
+export function updateAppointmentDiagnosis(id, payload) {
+  return client.patch(`/appointments/${id}/diagnosis`, payload);
+}
+
 // Estados a los que puede pasar el turno segun su estado actual
 export function getAllowedTransitions(id) {
   return client.get(`/appointments/${id}/transitions`);

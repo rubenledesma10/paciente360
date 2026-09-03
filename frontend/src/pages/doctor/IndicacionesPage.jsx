@@ -27,6 +27,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import HistoryIcon from '@mui/icons-material/History'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -39,6 +40,7 @@ import {
   deleteMedicalIndication,
 } from '../../api/medicalIndications'
 import { useAuth } from '../../context/useAuth'
+import IndicationsHistoryDialog from '../../components/IndicationsHistoryDialog'
 import { formatDateTime } from '../../utils/dateFormat'
 import { formatPatientLabel, getPatientAge, getPatientDni } from '../../utils/patientDisplay'
 import { drawPdfHeader, drawPdfFooter, PDF_HEADER_HEIGHT } from '../../utils/pdfBranding'
@@ -65,6 +67,7 @@ export default function IndicacionesPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [historyTarget, setHistoryTarget] = useState(null)
 
   const {
     register,
@@ -200,8 +203,10 @@ export default function IndicacionesPage() {
           treatment: values.treatment,
         })
       } else {
+        const eligiblePatient = eligiblePatients.find((p) => p.id_user === values.id_patient)
         await createMedicalIndication({
           id_patient: values.id_patient,
+          id_medical_appointment: eligiblePatient?.id_medical_appointment,
           indication: values.indication,
           treatment: values.treatment,
         })
@@ -282,6 +287,11 @@ export default function IndicacionesPage() {
                     {formatDateTime(r.created_at)}
                   </TableCell>
                   <TableCell align="center">
+                    <Tooltip title="Ver historial del paciente">
+                      <IconButton size="small" onClick={() => setHistoryTarget(patient)}>
+                        <HistoryIcon fontSize="small" sx={{ color: paletteRaw.azul }} />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Descargar PDF">
                       <IconButton size="small" onClick={() => downloadIndicationPdf(r)}>
                         <PictureAsPdfIcon fontSize="small" sx={{ color: paletteRaw.azul }} />
@@ -398,6 +408,15 @@ export default function IndicacionesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <IndicationsHistoryDialog
+        open={!!historyTarget}
+        onClose={() => setHistoryTarget(null)}
+        patientId={historyTarget?.id_user}
+        patientName={historyTarget ? `${historyTarget.first_name} ${historyTarget.last_name}` : ''}
+        patientDni={getPatientDni(historyTarget)}
+        patientAge={getPatientAge(historyTarget?.date_of_birth)}
+      />
     </Box>
   )
 }

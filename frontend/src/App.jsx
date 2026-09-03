@@ -13,6 +13,7 @@ import NewsShell from './components/layout/NewsShell';
 import SignosPage from './pages/nurse/SignosPage';
 import StockPage from './pages/nurse/StockPage';
 import GuardiaPage from './pages/nurse/GuardiaPage';
+import EstadisticasPage from './pages/nurse/EstadisticasPage';
 import NewsAndPrevention from './pages/NewsAndPrevention';
 import NewsDetail from './pages/NewsDetail';
 import SacarTurnoPublicoPage from './pages/SacarTurnoPublicoPage';
@@ -56,6 +57,7 @@ function App() {
             <Route path="seguimiento" element={<Seguimiento />} />
             <Route path="stock" element={<StockPage />} />
             <Route path="guardia" element={<GuardiaPage />} />
+            <Route path="estadisticas" element={<EstadisticasPage />} />
           </Route>
 
           <Route element={<DoctorRoute />}>

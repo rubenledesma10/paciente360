@@ -42,6 +42,7 @@ from models.health_plan import HealthPlan
 from utils.bitacora_events import setup_auditing
 from routes.bitacora_bp import bitacora_bp
 from routes.health_plan_routes import health_plans_bp
+from routes.stats_routes import stats_bp
 from tasks import scheduler, send_daily_reminders
 
 app= Flask(__name__)
@@ -83,6 +84,7 @@ app.register_blueprint(profile_bp)
 app.register_blueprint(administrator_bp)
 app.register_blueprint(superadministrator_bp)
 app.register_blueprint(bitacora_bp)
+app.register_blueprint(stats_bp)
 
 with app.app_context():
     from models.user import User

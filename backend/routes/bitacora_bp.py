@@ -6,7 +6,7 @@ from utils.role_required import role_required
 bitacora_bp = Blueprint('bitacora', __name__, url_prefix='/api/bitacora')
 
 @bitacora_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
+@role_required(RoleEnum.SUPERADMINISTRADOR)
 def get_logs():
     try:
         logs = Bitacora.query.order_by(Bitacora.timestamp.desc()).all()
@@ -15,7 +15,7 @@ def get_logs():
         return jsonify({"msg": "Error obteniendo la bitácora", "error": str(e)}), 500
 
 @bitacora_bp.route('/search', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
+@role_required(RoleEnum.SUPERADMINISTRADOR)
 def search_logs():
     try:
         query = Bitacora.query

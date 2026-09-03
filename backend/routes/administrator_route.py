@@ -167,11 +167,11 @@ def delete_administrator(user_id):
     try:
         user = User.query.get(user_id)
         if not user:
-            return jsonify({"msg": "administrator user not found"}), 404
+            return jsonify({"msg": "Administrator user not found"}), 404
         
         user.is_active=False
         db.session.commit()
-        return jsonify({"msg": "administrator user deleted successfully"}), 200
+        return jsonify({"msg": "Administrator user deleted successfully"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error deleting administrator user", "error": str(e)}), 500
@@ -197,11 +197,11 @@ def toggle_administrator_active_status(user_id): #activar
     try:
         user = User.query.get(user_id)
         if not user:
-            return jsonify({"msg": "administrator user not found"}), 404
+            return jsonify({"msg": "Administrator user not found"}), 404
         
         user.is_active = not user.is_active
         db.session.commit()
-        return jsonify({"msg": f"administrator user {'activated' if user.is_active else 'deactivated'} successfully"}), 200
+        return jsonify({"msg": f"Administrator user {'activated' if user.is_active else 'deactivated'} successfully"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "Error toggling administrator user status", "error": str(e)}), 500   

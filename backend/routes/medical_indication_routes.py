@@ -5,6 +5,7 @@ from models.db import db
 from models.medical_indication import MedicalIndication
 from models.patient import Patient
 from models.doctor import Doctor
+from models.medical_appointment import MedicalAppointment
 from utils.role_required import role_required
 from enums import RoleEnum
 
@@ -25,15 +26,25 @@ def create_medical_indication():
         
         if not data.get('indication'):
             return jsonify({"msg":"indication obligatoried"}),400
-        
+
+        if not data.get('id_medical_appointment'):
+            return jsonify({"msg":"id_medical_appointment obligatoried"}),400
+
         if not Patient.query.get(data.get('id_patient')):
             return jsonify({"msg": "Patient not found"}), 404
 
         id_doctor_logueado=int(get_jwt_identity())
 
+        appointment = MedicalAppointment.query.get(data.get('id_medical_appointment'))
+        if not appointment:
+            return jsonify({"msg": "Medical appointment not found"}), 404
+        if appointment.id_patient != data.get('id_patient') or appointment.id_doctor != id_doctor_logueado:
+            return jsonify({"msg": "The appointment does not belong to this patient/doctor"}), 403
+
         new_indication = MedicalIndication(
             id_patient=data.get('id_patient'),
             id_doctor=id_doctor_logueado,
+            id_medical_appointment=data.get('id_medical_appointment'),
             indication=data.get('indication'),
             treatment=data.get('treatment')
         )
@@ -50,7 +61,7 @@ def create_medical_indication():
 @role_required(RoleEnum.DOCTOR, RoleEnum.NURSE)
 def get_medical_indications():
     try:
-        indications = MedicalIndication.query.all()
+        indications = MedicalIndication.query.order_by(MedicalIndication.created_at.desc()).all()
         return jsonify([i.to_dict() for i in indications]), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching medical indications"}), 500
@@ -79,7 +90,7 @@ def get_medical_indications_by_patient(patient_id):
             return jsonify({"msg":"You cannot view another patient's instructions."}),403
         
     try:
-        indications=MedicalIndication.query.filter_by(id_patient=patient_id).all()
+        indications=MedicalIndication.query.filter_by(id_patient=patient_id).order_by(MedicalIndication.created_at.desc()).all()
         return jsonify([i.to_dict() for i in indications]),200
     except Exception as e:
         return jsonify({"msg":"Error fetching patient medical indications"}),500

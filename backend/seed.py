@@ -215,7 +215,26 @@ def seed():
         )
         paciente3.set_password(paciente3.dni)
 
-        db.session.add_all([paciente1, paciente2, paciente3])
+        paciente4 = Patient(
+            first_name="Roberto", last_name="Díaz", username="27114488",
+            dni="27114488", email="roberto.diaz@mail.com",
+            date_of_birth=date(1975, 6, 3), address="Sarmiento 340, Maipú",
+            emergency_contact="Marisa Díaz - 2617778899", gender="Masculino",
+            rol=RoleEnum.PATIENT, health_plan_status=True,
+            health_plan_name="OSDE", member_number="OSDE-55210",
+        )
+        paciente4.set_password(paciente4.dni)
+
+        paciente5 = Patient(
+            first_name="Elena", last_name="Vargas", username="41556677",
+            dni="41556677", email="elena.vargas@mail.com",
+            date_of_birth=date(1998, 11, 22), address="Chile 210, Maipú",
+            emergency_contact="Marta Vargas - 2618889900", gender="Femenino",
+            rol=RoleEnum.PATIENT, health_plan_status=False,
+        )
+        paciente5.set_password(paciente5.dni)
+
+        db.session.add_all([paciente1, paciente2, paciente3, paciente4, paciente5])
         db.session.commit()
 
         # ---------- Enfermeros ----------
@@ -317,7 +336,104 @@ def seed():
             status=AppointmentStatusEnum.RESERVADO, reason="Consulta dermatológica", confirmed=False,
         )
 
-        db.session.add_all([turno1, turno2, turno3, turno_por_confirmar, turno_confirmado, turno_limite])
+        turno_atendido_1 = MedicalAppointment(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=20), hour="09:30",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Control de rutina",
+            disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
+            diagnosis="Presión arterial levemente elevada.",
+            disease_details="Se indica reposo y control de sal en la dieta."
+        )
+        turno_atendido_2 = MedicalAppointment(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=10), hour="10:00",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Seguimiento de presión arterial",
+            disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
+            diagnosis="Presión arterial sin mejoras significativas.",
+            disease_details="Se ajusta dosis de medicación antihipertensiva."
+        )
+        turno_atendido_3 = MedicalAppointment(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=3), hour="11:15",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Control post-tratamiento",
+            disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
+            diagnosis="Presión arterial estabilizada.",
+            disease_details="Paciente responde bien al ajuste de medicación."
+        )
+
+        # Turnos extra para poblar "Estadísticas" (pacientes atendidos,
+        # enfermedades y ausentismo por período). Fechas dentro de los
+        # últimos 25 días para entrar en el rango por defecto de la pantalla
+        # ("últimos 30 días"), sin importar qué día del mes se corra el seed.
+        turno_atendido_4 = MedicalAppointment(
+            id_patient=paciente2.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=1), hour="09:00",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Tos y congestión",
+            disease_type=DiseaseTypeEnum.RESPIRATORIA,
+            diagnosis="Bronquitis leve.",
+            disease_details="Reposo y control en 5 días si no mejora."
+        )
+        turno_atendido_5 = MedicalAppointment(
+            id_patient=paciente3.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=4), hour="10:30",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Dolor abdominal",
+            disease_type=DiseaseTypeEnum.GASTROINTESTINAL,
+            diagnosis="Gastritis.",
+            disease_details="Dieta blanda y control en una semana."
+        )
+        turno_atendido_6 = MedicalAppointment(
+            id_patient=paciente4.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=6), hour="08:45",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Erupción en la piel",
+            disease_type=DiseaseTypeEnum.DERMATOLOGICA,
+            diagnosis="Dermatitis de contacto.",
+            disease_details="Crema tópica y evitar el alérgeno identificado."
+        )
+        turno_atendido_7 = MedicalAppointment(
+            id_patient=paciente4.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=9), hour="14:00",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Golpe en el tobillo",
+            disease_type=DiseaseTypeEnum.TRAUMATISMO,
+            diagnosis="Esguince leve de tobillo.",
+            disease_details="Reposo, frío local y vendaje elástico."
+        )
+        turno_atendido_8 = MedicalAppointment(
+            id_patient=paciente5.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=12), hour="16:00",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Consulta general",
+            disease_type=DiseaseTypeEnum.CONSULTAMEDICA,
+            diagnosis="Sin hallazgos relevantes.",
+            disease_details="Control de rutina, sin tratamiento."
+        )
+        turno_atendido_9 = MedicalAppointment(
+            id_patient=paciente5.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=15), hour="17:00",
+            status=AppointmentStatusEnum.ATENDIDO, reason="Chequeo pendiente de diagnóstico",
+        )
+
+        turno_cancelado_1 = MedicalAppointment(
+            id_patient=paciente2.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=2), hour="11:30",
+            status=AppointmentStatusEnum.CANCELADO, reason="Control de rutina",
+        )
+        turno_cancelado_2 = MedicalAppointment(
+            id_patient=paciente3.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=7), hour="09:15",
+            status=AppointmentStatusEnum.CANCELADO, reason="Consulta dermatológica",
+        )
+        turno_cancelado_3 = MedicalAppointment(
+            id_patient=paciente4.id_user, id_doctor=medico.id_user,
+            date=date.today() - timedelta(days=14), hour="13:00",
+            status=AppointmentStatusEnum.CANCELADO, reason="Seguimiento",
+        )
+
+        db.session.add_all([
+            turno1, turno2, turno3, turno_por_confirmar, turno_confirmado, turno_limite,
+            turno_atendido_1, turno_atendido_2, turno_atendido_3,
+            turno_atendido_4, turno_atendido_5, turno_atendido_6,
+            turno_atendido_7, turno_atendido_8, turno_atendido_9,
+            turno_cancelado_1, turno_cancelado_2, turno_cancelado_3,
+        ])
         db.session.commit()
 
         # ---------- Indicaciones médicas ----------
@@ -327,15 +443,42 @@ def seed():
         )
         indicacion2 = MedicalIndication(
             id_patient=paciente2.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno2.id_medical_appointment,
             indication="Control de temperatura cada 4hs", treatment="Paracetamol 500mg si fiebre mayor a 38°",
         )
         indicacion3 = MedicalIndication(
             id_patient=paciente3.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno3.id_medical_appointment,
             indication="Dieta hiposódica", treatment="Enalapril 10mg cada 24hs",
             created_at=datetime.utcnow() - timedelta(minutes=10),
         )
 
-        db.session.add_all([indicacion1, indicacion2, indicacion3])
+        indicacion_marta_1 = MedicalIndication(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno_atendido_1.id_medical_appointment,
+            indication="Reducir consumo de sal y controlar presión a diario",
+            treatment="Enalapril 5mg cada 24hs",
+            created_at=datetime.utcnow() - timedelta(days=20),
+        )
+        indicacion_marta_2 = MedicalIndication(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno_atendido_2.id_medical_appointment,
+            indication="Aumentar dosis de antihipertensivo",
+            treatment="Enalapril 10mg cada 24hs",
+            created_at=datetime.utcnow() - timedelta(days=10),
+        )
+        indicacion_marta_3 = MedicalIndication(
+            id_patient=paciente1.id_user, id_doctor=medico.id_user,
+            id_medical_appointment=turno_atendido_3.id_medical_appointment,
+            indication="Alta de control, continuar con medicación habitual",
+            treatment="Enalapril 10mg cada 24hs",
+            created_at=datetime.utcnow() - timedelta(days=3),
+        )
+
+        db.session.add_all([
+            indicacion1, indicacion2, indicacion3,
+            indicacion_marta_1, indicacion_marta_2, indicacion_marta_3,
+        ])
         db.session.commit()
 
         # ---------- Productos médicos ----------
@@ -351,22 +494,35 @@ def seed():
             name_product="Vacuna antigripal", expiration_date=date(2026, 12, 1),
             batch_number="LOTE-9081", current_stock=80, minimum_stock_level=20, type_product="Vacuna",
         )
-        db.session.add_all([producto1, producto2, producto3])
+        producto4 = MedicalProduct(
+            name_product="Guantes de nitrilo (caja x100)", expiration_date=date(2027, 9, 1),
+            batch_number="LOTE-7734", current_stock=15, minimum_stock_level=50, type_product="EPP",
+        )
+        db.session.add_all([producto1, producto2, producto3, producto4])
         db.session.commit()
 
         # ---------- Movimientos de stock y Trazabilidad ----------
         movimiento_entrada1 = StockMovement(id_product=producto1.id_product, id_nurse=enfermero1.id_user, type_movement="Entrada", quantity=170, date_time=datetime.utcnow() - timedelta(days=10))
         movimiento_entrada2 = StockMovement(id_product=producto2.id_product, id_nurse=enfermero2.id_user, type_movement="Entrada", quantity=500, date_time=datetime.utcnow() - timedelta(days=15))
         movimiento_entrada3 = StockMovement(id_product=producto3.id_product, id_nurse=enfermero3.id_user, type_movement="Entrada", quantity=80, date_time=datetime.utcnow() - timedelta(days=20))
-        db.session.add_all([movimiento_entrada1, movimiento_entrada2, movimiento_entrada3])
+        movimiento_entrada4 = StockMovement(id_product=producto4.id_product, id_nurse=enfermero1.id_user, type_movement="Entrada", quantity=60, date_time=datetime.utcnow() - timedelta(days=18))
+        db.session.add_all([movimiento_entrada1, movimiento_entrada2, movimiento_entrada3, movimiento_entrada4])
         db.session.commit()
 
         movimiento_salida = StockMovement(id_product=producto1.id_product, id_nurse=enfermero1.id_user, type_movement="Salida", quantity=20, date_time=datetime.utcnow() - timedelta(days=2))
-        db.session.add(movimiento_salida)
+        movimiento_salida2 = StockMovement(id_product=producto2.id_product, id_nurse=enfermero2.id_user, type_movement="Salida", quantity=15, date_time=datetime.utcnow() - timedelta(days=4))
+        movimiento_salida3 = StockMovement(id_product=producto3.id_product, id_nurse=enfermero3.id_user, type_movement="Salida", quantity=8, date_time=datetime.utcnow() - timedelta(days=6))
+        movimiento_salida4 = StockMovement(id_product=producto4.id_product, id_nurse=enfermero1.id_user, type_movement="Salida", quantity=35, date_time=datetime.utcnow() - timedelta(days=9))
+        movimiento_salida5 = StockMovement(id_product=producto1.id_product, id_nurse=enfermero2.id_user, type_movement="Salida", quantity=10, date_time=datetime.utcnow() - timedelta(days=12))
+        db.session.add_all([movimiento_salida, movimiento_salida2, movimiento_salida3, movimiento_salida4, movimiento_salida5])
         db.session.commit()
 
         trazabilidad1 = Traceability(id_patient=paciente1.id_user, id_product=producto1.id_product, id_nurse=enfermero1.id_user, quantity=20, id_stock_movement=movimiento_salida.id_stock_movement, date_of_use=datetime.utcnow() - timedelta(days=2))
-        db.session.add(trazabilidad1)
+        trazabilidad2 = Traceability(id_patient=paciente2.id_user, id_product=producto2.id_product, id_nurse=enfermero2.id_user, quantity=15, id_stock_movement=movimiento_salida2.id_stock_movement, date_of_use=datetime.utcnow() - timedelta(days=4))
+        trazabilidad3 = Traceability(id_patient=paciente3.id_user, id_product=producto3.id_product, id_nurse=enfermero3.id_user, quantity=8, id_stock_movement=movimiento_salida3.id_stock_movement, date_of_use=datetime.utcnow() - timedelta(days=6))
+        trazabilidad4 = Traceability(id_patient=paciente4.id_user, id_product=producto4.id_product, id_nurse=enfermero1.id_user, quantity=35, id_stock_movement=movimiento_salida4.id_stock_movement, date_of_use=datetime.utcnow() - timedelta(days=9))
+        trazabilidad5 = Traceability(id_patient=paciente5.id_user, id_product=producto1.id_product, id_nurse=enfermero2.id_user, quantity=10, id_stock_movement=movimiento_salida5.id_stock_movement, date_of_use=datetime.utcnow() - timedelta(days=12))
+        db.session.add_all([trazabilidad1, trazabilidad2, trazabilidad3, trazabilidad4, trazabilidad5])
         db.session.commit()
 
         # ---------- Noticias ----------

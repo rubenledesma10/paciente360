@@ -24,6 +24,7 @@ import {
   createPublicAppointment,
   getPublicBusyHours,
 } from '../api/appointments';
+import SpecialtySuggester from '../components/SpecialtySuggester';
 
 const APPOINTMENT_MINUTES = 20;
 
@@ -372,6 +373,8 @@ export default function SacarTurnoPublicoPage() {
       {/* 2. Especialidad */}
       <Card sx={{ p: 2.5, mb: 2 }}>
         <StepTitle number={2}>Especialidad</StepTitle>
+        {/* Con 109 especialidades nadie sabe cual elegir: el asistente orienta */}
+        <SpecialtySuggester onSelect={(id) => handleSpecialtyChange(id)} />
         <TextField
           select
           fullWidth

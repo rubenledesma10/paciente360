@@ -282,3 +282,66 @@ def conversar_sobre_noticia(titulo, contenido, pregunta, historial=None):
         "contents": contents,
         "generationConfig": _config_generacion(2000),
     })
+
+
+# ---------------------------------------------------------------------------
+# Medico: resumen de historia clinica antes de la consulta
+# ---------------------------------------------------------------------------
+
+# Se cachea por huella de los datos: si al paciente le cargan algo nuevo, la
+# huella cambia y el resumen se regenera. Si no, se reutiliza.
+_cache_resumenes = {}
+
+
+def resumir_historia_clinica(datos):
+    """Arma un resumen clinico de lectura rapida para el medico.
+
+    A diferencia de lo que ve el paciente, aca el destinatario es un
+    profesional: el modelo puede señalar patrones, valores fuera de rango y
+    cosas a verificar. Lo que NO puede hacer es inventar: trabaja solo con
+    los registros que le pasamos, y si algo no esta, lo dice.
+
+    datos: dict con paciente, turnos, seguimientos, signos e indicaciones,
+    ya serializados (ver ai_routes).
+    """
+    huella = json.dumps(datos, sort_keys=True, ensure_ascii=False)
+    if huella in _cache_resumenes:
+        return _cache_resumenes[huella]
+
+    prompt = f"""Sos un asistente clinico para medicos de un centro de atencion primaria
+publico de Mendoza, Argentina. Vas a preparar al medico para una consulta
+resumiendo lo que el sistema tiene registrado del paciente.
+
+DESTINATARIO: un medico. Usa lenguaje clinico normal, sin explicar terminos
+basicos ni infantilizar.
+
+REGLAS
+- Trabaja UNICAMENTE con los datos de abajo. No inventes antecedentes,
+  valores ni tratamientos. Si una seccion viene vacia, decilo en una linea.
+- No diagnostiques ni indiques tratamiento: eso lo hace el medico. Podes
+  señalar patrones ("tres registros con presion elevada en dos semanas"),
+  valores fuera de rango y datos que convendria verificar o actualizar.
+- Si hay alergias registradas, van primero y destacadas.
+- Si hay una indicacion o seguimiento vigente que no se cerro, señalalo.
+- Ordena cronologicamente lo reciente primero. Fechas en formato dd/mm/aaaa.
+- Español rioplatense. Conciso: el medico tiene pocos minutos entre
+  pacientes. Maximo unas 250 palabras.
+
+FORMATO (usa exactamente estos titulos, en este orden; omiti los que no
+tengan datos salvo "Puntos a tener en cuenta", que va siempre)
+Paciente
+Antecedentes en el sistema
+Ultimos signos vitales
+Seguimiento de enfermeria
+Indicaciones registradas
+Puntos a tener en cuenta
+
+DATOS DEL PACIENTE (JSON)
+{huella}"""
+
+    texto = _generate({
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": _config_generacion(1500),
+    })
+    _cache_resumenes[huella] = texto
+    return texto

@@ -19,6 +19,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import EditNoteIcon from '@mui/icons-material/EditNote';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import {
   getAppointments,
   getAllowedTransitions,
@@ -26,7 +27,62 @@ import {
   updateAppointmentDiagnosis,
 } from '../../api/appointments';
 import { useAuth } from '../../context/useAuth';
+import { getPatientSummary } from '../../api/ai';
 import { DISEASE_TYPES, DISEASE_TYPE_OTHER } from '../../utils/diseaseTypes';
+
+// El resumen viene con titulos de seccion en su propia linea y viñetas.
+// Se renderiza sin libreria de markdown.
+const TITULOS_RESUMEN = [
+  'Paciente',
+  'Antecedentes en el sistema',
+  'Ultimos signos vitales',
+  'Últimos signos vitales',
+  'Seguimiento de enfermeria',
+  'Seguimiento de enfermería',
+  'Indicaciones registradas',
+  'Puntos a tener en cuenta',
+];
+
+function ResumenFormateado({ text }) {
+  return (
+    <Box>
+      {text.split('\n').map((linea, i) => {
+        const limpia = linea
+          .trim()
+          .replace(/^\*\*|\*\*$/g, '')
+          .replace(/^#+\s*/, '');
+        if (!limpia) return <Box key={i} sx={{ height: 6 }} />;
+        const esTitulo = TITULOS_RESUMEN.some(
+          (t) => limpia.toLowerCase().replace(':', '') === t.toLowerCase(),
+        );
+        const esItem = /^[-*•]\s+/.test(limpia);
+        if (esTitulo) {
+          return (
+            <Typography
+              key={i}
+              variant="subtitle2"
+              fontWeight={800}
+              color="#0E4C82"
+              sx={{ mt: 1.5, mb: 0.5 }}
+            >
+              {limpia.replace(':', '')}
+            </Typography>
+          );
+        }
+        return (
+          <Typography
+            key={i}
+            variant="body2"
+            color="#334155"
+            sx={{ lineHeight: 1.7, pl: esItem ? 2 : 0 }}
+          >
+            {esItem ? `• ${limpia.replace(/^[-*•]\s+/, '')}` : limpia}
+          </Typography>
+        );
+      })}
+    </Box>
+  );
+}
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -62,6 +118,13 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [actionOk, setActionOk] = useState('');
+
+  // Resumen clínico previo a la consulta
+  const [summaryTarget, setSummaryTarget] = useState(null);
+  const [summary, setSummary] = useState('');
+  const [summaryMeta, setSummaryMeta] = useState(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
 
   // Diálogo de cierre de consulta / edición de diagnóstico
   const [diagnosisTarget, setDiagnosisTarget] = useState(null);
@@ -125,6 +188,23 @@ export default function AgendaPage() {
   const pendingCount = rows.filter(
     (ap) => ap.status === 'Reservado' || ap.status === 'En espera',
   ).length;
+
+  const openSummary = async (appointment) => {
+    setSummaryTarget(appointment);
+    setSummary('');
+    setSummaryMeta(null);
+    setSummaryError('');
+    setLoadingSummary(true);
+    try {
+      const res = await getPatientSummary(appointment.id_patient);
+      setSummary(res.data.summary);
+      setSummaryMeta(res.data.registros);
+    } catch (err) {
+      setSummaryError(readError(err, 'No se pudo generar el resumen.'));
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
 
   const openDiagnosisDialog = (appointment, mode) => {
     setDiagnosisTarget(appointment);
@@ -371,6 +451,18 @@ export default function AgendaPage() {
               </Box>
 
               <Box sx={{ display: 'flex', gap: 1 }}>
+                {/* Resumen de lo que el sistema sabe del paciente, para
+                    llegar a la consulta con contexto */}
+                {!isClosed && (
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={<AutoAwesomeIcon />}
+                    onClick={() => openSummary(ap)}
+                  >
+                    Preparar consulta
+                  </Button>
+                )}
                 {/* Cerrar la consulta exige diagnóstico: no se puede dar por
                     atendido un turno sin dejar registro de qué se encontró */}
                 {ap.status === 'En espera' && (
@@ -408,6 +500,81 @@ export default function AgendaPage() {
           );
         })}
       </Box>
+
+      {/* Diálogo: resumen clínico */}
+      <Dialog
+        open={Boolean(summaryTarget)}
+        onClose={() => setSummaryTarget(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <AutoAwesomeIcon sx={{ color: '#1565A8' }} />
+          Preparar consulta
+        </DialogTitle>
+        <DialogContent>
+          {summaryTarget && (
+            <Typography variant="body2" color="#5b7387" sx={{ mb: 2 }}>
+              {summaryTarget.patient_name} — {formatDate(summaryTarget.date)} a
+              las {summaryTarget.hour}
+              {summaryTarget.reason ? ` · ${summaryTarget.reason}` : ''}
+            </Typography>
+          )}
+
+          {loadingSummary && (
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 3 }}
+            >
+              <CircularProgress size={22} />
+              <Typography variant="body2" color="#5b7387">
+                Leyendo la historia del paciente...
+              </Typography>
+            </Box>
+          )}
+
+          {summaryError && <Alert severity="warning">{summaryError}</Alert>}
+
+          {summary && (
+            <>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                <ResumenFormateado text={summary} />
+              </Box>
+
+              {summaryMeta && (
+                <Typography
+                  variant="caption"
+                  color="#5b7387"
+                  sx={{ display: 'block', mt: 1.5 }}
+                >
+                  Resumen armado a partir de {summaryMeta.consultas}{' '}
+                  consulta(s), {summaryMeta.signos} registro(s) de signos,{' '}
+                  {summaryMeta.seguimientos} seguimiento(s) y{' '}
+                  {summaryMeta.indicaciones} indicación(es) cargadas en el
+                  sistema.
+                </Typography>
+              )}
+
+              {/* Aclaracion obligatoria: es sintesis de lo registrado, no una
+                  evaluacion clinica */}
+              <Alert severity="info" sx={{ mt: 1.5 }}>
+                Generado automáticamente a partir de los registros del sistema.
+                Es un apoyo para la lectura, no reemplaza la revisión de la
+                historia clínica ni el criterio profesional.
+              </Alert>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setSummaryTarget(null)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Diálogo de diagnóstico */}
       <Dialog

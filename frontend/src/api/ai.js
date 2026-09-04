@@ -11,3 +11,8 @@ export function simplifyNews(id) {
 export function chatAboutNews(id, question, history = []) {
   return client.post(`/ai/news/${id}/chat`, { question, history });
 }
+
+// Resumen clinico de un paciente para preparar la consulta. Solo medicos.
+export function getPatientSummary(patientId) {
+  return client.get(`/ai/patients/${patientId}/summary`);
+}

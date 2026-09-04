@@ -29,62 +29,72 @@ import { roleHome } from './utils/roleHome';
 import AdministrativeRoute from './routes/AdministrativeRoute';
 import AdminNoticiasPage from './pages/admin/AdminNoticiasPage';
 import AdminTurnosPage from './pages/admin/AdminTurnosPage';
+import HelpAssistant from './components/HelpAssistant';
 
 function App() {
   const { rol } = useAuth();
 
   return (
-    <Routes>
-      {/* Principal pública: login + registro */}
-      <Route element={<PublicOnlyRoute />}>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/recuperar-cuenta" element={<RecuperarCuentaPage />} />
-      </Route>
-
-      {/* Noticias: se ven con y sin sesión.
-          NewsShell elige el layout: sidebar si estás logueado, cabecera pública si no. */}
-      <Route element={<NewsShell />}>
-        <Route path="/turnos" element={<SacarTurnoPublicoPage />} />
-        <Route path="/noticias" element={<NewsAndPrevention />} />
-        <Route path="/noticias/:id" element={<NewsDetail />} />
-      </Route>
-
-      <Route element={<ProtectedRoute />}>
-        <Route element={<AuthShell />}>
-          <Route element={<NurseRoute />}>
-            <Route path="signos" element={<SignosPage />} />
-            <Route path="seguimiento" element={<Seguimiento />} />
-            <Route path="stock" element={<StockPage />} />
-            <Route path="guardia" element={<GuardiaPage />} />
-            <Route path="estadisticas" element={<EstadisticasPage />} />
-          </Route>
-
-          <Route element={<DoctorRoute />}>
-            <Route path="agenda" element={<AgendaPage />} />
-            <Route path="indicaciones" element={<IndicacionesPage />} />
-            <Route path="historia-clinica" element={<HistoriaClinicaPage />} />
-          </Route>
-
-          <Route element={<PatientRoute />}>
-            <Route path="sacar-turno" element={<SacarTurnoPage />} />
-            <Route path="mis-turnos" element={<MisTurnosPage />} />
-          </Route>
-
-          <Route element={<AdministrativeRoute />}>
-            <Route path="admin/turnos" element={<AdminTurnosPage />} />
-            <Route path="admin/noticias" element={<AdminNoticiasPage />} />
-          </Route>
-
-          {/* Perfil: comun a los cuatro roles */}
-          <Route path="perfil" element={<PerfilPage />} />
-
-          <Route path="inicio" element={<HomePlaceholderPage />} />
+    <>
+      <Routes>
+        {/* Principal pública: login + registro */}
+        <Route element={<PublicOnlyRoute />}>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/recuperar-cuenta" element={<RecuperarCuentaPage />} />
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Noticias: se ven con y sin sesión.
+            NewsShell elige el layout: sidebar si estás logueado, cabecera pública si no. */}
+        <Route element={<NewsShell />}>
+          <Route path="/turnos" element={<SacarTurnoPublicoPage />} />
+          <Route path="/noticias" element={<NewsAndPrevention />} />
+          <Route path="/noticias/:id" element={<NewsDetail />} />
+        </Route>
+
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AuthShell />}>
+            <Route element={<NurseRoute />}>
+              <Route path="signos" element={<SignosPage />} />
+              <Route path="seguimiento" element={<Seguimiento />} />
+              <Route path="stock" element={<StockPage />} />
+              <Route path="guardia" element={<GuardiaPage />} />
+              <Route path="estadisticas" element={<EstadisticasPage />} />
+            </Route>
+
+            <Route element={<DoctorRoute />}>
+              <Route path="agenda" element={<AgendaPage />} />
+              <Route path="indicaciones" element={<IndicacionesPage />} />
+              <Route
+                path="historia-clinica"
+                element={<HistoriaClinicaPage />}
+              />
+            </Route>
+
+            <Route element={<PatientRoute />}>
+              <Route path="sacar-turno" element={<SacarTurnoPage />} />
+              <Route path="mis-turnos" element={<MisTurnosPage />} />
+            </Route>
+
+            <Route element={<AdministrativeRoute />}>
+              <Route path="admin/turnos" element={<AdminTurnosPage />} />
+              <Route path="admin/noticias" element={<AdminNoticiasPage />} />
+            </Route>
+
+            {/* Perfil: comun a los cuatro roles */}
+            <Route path="perfil" element={<PerfilPage />} />
+
+            <Route path="inicio" element={<HomePlaceholderPage />} />
+          </Route>
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      {/* Chatbot de ayuda: fuera de <Routes> para que este en todas las
+          pantallas, con o sin sesion */}
+      <HelpAssistant />
+    </>
   );
 }
 

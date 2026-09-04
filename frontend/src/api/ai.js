@@ -16,3 +16,15 @@ export function chatAboutNews(id, question, history = []) {
 export function getPatientSummary(patientId) {
   return client.get(`/ai/patients/${patientId}/summary`);
 }
+
+// Chatbot de ayuda sobre el uso de la app. Funciona con y sin sesion;
+// el backend adapta la respuesta al rol si hay token.
+export function askAssistant(question, history = [], path = '') {
+  return client.post('/ai/assistant', { question, history, path });
+}
+
+// Sugerencia de especialidad a partir de lo que cuenta la persona.
+// Devuelve { urgente, mensaje, sugerencias: [{ id, nombre, motivo }] }
+export function suggestSpecialty(description) {
+  return client.post('/ai/specialty-suggest', { description });
+}

@@ -345,3 +345,301 @@ DATOS DEL PACIENTE (JSON)
     })
     _cache_resumenes[huella] = texto
     return texto
+
+
+# ---------------------------------------------------------------------------
+# Asistente de uso de la aplicacion (chatbot flotante)
+# ---------------------------------------------------------------------------
+
+# Manual de la aplicacion. Es lo unico que el asistente "sabe": no accede a
+# la base ni a datos de pacientes. Si algo cambia en la app, hay que
+# actualizarlo aca, si no el asistente va a explicar una version vieja.
+_MANUAL_APP = """
+PACIENTE360 es el sistema de gestion de un centro de salud publico de
+Mendoza (una "salita" de atencion primaria). Tiene cuatro roles: Paciente,
+Enfermero, Medico y Administrativo. Ademas hay una parte publica sin cuenta.
+
+== PARTE PUBLICA (sin iniciar sesion) ==
+- Inicio: pantalla de ingreso. Abajo del formulario hay "Crear cuenta"
+  (para pacientes) y "Olvidaste tu usuario o contraseña" (manda una
+  contraseña nueva por mail).
+- Sacar turno (menu "Sacar turno"): NO hace falta cuenta. Se completan DNI,
+  fecha de nacimiento, nombre, apellido, email y telefono; despues se elige
+  especialidad, profesional, fecha y horario. Los horarios tachados ya estan
+  ocupados; los que aparecen en naranja son horarios en los que la persona
+  ya tiene otro turno ese dia. Si el DNI ya esta registrado, la fecha de
+  nacimiento tiene que coincidir con la de la ficha. Al reservar se crea la
+  cuenta automaticamente: usuario y contraseña son el DNI. Llega un mail de
+  confirmacion, y 24 horas antes del turno un recordatorio con botones para
+  confirmar o cancelar.
+- Noticias: se ven sin cuenta. Cada noticia tiene "Explicamelo simple" (la
+  reescribe en lenguaje claro) y "Tengo dudas sobre este tema" (un chat
+  para preguntar sobre esa noticia y sobre salud en general).
+
+== INICIO DE SESION ==
+- Pacientes: usuario y contraseña son el DNI, salvo que la hayan cambiado.
+- Personal: usuario asignado por el administrador; la contraseña inicial
+  suele ser el DNI.
+- Todos pueden cambiar su contraseña desde "Mi perfil" (clic en el avatar
+  del menu lateral o de la barra superior).
+
+== PACIENTE ==
+- Sacar turno: igual que la version publica pero sin cargar datos, ya que
+  esta logueado.
+- Mis turnos: lista con pestañas Proximos / Historial / Todos. Cada turno
+  muestra el estado: Reservado (tiene el turno), En espera (ya llego y le
+  dieron el ingreso), Atendido, Cancelado. Un chip "Sobreturno" indica que
+  se agendo por urgencia.
+  * Confirmar asistencia: el boton aparece desde 3 dias antes del turno
+    hasta que empieza. Es opcional, se puede ir sin confirmar.
+  * Cancelar turno: se puede mientras el turno este Reservado o En espera,
+    hasta el momento del turno. El horario queda libre para otra persona.
+- Noticias y prevencion: las mismas noticias publicas, con las funciones de
+  explicacion simple y chat.
+- Mi perfil: foto, telefono, direccion, email, contacto de emergencia, obra
+  social y numero de afiliado. DNI, usuario y fecha de nacimiento NO se
+  editan: eso lo corrige el administrativo. Tambien se cambia la contraseña.
+- Campana (arriba a la derecha): avisa de turnos por confirmar y proximos.
+
+== MEDICO ==
+- Mis turnos: agenda del dia (se puede cambiar la fecha). Por cada turno:
+  * Preparar consulta: arma un resumen de lo que el sistema tiene del
+    paciente (alergias, diagnosticos previos, signos vitales, seguimientos,
+    indicaciones) para leer antes de atender.
+  * Cerrar consulta: aparece cuando el turno esta En espera. Pide tipo de
+    enfermedad, diagnostico y detalles (obligatorio "especificar cual" si
+    el tipo es "Otra"). Al guardar, el turno pasa a Atendido.
+  * Ver / Cargar diagnostico: en turnos ya atendidos, para consultarlo o
+    corregirlo.
+  * Cambiar estado: para pasarlo manualmente entre estados validos.
+- Indicaciones medicas: cargar y consultar indicaciones y tratamientos por
+  paciente, con exportacion a PDF.
+- Historia clinica: consulta de la historia del paciente.
+- Campana: turnos del dia y proximos.
+
+== ENFERMERO ==
+- Signos y sintomas: registrar temperatura, presion, signos y sintomas de
+  un paciente. Solo se pueden editar las observaciones despues.
+- Seguimiento: controles de pacientes. Estados: Hoy (control para hoy),
+  Pendiente (vencido), Programado (a futuro), Finalizado. Para crear uno
+  nuevo, solo aparecen los pacientes que un medico atendio HOY. "Marcar
+  finalizado" solo en seguimientos vigentes; "Reprogramar" solo en
+  vencidos. Cada enfermero ve unicamente sus propios seguimientos.
+- Stock: insumos y movimientos de entrada/salida.
+- Pase de guardia: notas para el siguiente turno de enfermeria.
+- Campana: seguimientos de hoy y vencidos.
+
+== ADMINISTRATIVO ==
+- Gestion de turnos: listado con filtros por fecha, estado y profesional,
+  y un boton "Turnos de hoy".
+  * Nuevo turno: se busca al paciente por DNI; si no existe, se cargan sus
+    datos y se crea junto con el turno. Despues especialidad, profesional,
+    fecha y horario en una grilla.
+  * Sobreturno: al marcar la casilla, los horarios ocupados tambien se
+    pueden elegir. Es para urgencias y queda registrado como sobreturno.
+  * Cambiar estado: solo ofrece los cambios validos. El camino es
+    Reservado -> En espera -> Atendido. Cancelado se puede desde Reservado
+    o En espera. Atendido y Cancelado son finales, no se vuelve atras.
+  * Cancelar: cualquier turno abierto, en cualquier momento.
+- Noticias y novedades: crear, editar y borrar noticias, con imagen de
+  portada.
+
+== REGLAS GENERALES DE TURNOS ==
+- Horario de atencion 08:00 a 20:00, turnos de 20 minutos.
+- Un paciente no puede tener dos turnos a la misma hora, aunque sean con
+  profesionales distintos.
+- Los turnos cancelados liberan el horario.
+"""
+
+_INSTRUCCIONES_ASISTENTE = """Sos el asistente de ayuda de Paciente360. Tu trabajo es explicar como
+usar la aplicacion: donde esta cada cosa, que hace cada boton, por que algo
+no se puede hacer, cuales son las reglas.
+
+CONTEXTO DE QUIEN PREGUNTA
+- Rol: {rol}
+- Pantalla actual: {ruta}
+Usa esto para responder con lo que le corresponde a su rol y, si aplica,
+a la pantalla en la que esta. Si pregunta por algo de otro rol, explicale
+que eso lo hace otro rol y quien.
+
+REGLAS
+- Respondes UNICAMENTE con lo que dice el manual de mas abajo. Si algo no
+  esta en el manual, decilo con honestidad y sugeri consultar al personal
+  del centro. No inventes botones ni funciones.
+- No respondas consultas de salud (sintomas, medicamentos, si vacunarse o
+  no). Para eso derivalo a la seccion Noticias, donde hay un asistente que
+  explica temas de salud, o a sacar un turno. Si suena urgente, decile que
+  llame al 107 o vaya a la guardia, y nada mas.
+- No accedes a datos: no sabes que turnos tiene la persona ni su historia.
+  Si pregunta por sus datos, indicale en que pantalla verlos.
+- Si la pregunta no tiene nada que ver con la aplicacion ni con salud,
+  decile amablemente que solo podes ayudar con eso.
+
+COMO RESPONDER
+- Español rioplatense (voseo), claro y concreto.
+- Si son pasos, usa una lista corta numerada. Si no, parrafos cortos.
+- No te extiendas mas de lo necesario: quien pregunta esta usando la app
+  en este momento.
+- Si ya respondiste algo antes en esta conversacion, no lo repitas.
+
+MANUAL DE LA APLICACION
+{manual}"""
+
+NOMBRES_ROL = {
+    'Patient': 'Paciente',
+    'Doctor': 'Medico',
+    'Nurse': 'Enfermero',
+    'Administrative': 'Administrativo',
+    'Administrator': 'Administrador',
+    'Superadministrador': 'Superadministrador',
+}
+
+
+def asistente_app(pregunta, historial=None, rol=None, ruta=None):
+    """Chat de ayuda sobre el uso de la aplicacion.
+
+    rol viene del JWT (o None si no hay sesion): nunca del cuerpo del
+    pedido, para que nadie se haga pasar por administrativo y pida
+    instrucciones que no le corresponden.
+    """
+    pregunta = (pregunta or '').strip()
+    if not pregunta:
+        raise AIServiceError("Escribi tu pregunta.")
+    if len(pregunta) > MAX_LARGO_PREGUNTA:
+        raise AIServiceError(
+            f"La pregunta es muy larga (maximo {MAX_LARGO_PREGUNTA} caracteres)."
+        )
+
+    contents = []
+    for mensaje in (historial or [])[-MAX_TURNOS_HISTORIAL:]:
+        texto = str(mensaje.get('text', ''))[:MAX_LARGO_PREGUNTA * 4].strip()
+        if not texto:
+            continue
+        rol_msg = 'model' if mensaje.get('role') == 'assistant' else 'user'
+        contents.append({"role": rol_msg, "parts": [{"text": texto}]})
+    contents.append({"role": "user", "parts": [{"text": pregunta}]})
+
+    rol_legible = NOMBRES_ROL.get(rol, 'Visitante sin cuenta')
+    ruta_legible = ruta or 'desconocida'
+
+    return _generate({
+        "systemInstruction": {
+            "parts": [{"text": _INSTRUCCIONES_ASISTENTE.format(
+                rol=rol_legible, ruta=ruta_legible, manual=_MANUAL_APP
+            )}]
+        },
+        "contents": contents,
+        "generationConfig": _config_generacion(1200),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Reserva de turnos: sugerencia de especialidad
+# ---------------------------------------------------------------------------
+
+MAX_LARGO_DESCRIPCION = 500
+
+
+def sugerir_especialidad(descripcion, especialidades):
+    """Orienta a que especialidad conviene ir, a partir de lo que cuenta la
+    persona y de la lista REAL de especialidades del centro.
+
+    Esto esta a un paso del triage, que es un acto medico. Por eso:
+    - Nunca dice que tiene la persona: dice a quien conviene consultar.
+    - Ante cualquier señal de urgencia, no sugiere nada: deriva al 107.
+    - En la duda, clinica medica, que es la puerta de entrada de la
+      atencion primaria y deriva si hace falta.
+
+    especialidades: lista de {"id": int, "name": str}.
+    Devuelve dict: {"urgente": bool, "mensaje": str, "sugerencias": [ {id, nombre, motivo} ]}
+    """
+    descripcion = (descripcion or '').strip()
+    if not descripcion:
+        raise AIServiceError("Contanos brevemente que te pasa.")
+    if len(descripcion) > MAX_LARGO_DESCRIPCION:
+        raise AIServiceError(
+            f"El texto es muy largo (maximo {MAX_LARGO_DESCRIPCION} caracteres)."
+        )
+
+    listado = "\n".join(f'- id {e["id"]}: {e["name"]}' for e in especialidades)
+
+    prompt = f"""Sos el asistente de turnos de un centro de salud publico de atencion
+primaria en Mendoza, Argentina. Una persona describe brevemente que le pasa
+y vos la orientas sobre QUE ESPECIALIDAD del centro le conviene pedir.
+
+REGLAS ESTRICTAS
+1. NO diagnostiques. Nunca digas que enfermedad o condicion tiene la persona.
+   Solo orientas hacia una especialidad.
+2. Si la descripcion sugiere una urgencia (dolor de pecho, dificultad para
+   respirar, sangrado abundante, perdida de conocimiento, convulsiones,
+   fiebre muy alta en bebes, golpes fuertes en la cabeza, ideas de hacerse
+   daño), devolve urgente=true, sin sugerencias, con un mensaje breve que
+   diga que llame al 107 o vaya a la guardia ya mismo.
+3. Elegi UNICAMENTE de la lista de especialidades de abajo, usando su id.
+   No inventes especialidades.
+4. Sugeri 1 o 2 especialidades, no mas. La primera es la mas recomendada.
+5. En caso de duda, o si el problema es general o poco claro, la primera
+   sugerencia tiene que ser "clinica medica" (si esta en la lista), que
+   evalua y deriva. Para menores de edad, considera "pediatria".
+6. El motivo de cada sugerencia es UNA oracion, en español rioplatense
+   (voseo), sin tecnicismos y sin nombrar enfermedades.
+
+ESPECIALIDADES DISPONIBLES
+{listado}
+
+DESCRIPCION DE LA PERSONA
+{descripcion}
+
+Responde SOLO con JSON valido con esta forma exacta, sin texto alrededor:
+{{"urgente": false, "mensaje": "una oracion de orientacion general",
+  "sugerencias": [{{"id": 1, "motivo": "por que esta especialidad"}}]}}"""
+
+    config = _config_generacion(600)
+    # Se pide JSON estricto para poder parsearlo sin adivinar
+    config["responseMimeType"] = "application/json"
+
+    crudo = _generate({
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": config,
+    })
+
+    try:
+        data = json.loads(crudo)
+    except json.JSONDecodeError:
+        print(f"[ai_service] JSON invalido en sugerencia: {crudo[:300]}")
+        raise AIServiceError("No se pudo interpretar la sugerencia. Probá de nuevo.")
+
+    # Se valida contra la lista real: si el modelo devolvio un id que no
+    # existe, se descarta. Nunca se confia ciegamente en la respuesta.
+    por_id = {e["id"]: e["name"] for e in especialidades}
+    sugerencias = []
+    for item in data.get("sugerencias", []) or []:
+        try:
+            sid = int(item.get("id"))
+        except (TypeError, ValueError):
+            continue
+        if sid in por_id:
+            sugerencias.append({
+                "id": sid,
+                "nombre": por_id[sid],
+                "motivo": str(item.get("motivo", "")).strip(),
+            })
+    sugerencias = sugerencias[:2]
+
+    urgente = bool(data.get("urgente"))
+    mensaje = str(data.get("mensaje", "")).strip()
+
+    if urgente:
+        # El mensaje de urgencia no se deja librado al modelo
+        mensaje = (
+            "Por lo que contás, esto puede ser una urgencia. No saques turno: "
+            "llamá al 107 o andá a la guardia más cercana ahora."
+        )
+        sugerencias = []
+    elif not sugerencias:
+        raise AIServiceError(
+            "No pude orientarte con esa descripción. Probá contarlo con otras "
+            "palabras, o elegí Clínica médica, que evalúa y deriva."
+        )
+
+    return {"urgente": urgente, "mensaje": mensaje, "sugerencias": sugerencias}

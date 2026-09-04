@@ -22,3 +22,11 @@ class Config:
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.getenv("MAIL_USERNAME")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+
+    # configuracion de la IA (Google Gemini)
+    # La clave va en el .env, nunca en el codigo: si se commitea, GitHub la
+    # detecta y Google la revoca automaticamente.
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    # El nombre del modelo cambia seguido. Se puede pisar desde el .env sin
+    # tocar codigo: GEMINI_MODEL=el-que-corresponda
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")

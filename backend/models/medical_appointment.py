@@ -1,6 +1,7 @@
 from datetime import datetime
 from models.db import db
 from enums import AppointmentStatusEnum, DiseaseTypeEnum
+from datetime import datetime
 
 
 # Transiciones de estado permitidas.
@@ -40,6 +41,7 @@ class MedicalAppointment(db.Model):
     status = db.Column(db.Enum(AppointmentStatusEnum), default=AppointmentStatusEnum.RESERVADO, nullable=False)
     reason = db.Column(db.String(255), nullable=True)
     confirmed = db.Column(db.Boolean, default=False, nullable=False)
+    diagnosis_created_at = db.Column(db.DateTime, nullable=True)
     diagnosis = db.Column(db.String(255), nullable=True) #aca el medico pone el diagnostico
     disease_type = db.Column(db.Enum(DiseaseTypeEnum), nullable=True) #aca se guarda la categoria del enum
     disease_details = db.Column(db.String(255), nullable=True) #aca el medico aclara

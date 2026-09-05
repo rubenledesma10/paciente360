@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, redirect, current_app
 from urllib.parse import urlencode
 from flask_jwt_extended import get_jwt_identity, get_jwt
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from models.db import db
 from models.medical_appointment import MedicalAppointment, VALID_STATUS_TRANSITIONS
 from models.patient import Patient
@@ -1041,14 +1041,15 @@ def update_appointment_diagnosis(appointment_id):
     """
     Ruta exclusiva para que el Médico cargue el diagnóstico y 
     la categoría de la enfermedad durante o después de la consulta.
+    - El diagnóstico y tipo solo se pueden editar dentro de los primeros 15 min.
+    - Los detalles se pueden editar siempre.
     """
     try:
         appointment = MedicalAppointment.query.get(appointment_id)
         if not appointment:
             return jsonify({"msg": "Turno no encontrado"}), 404
 
-
-        id_doctor_logueado = int(get_jwt_identity()) #solo el medico asignado a este turno puede cargar el diagnostico
+        id_doctor_logueado = int(get_jwt_identity())
         if appointment.id_doctor != id_doctor_logueado:
             return jsonify({"msg": "Solo el médico asignado a este turno puede editar su diagnóstico"}), 403
 
@@ -1057,13 +1058,27 @@ def update_appointment_diagnosis(appointment_id):
 
         data = request.get_json()
 
-        #actualizamos los campos si vienen en el JSON
+        # 1. VERIFICACIÓN DE LA REGLA DE LOS 15 MINUTOS
+        # Vemos si están intentando modificar los campos bloqueables
+        intenta_modificar_diagnostico = 'diagnosis' in data or 'disease_type' in data
+
+        if intenta_modificar_diagnostico:
+            # Si el diagnóstico ya fue creado antes, comprobamos el tiempo
+            if appointment.diagnosis_created_at:
+                tiempo_transcurrido = datetime.utcnow() - appointment.diagnosis_created_at
+                
+                if tiempo_transcurrido > timedelta(minutes=15):
+                    return jsonify({
+                        "msg": "El tiempo límite de 15 minutos para editar el diagnóstico principal ha expirado. Solo puede modificar los detalles de la enfermedad."
+                    }), 403
+            else:
+                # Si es la primera vez que se carga un diagnóstico, iniciamos el reloj
+                appointment.diagnosis_created_at = datetime.utcnow()
+
+        # 2. ACTUALIZACIÓN DE DATOS
         if 'diagnosis' in data:
             appointment.diagnosis = data.get('diagnosis')
             
-        if 'disease_details' in data:
-            appointment.disease_details = data.get('disease_details')
-
         if 'disease_type' in data:
             tipo = data.get('disease_type')
             try:
@@ -1072,11 +1087,30 @@ def update_appointment_diagnosis(appointment_id):
                 valid_types = [t.value for t in DiseaseTypeEnum]
                 return jsonify({"msg": f"Tipo de enfermedad inválido. Opciones: {valid_types}"}), 400
 
+        # Los detalles se actualizan siempre como "Notas de Evolución"
+        if 'disease_details' in data:
+            nuevo_detalle = data.get('disease_details')
+            
+            if nuevo_detalle: # Verificamos que no venga vacío
+                # 1. Sacamos la fecha y hora exacta del momento
+                ahora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                
+                # 2. Le pegamos la fecha adelante del texto del médico
+                nota_con_fecha = f"[{ahora}] {nuevo_detalle}"
+                
+                # 3. Si ya existían detalles de antes, le sumamos el nuevo abajo
+                if appointment.disease_details:
+                    appointment.disease_details += f"\n{nota_con_fecha}"
+                else:
+                    # Si es la primera vez que escribe un detalle, lo asignamos directo
+                    appointment.disease_details = nota_con_fecha
         
-        if appointment.disease_type == DiseaseTypeEnum.OTRA and not appointment.disease_details: #aca hacemos que si la el tipo de enfermedad es otra, se tiene que completar los detalles
+        # 3. VALIDACIÓN FINAL DE LA REGLA "OTRA"
+        if appointment.disease_type == DiseaseTypeEnum.OTRA and not appointment.disease_details:
             return jsonify({"msg": "Si selecciona la categoría 'Otra', debe especificar cuál es en los detalles."}), 400
 
         db.session.commit()
+        
         return jsonify({
             "msg": "Diagnóstico guardado exitosamente", 
             "appointment": appointment.to_dict()

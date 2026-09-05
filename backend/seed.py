@@ -317,7 +317,8 @@ def seed():
             status=AppointmentStatusEnum.ATENDIDO, reason="Control de rutina",
             disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
             diagnosis="Paciente estable, presión bajo control.",
-            disease_details="Hipertensión tratada, mantener medicación actual."
+            disease_details="Hipertensión tratada, mantener medicación actual.",
+            diagnosis_created_at=datetime.utcnow() - timedelta(hours=5) # Simula que se hizo hace 5 horas
         )
 
         turno_por_confirmar = MedicalAppointment(
@@ -342,7 +343,8 @@ def seed():
             status=AppointmentStatusEnum.ATENDIDO, reason="Control de rutina",
             disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
             diagnosis="Presión arterial levemente elevada.",
-            disease_details="Se indica reposo y control de sal en la dieta."
+            disease_details="Se indica reposo y control de sal en la dieta.",
+            diagnosis_created_at=datetime.utcnow() - timedelta(days=20)
         )
         turno_atendido_2 = MedicalAppointment(
             id_patient=paciente1.id_user, id_doctor=medico.id_user,
@@ -350,7 +352,8 @@ def seed():
             status=AppointmentStatusEnum.ATENDIDO, reason="Seguimiento de presión arterial",
             disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
             diagnosis="Presión arterial sin mejoras significativas.",
-            disease_details="Se ajusta dosis de medicación antihipertensiva."
+            disease_details="Se ajusta dosis de medicación antihipertensiva.",
+            diagnosis_created_at=datetime.utcnow() - timedelta(days=10)
         )
         turno_atendido_3 = MedicalAppointment(
             id_patient=paciente1.id_user, id_doctor=medico.id_user,
@@ -358,20 +361,18 @@ def seed():
             status=AppointmentStatusEnum.ATENDIDO, reason="Control post-tratamiento",
             disease_type=DiseaseTypeEnum.CARDIOVASCULAR,
             diagnosis="Presión arterial estabilizada.",
-            disease_details="Paciente responde bien al ajuste de medicación."
+            disease_details="Paciente responde bien al ajuste de medicación.",
+            diagnosis_created_at=datetime.utcnow() - timedelta(days=3)
         )
 
-        # Turnos extra para poblar "Estadísticas" (pacientes atendidos,
-        # enfermedades y ausentismo por período). Fechas dentro de los
-        # últimos 25 días para entrar en el rango por defecto de la pantalla
-        # ("últimos 30 días"), sin importar qué día del mes se corra el seed.
         turno_atendido_4 = MedicalAppointment(
             id_patient=paciente2.id_user, id_doctor=medico.id_user,
             date=date.today() - timedelta(days=1), hour="09:00",
             status=AppointmentStatusEnum.ATENDIDO, reason="Tos y congestión",
             disease_type=DiseaseTypeEnum.RESPIRATORIA,
             diagnosis="Bronquitis leve.",
-            disease_details="Reposo y control en 5 días si no mejora."
+            disease_details="Reposo y control en 5 días si no mejora.",
+            diagnosis_created_at=datetime.utcnow() - timedelta(days=1)
         )
         turno_atendido_5 = MedicalAppointment(
             id_patient=paciente3.id_user, id_doctor=medico.id_user,
@@ -379,7 +380,8 @@ def seed():
             status=AppointmentStatusEnum.ATENDIDO, reason="Dolor abdominal",
             disease_type=DiseaseTypeEnum.GASTROINTESTINAL,
             diagnosis="Gastritis.",
-            disease_details="Dieta blanda y control en una semana."
+            disease_details="Dieta blanda y control en una semana.",
+            diagnosis_created_at=datetime.utcnow() - timedelta(days=4)
         )
         turno_atendido_6 = MedicalAppointment(
             id_patient=paciente4.id_user, id_doctor=medico.id_user,
@@ -387,7 +389,8 @@ def seed():
             status=AppointmentStatusEnum.ATENDIDO, reason="Erupción en la piel",
             disease_type=DiseaseTypeEnum.DERMATOLOGICA,
             diagnosis="Dermatitis de contacto.",
-            disease_details="Crema tópica y evitar el alérgeno identificado."
+            disease_details="Crema tópica y evitar el alérgeno identificado.",
+            diagnosis_created_at=datetime.utcnow() - timedelta(days=6)
         )
         turno_atendido_7 = MedicalAppointment(
             id_patient=paciente4.id_user, id_doctor=medico.id_user,
@@ -395,7 +398,8 @@ def seed():
             status=AppointmentStatusEnum.ATENDIDO, reason="Golpe en el tobillo",
             disease_type=DiseaseTypeEnum.TRAUMATISMO,
             diagnosis="Esguince leve de tobillo.",
-            disease_details="Reposo, frío local y vendaje elástico."
+            disease_details="Reposo, frío local y vendaje elástico.",
+            diagnosis_created_at=datetime.utcnow() - timedelta(days=9)
         )
         turno_atendido_8 = MedicalAppointment(
             id_patient=paciente5.id_user, id_doctor=medico.id_user,
@@ -403,12 +407,15 @@ def seed():
             status=AppointmentStatusEnum.ATENDIDO, reason="Consulta general",
             disease_type=DiseaseTypeEnum.CONSULTAMEDICA,
             diagnosis="Sin hallazgos relevantes.",
-            disease_details="Control de rutina, sin tratamiento."
+            disease_details="Control de rutina, sin tratamiento.",
+            diagnosis_created_at=datetime.utcnow() - timedelta(days=12)
         )
         turno_atendido_9 = MedicalAppointment(
             id_patient=paciente5.id_user, id_doctor=medico.id_user,
             date=date.today() - timedelta(days=15), hour="17:00",
             status=AppointmentStatusEnum.ATENDIDO, reason="Chequeo pendiente de diagnóstico",
+            # A este a propósito NO le ponemos fecha de diagnóstico para que puedas probar
+            # guardarle uno nuevo por primera vez en Postman.
         )
 
         turno_cancelado_1 = MedicalAppointment(

@@ -46,11 +46,26 @@ const formatDate = (value) => {
     : '—';
 };
 
+// Firma de una notificación: cambia si cambia su contenido, no solo su id
+const signature = (n) => `${n.id}|${n.title}|${n.subtitle}`;
+
+const seenStorageKey = (userId) => `notifications-seen-${userId}`;
+
+const loadSeen = (userId) => {
+  try {
+    const raw = localStorage.getItem(seenStorageKey(userId));
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
 export default function NotificationsBell() {
   const { rol, userId } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [items, setItems] = useState([]);
+  const [seen, setSeen] = useState(() => loadSeen(userId));
 
   useEffect(() => {
     let cancelled = false;
@@ -161,17 +176,28 @@ export default function NotificationsBell() {
   const handleOpen = (e) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
-  const handleClickItem = (to) => {
+  const handleClickItem = (n) => {
+    setSeen((prev) => {
+      const next = new Set(prev);
+      next.add(signature(n));
+      try {
+        localStorage.setItem(seenStorageKey(userId), JSON.stringify([...next]));
+      } catch {
+        // localStorage no disponible: el badge simplemente no persiste entre recargas
+      }
+      return next;
+    });
     handleClose();
-    if (to) navigate(to);
+    if (n.to) navigate(n.to);
   };
 
   const open = Boolean(anchorEl);
+  const unreadCount = items.filter((n) => !seen.has(signature(n))).length;
 
   return (
     <>
       <IconButton onClick={handleOpen}>
-        <Badge badgeContent={items.length} color="error">
+        <Badge badgeContent={unreadCount} color="error">
           <NotificationsNoneIcon sx={{ color: '#5b7387' }} />
         </Badge>
       </IconButton>
@@ -201,7 +227,7 @@ export default function NotificationsBell() {
               {items.map((n) => (
                 <ListItemButton
                   key={n.id}
-                  onClick={() => handleClickItem(n.to)}
+                  onClick={() => handleClickItem(n)}
                 >
                   <ListItemText
                     primary={n.title}

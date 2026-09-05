@@ -12,14 +12,26 @@ medical_products_bp = Blueprint('medical_products', __name__, url_prefix='/api/m
 DIAS_REPORTE_POR_VENCEER = 60
 
 
+def _id_nurse_actor():
+    """Id del nurse logueado, o None si quien actúa no es un Nurse.
+
+    StockMovement.id_nurse solo acepta FKs a la tabla `nurses`, así que para
+    Admin/Superadmin (que no tienen fila ahí) el movimiento se registra sin
+    atribución de enfermero.
+    """
+    claims = get_jwt()
+    return int(get_jwt_identity()) if claims.get('rol') == RoleEnum.NURSE.value else None
+
+
 def _dar_de_baja(producto, id_nurse):
     """Da de baja un producto puntual (is_active=False).
 
-    Si tiene stock remanente y hay un nurse a quien atribuírselo, primero registra un
-    StockMovement 'Desechado' por esa cantidad para dejar constancia del descarte.
-    No borra ninguna fila: mantiene intacto el historial de movimientos/trazabilidad.
+    Si tiene stock remanente, registra un StockMovement 'Desechado' por esa
+    cantidad para dejar constancia del descarte (con id_nurse=None si quien
+    actúa no es un Nurse). No borra ninguna fila: mantiene intacto el
+    historial de movimientos/trazabilidad.
     """
-    if producto.current_stock > 0 and id_nurse is not None:
+    if producto.current_stock > 0:
         db.session.add(StockMovement(
             id_product=producto.id_product,
             id_nurse=id_nurse,
@@ -33,8 +45,7 @@ def _dar_de_baja(producto, id_nurse):
 
 def _archivar_vencidos_y_sin_stock():
     """Recorre los productos activos y da de baja los vencidos o sin stock."""
-    claims = get_jwt()
-    id_nurse = int(get_jwt_identity()) if claims.get('rol') == RoleEnum.NURSE.value else None
+    id_nurse = _id_nurse_actor()
 
     hoy = date.today()
     productos = MedicalProduct.query.filter_by(is_active=True).all()
@@ -96,14 +107,13 @@ def create_medical_product():
         db.session.flush() #para tener el new_product.id_product antes del commit
 
         if current_stock_inicial > 0:
-            id_nurse_logueado=int(get_jwt_identity())
             movimiento_inicial = StockMovement(
                 id_product=new_product.id_product,
-                id_nurse=id_nurse_logueado,
+                id_nurse=_id_nurse_actor(),
                 type_movement='Entrada',
                 quantity=current_stock_inicial,
             )
-        db.session.add(movimiento_inicial)
+            db.session.add(movimiento_inicial)
         db.session.commit()
 
         return jsonify({"msg": "Medical product created successfully", "product_id": new_product.id_product}), 201
@@ -184,8 +194,7 @@ def discard_medical_product(product_id):
         if not (vencido or por_vencer):
             return jsonify({"msg": "Solo se pueden dar de baja productos vencidos o por vencer"}), 400
 
-        id_nurse = int(get_jwt_identity())
-        _dar_de_baja(producto, id_nurse)
+        _dar_de_baja(producto, _id_nurse_actor())
         db.session.commit()
 
         return jsonify(producto.to_dict()), 200

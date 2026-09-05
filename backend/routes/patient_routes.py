@@ -4,7 +4,7 @@ from models.db import db
 from models.user import User
 from models.patient import Patient
 from enums import RoleEnum
-from utils.email_service import send_welcome_email
+from utils.email_service import send_welcome_email, send_welcome_email_admin
 from utils.role_required import role_required
 
 patients_bp = Blueprint('patients', __name__, url_prefix='/api/patients')
@@ -32,7 +32,7 @@ def create_patient():
         new_patient = Patient(
             first_name=data.get('first_name'),
             last_name=data.get('last_name'),
-            username=data.get('username'),
+            username=data.get('dni'),
             dni=data.get('dni'),
             email=data.get('email'),
             date_of_birth=date.fromisoformat(data.get('date_of_birth')) if data.get('date_of_birth') else None,
@@ -110,7 +110,7 @@ def create_patient_private():
         db.session.commit()
         
         try:
-            send_welcome_email(new_patient.email, new_patient.first_name)
+            send_welcome_email_admin(new_patient.email, new_patient.first_name)
         except Exception as mail_error:
             print(f"Error al enviar correo: {mail_error}")
             

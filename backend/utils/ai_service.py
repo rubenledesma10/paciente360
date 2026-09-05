@@ -444,6 +444,20 @@ Enfermero, Medico y Administrativo. Ademas hay una parte publica sin cuenta.
 - Noticias y novedades: crear, editar y borrar noticias, con imagen de
   portada.
 
+== ADMINISTRADOR (gestion del sistema) ==
+- Usuarios: alta, edicion y baja de pacientes y enfermeros. La baja es
+  logica: la cuenta se desactiva, no se borra. Usuario y contraseña
+  iniciales son el DNI.
+- Turnos y Noticias: lo mismo que el Administrativo.
+- Stock, Historia clinica y Pase de guardia: acceso a las mismas pantallas
+  que enfermeros y medicos.
+
+== SUPERADMINISTRADOR ==
+- Todo lo del Administrador, mas:
+- Administradores: alta, edicion y baja de cuentas de administrador.
+- Bitacora: registro de todas las acciones hechas en el sistema (quien,
+  que, cuando, sobre que tabla), con filtros por tabla y accion.
+
 == REGLAS GENERALES DE TURNOS ==
 - Horario de atencion 08:00 a 20:00, turnos de 20 minutos.
 - Un paciente no puede tener dos turnos a la misma hora, aunque sean con

@@ -78,7 +78,7 @@ def create_administrator():
 @role_required(RoleEnum.SUPERADMINISTRADOR)
 def get_administrator_users():
     try:
-        administrator_users = User.query.filter_by(rol='administrator').all()
+        administrator_users = User.query.filter_by(rol=RoleEnum.ADMINISTRATOR).all()
         return jsonify([user.to_dict() for user in administrator_users]), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching administrator users", "error": str(e)}), 500
@@ -181,7 +181,7 @@ def delete_administrator(user_id):
 def search_administrator_users():
     try:
         query = request.args.get('query', '')
-        administrator_users = User.query.filter(User.rol == 'administrator').filter(
+        administrator_users = User.query.filter(User.rol == RoleEnum.ADMINISTRATOR).filter(
             (User.first_name.ilike(f'%{query}%')) |
             (User.last_name.ilike(f'%{query}%')) |
             (User.email.ilike(f'%{query}%')) |
@@ -204,4 +204,4 @@ def toggle_administrator_active_status(user_id): #activar
         return jsonify({"msg": f"Administrator user {'activated' if user.is_active else 'deactivated'} successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Error toggling administrator user status", "error": str(e)}), 500   
+        return jsonify({"msg": "Error toggling administrator user status", "error": str(e)}), 500

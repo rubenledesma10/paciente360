@@ -5,9 +5,12 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import HomeIcon from '@mui/icons-material/Home';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
 import HistoryIcon from '@mui/icons-material/History';
-import BarChartIcon from '@mui/icons-material/BarChart';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import PeopleIcon from '@mui/icons-material/People';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import ListAltIcon from '@mui/icons-material/ListAlt';
 
 export const NURSE_MENU = [
   {
@@ -59,12 +62,7 @@ export const PATIENT_MENU = [
 ];
 
 export const DOCTOR_MENU = [
-  {
-    id: 'agenda',
-    label: 'Mis turnos',
-    icon: EventNoteIcon,
-    path: '/agenda',
-  },
+  { id: 'agenda', label: 'Mis turnos', icon: EventNoteIcon, path: '/agenda' },
   {
     id: 'indicaciones',
     label: 'Indicaciones médicas',
@@ -79,7 +77,7 @@ export const DOCTOR_MENU = [
   },
 ];
 
-// Menú del administrativo
+// Administrativo: operatoria de la salita
 export const ADMINISTRATIVE_MENU = [
   {
     id: 'admin-turnos',
@@ -95,6 +93,63 @@ export const ADMINISTRATIVE_MENU = [
   },
 ];
 
+// Administrador: gestion completa del sistema
+export const ADMINISTRATOR_MENU = [
+  {
+    id: 'admin-usuarios',
+    label: 'Usuarios',
+    icon: PeopleIcon,
+    path: '/admin/usuarios',
+  },
+  {
+    id: 'admin-turnos',
+    label: 'Turnos',
+    icon: EventNoteIcon,
+    path: '/admin/turnos',
+  },
+  {
+    id: 'admin-noticias',
+    label: 'Noticias',
+    icon: NewspaperIcon,
+    path: '/admin/noticias',
+  },
+  {
+    id: 'admin-stock',
+    label: 'Stock',
+    icon: Inventory2Icon,
+    path: '/admin/stock',
+  },
+  {
+    id: 'admin-historia',
+    label: 'Historia clínica',
+    icon: HistoryIcon,
+    path: '/admin/historia-clinica',
+  },
+  {
+    id: 'admin-guardia',
+    label: 'Pase de guardia',
+    icon: AssignmentIcon,
+    path: '/admin/guardia',
+  },
+];
+
+// Superadministrador: todo lo del administrador, mas administradores y bitacora
+export const SUPERADMIN_MENU = [
+  ...ADMINISTRATOR_MENU,
+  {
+    id: 'admin-admins',
+    label: 'Administradores',
+    icon: AdminPanelSettingsIcon,
+    path: '/admin/administradores',
+  },
+  {
+    id: 'admin-bitacora',
+    label: 'Bitácora',
+    icon: ListAltIcon,
+    path: '/admin/bitacora',
+  },
+];
+
 export const DEFAULT_MENU = [
   { id: 'inicio', label: 'Inicio', icon: HomeIcon, path: '/inicio' },
 ];
@@ -104,6 +159,8 @@ export const ROLE_LABELS = {
   Doctor: 'Médico',
   Patient: 'Paciente',
   Administrative: 'Administrativo',
+  Administrator: 'Administrador',
+  Superadministrador: 'Superadministrador',
 };
 
 export function menuForRole(rol) {
@@ -111,11 +168,17 @@ export function menuForRole(rol) {
   if (rol === 'Patient') return PATIENT_MENU;
   if (rol === 'Doctor') return DOCTOR_MENU;
   if (rol === 'Administrative') return ADMINISTRATIVE_MENU;
+  if (rol === 'Administrator') return ADMINISTRATOR_MENU;
+  if (rol === 'Superadministrador') return SUPERADMIN_MENU;
   return DEFAULT_MENU;
 }
 
 export function routeTitle(rol, pathname) {
   const menu = menuForRole(rol);
-  const found = menu.find((item) => pathname.startsWith(item.path));
+  // Se busca la coincidencia mas larga: /admin/historia-clinica no debe
+  // caer en /admin/... de otro item por ser prefijo
+  const found = [...menu]
+    .sort((a, b) => b.path.length - a.path.length)
+    .find((item) => pathname.startsWith(item.path));
   return found ? found.label : 'Paciente360º';
 }

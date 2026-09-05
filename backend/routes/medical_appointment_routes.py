@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, redirect, current_app
+from urllib.parse import urlencode
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from datetime import date, datetime, time
 from models.db import db
@@ -15,7 +16,7 @@ from utils.email_tokens import leer_token_accion_turno
 appointments_bp = Blueprint('appointments', __name__, url_prefix='/api/appointments')
 
 
-# CONFIGURACIÓN DEL NEGOCIO
+# CONFIGURACIÓN DE HORARIOS DE APERTURA Y CIERRE
 
 APPOINTMENT_DURATION_MINUTES = 20
 OPENING_TIME = time(8, 0)    # 08:00 hs
@@ -980,42 +981,59 @@ def get_public_busy_hours():
     except Exception as e:
         return jsonify({"msg": "Error al consultar los horarios", "error": str(e)}), 500
     
+def _volver_al_front(estado, appointment=None):
+    """Redirige a la pantalla de resultado del front.
+
+    El backend no dibuja HTML: procesa la accion y manda al usuario a la app,
+    que muestra el resultado con el mismo diseño que todo lo demas y con
+    botones para seguir (ver sus turnos, sacar otro).
+    """
+    params = {"estado": estado}
+    if appointment is not None:
+        params["fecha"] = appointment.date.isoformat() if appointment.date else ""
+        params["hora"] = appointment.hour or ""
+        if appointment.doctor:
+            params["medico"] = f"{appointment.doctor.first_name} {appointment.doctor.last_name}"
+    base = current_app.config.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    return redirect(f"{base}/turno-email?{urlencode(params)}")
+
+
 @appointments_bp.route('/action/<token>', methods=['GET'])
 def process_email_action(token):
-    """
-    Ruta pública a la que llega el paciente al hacer click en el email.
-    Devuelve HTML para que el paciente vea el resultado directo en su navegador.
+    """Ruta a la que llega el paciente al hacer clic en el mail de recordatorio.
+
+    Estados posibles que se le pasan al front:
+      confirmado, cancelado, ya_confirmado, cerrado, vencido, no_encontrado, error
     """
     data, error = leer_token_accion_turno(token)
-    
     if error:
-        return f"<h3 style='color: red;'>Error: {error}</h3>", 400
+        # El unico error esperable es que el link haya vencido (48 hs)
+        estado = 'vencido' if 'venci' in str(error).lower() else 'error'
+        return _volver_al_front(estado)
 
-    appointment_id = data.get('appointment_id')
+    appointment = MedicalAppointment.query.get(data.get('appointment_id'))
+    if not appointment:
+        return _volver_al_front('no_encontrado')
+
+    # Ya atendido o cancelado: no hay nada que hacer con el link
+    if not appointment.is_open():
+        return _volver_al_front('cerrado', appointment)
+
     accion = data.get('accion')
 
-    appointment = MedicalAppointment.query.get(appointment_id)
-    if not appointment:
-        return "<h3 style='color: red;'>El turno ya no existe en el sistema.</h3>", 404
-
-    if not appointment.is_open():
-        return f"<h3>El turno ya se encuentra '{appointment.status.value}'.</h3>", 400
-
-    # Procesar la acción
     if accion == 'confirm':
         if appointment.confirmed:
-            return "<h3 style='color: green;'>¡Tu turno ya estaba confirmado! Te esperamos.</h3>", 200
+            return _volver_al_front('ya_confirmado', appointment)
         appointment.confirmed = True
-        msg = "<h3 style='color: green;'>¡Turno confirmado con éxito! Gracias por avisar.</h3>"
-        
-    elif accion == 'cancel':
-        appointment.status = AppointmentStatusEnum.CANCELADO
-        msg = "<h3>Tu turno fue cancelado correctamente.</h3>"
-    else:
-        return "<h3 style='color: red;'>Acción desconocida.</h3>", 400
+        db.session.commit()
+        return _volver_al_front('confirmado', appointment)
 
-    db.session.commit()
-    return msg, 200
+    if accion == 'cancel':
+        appointment.status = AppointmentStatusEnum.CANCELADO
+        db.session.commit()
+        return _volver_al_front('cancelado', appointment)
+
+    return _volver_al_front('error')
 
 @appointments_bp.route('/<int:appointment_id>/diagnosis', methods=['PATCH'])
 @role_required(RoleEnum.DOCTOR)

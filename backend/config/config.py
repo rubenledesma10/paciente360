@@ -30,3 +30,7 @@ class Config:
     # El nombre del modelo cambia seguido. Se puede pisar desde el .env sin
     # tocar codigo: GEMINI_MODEL=el-que-corresponda
     GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+    # URL del frontend. La usan los links de los mails para volver a la app
+    # despues de confirmar o cancelar un turno.
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")

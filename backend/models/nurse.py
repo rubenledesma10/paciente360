@@ -48,6 +48,12 @@ class Nurse(User):
             'email': self.email,
             'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
             'profile_photo': self.profile_photo,
+            # Estos cuatro faltaban y los necesita la pantalla de usuarios:
+            # sin is_active no se puede saber quien esta dado de baja.
+            'country': self.country,
+            'phone_number': self.phone_number,
+            'gender': self.gender,
+            'is_active': self.is_active,
             'address': self.address,
             'emergency_contact': self.emergency_contact,
             'license_number': self.license_number,

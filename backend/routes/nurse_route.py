@@ -86,7 +86,7 @@ def create_nurse():
         return jsonify({"msg": "Error creating nurse", "error": str(e)}), 500
     
 @nurses_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
+@role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR, RoleEnum.NURSE)
 def get_nurses():
     try:
         nurses = Nurse.query.all()

@@ -63,7 +63,7 @@ export default function GuardiaPage() {
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState('')
   const [editingRow, setEditingRow] = useState(null)
-  const [selectedDate, setSelectedDate] = useState(dayjs())
+  const [selectedDate, setSelectedDate] = useState(null)
   const [checklistItems, setChecklistItems] = useState(emptyChecklistItems())
   const [checklistViewTarget, setChecklistViewTarget] = useState(null)
 

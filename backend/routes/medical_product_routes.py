@@ -119,7 +119,7 @@ def create_medical_product():
         return jsonify({"msg": "Medical product created successfully", "product_id": new_product.id_product}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Error creating medical product", "error": str(e)}), 500
+        return jsonify({"msg": f"Error creating medical product {e}", "error": str(e)}), 500
 
 
 @medical_products_bp.route('/', methods=['GET'])

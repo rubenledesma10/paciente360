@@ -10,7 +10,7 @@ from models.doctor import Doctor
 from models.specialty import Specialty
 from enums import AppointmentStatusEnum, RoleEnum, DiseaseTypeEnum
 from utils.role_required import role_required
-from utils.email_service import send_welcome_email, send_appointment_reminder_email
+from utils.email_service import send_welcome_email, send_appointment_reminder_email,send_welcome_email_admin
 from utils.email_tokens import leer_token_accion_turno
 
 appointments_bp = Blueprint('appointments', __name__, url_prefix='/api/appointments')
@@ -225,7 +225,7 @@ def _crear_turno_validado(data, status_default, is_overbooking=False,
     # que ya quedo guardado.
     if es_paciente_nuevo:
         try:
-            send_welcome_email(paciente.email, paciente.first_name)
+            send_welcome_email_admin(paciente.email, paciente.first_name)
         except Exception as mail_error:
             print(f"No se pudo enviar el mail de bienvenida: {mail_error}")
 

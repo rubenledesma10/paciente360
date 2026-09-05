@@ -32,7 +32,7 @@ import BlockIcon from '@mui/icons-material/Block';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {
   getPatients,
-  createPatient,
+  createPatientPrivate,
   updatePatient,
   togglePatientStatus,
 } from '../../api/patients';
@@ -180,7 +180,9 @@ export default function AdminUsuariosPage() {
         // si no se manda, username queda en null y la columna no lo acepta.
         payload.username = form.dni;
         payload.password = form.dni;
-        if (isPatients) await createPatient(payload);
+        // Endpoint privado: al ir con JWT, la bitacora deja registrado
+        // que el alta la hizo el administrador y no "Sistema Automatico".
+        if (isPatients) await createPatientPrivate(payload);
         else await createNurse(payload);
         setActionOk(
           `${isPatients ? 'Paciente' : 'Enfermero'} creado. Usuario y contraseña iniciales: ${form.dni}`,

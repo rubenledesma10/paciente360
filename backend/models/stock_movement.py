@@ -6,7 +6,7 @@ class StockMovement(db.Model):
     __tablename__ = 'stock_movement'
     id_stock_movement = db.Column(db.Integer, primary_key=True)
     id_product = db.Column(db.Integer, db.ForeignKey('medical_product.id_product'), nullable=False)
-    id_nurse=db.Column(db.Integer, db.ForeignKey('nurses.id_user'), nullable=False)
+    id_nurse=db.Column(db.Integer, db.ForeignKey('nurses.id_user'), nullable=True)
     type_movement = db.Column(db.String(50), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     date_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

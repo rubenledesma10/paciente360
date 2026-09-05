@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import get_jwt_identity, get_jwt
 from datetime import datetime
 from models.db import db
 from models.stock_movement import StockMovement
@@ -37,7 +37,11 @@ def create_stock_movement():
                 "msg": f"Stock insuficiente. Disponible: {product.current_stock}, solicitado para {tipo.lower()}: {cantidad}"
             }), 400
 
-        id_nurse_logueado = int(get_jwt_identity())
+        # id_nurse solo referencia la tabla `nurses`: si quien actúa es
+        # Admin/Superadmin (no tiene fila ahí), el movimiento queda sin
+        # atribución de enfermero en vez de romper la FK.
+        claims = get_jwt()
+        id_nurse_logueado = int(get_jwt_identity()) if claims.get('rol') == RoleEnum.NURSE.value else None
 
         new_movement = StockMovement(
             id_product=data.get('id_product'),

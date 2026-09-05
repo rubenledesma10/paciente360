@@ -13,10 +13,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import HelpIcon from '@mui/icons-material/Help';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { askAssistant } from '../api/ai';
 
 // Sugerencias de arranque, para que el panel vacio no intimide
@@ -88,14 +87,14 @@ export default function HelpAssistant() {
     <>
       {/* Boton flotante */}
       {!open && (
-        <Tooltip title="Ayuda" placement="left">
+        <Tooltip title="Asistente virtual" placement="left">
           <Fab
             color="primary"
             onClick={() => setOpen(true)}
             sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1300 }}
-            aria-label="Abrir ayuda"
+            aria-label="Abrir asistente virtual"
           >
-            <HelpIcon />
+            <SmartToyIcon />
           </Fab>
         </Tooltip>
       )}
@@ -130,13 +129,13 @@ export default function HelpAssistant() {
               gap: 1,
             }}
           >
-            <AutoAwesomeIcon fontSize="small" />
+            <SmartToyIcon fontSize="small" />
             <Box sx={{ flexGrow: 1 }}>
               <Typography variant="subtitle2" fontWeight={700} lineHeight={1.2}>
-                Ayuda de Paciente360
+                Bot360
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.85 }}>
-                Preguntá cómo usar la aplicación
+                Te ayudo a usar Paciente360
               </Typography>
             </Box>
             <IconButton
@@ -191,7 +190,7 @@ export default function HelpAssistant() {
                 >
                   {!esUsuario && (
                     <Avatar sx={{ width: 26, height: 26, bgcolor: '#29ABE2' }}>
-                      <AutoAwesomeIcon sx={{ fontSize: 14 }} />
+                      <SmartToyIcon sx={{ fontSize: 14 }} />
                     </Avatar>
                   )}
                   <Box
@@ -218,7 +217,7 @@ export default function HelpAssistant() {
             {loading && (
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                 <Avatar sx={{ width: 26, height: 26, bgcolor: '#29ABE2' }}>
-                  <AutoAwesomeIcon sx={{ fontSize: 14 }} />
+                  <SmartToyIcon sx={{ fontSize: 14 }} />
                 </Avatar>
                 <CircularProgress size={16} />
               </Box>

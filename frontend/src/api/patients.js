@@ -8,8 +8,14 @@ export function getPatient(id) {
   return client.get(`/patients/${id}`);
 }
 
+// Alta publica: la usa "Crear cuenta" del login y la reserva sin sesion.
 export function createPatient(payload) {
   return client.post('/patients/', payload);
+}
+// Alta desde el panel de administracion. Es la version protegida: al pasar
+// por un endpoint con JWT, la bitacora puede registrar quien creo al paciente.
+export function createPatientPrivate(payload) {
+  return client.post('/patients/private', payload);
 }
 
 export function updatePatient(id, payload) {

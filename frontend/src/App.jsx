@@ -17,6 +17,7 @@ import EstadisticasPage from './pages/nurse/EstadisticasPage';
 import NewsAndPrevention from './pages/NewsAndPrevention';
 import NewsDetail from './pages/NewsDetail';
 import SacarTurnoPublicoPage from './pages/SacarTurnoPublicoPage';
+import TurnoEmailPage from './pages/TurnoEmailPage';
 import Seguimiento from './pages/Seguimiento';
 import IndicacionesPage from './pages/doctor/IndicacionesPage';
 import HistoriaClinicaPage from './pages/doctor/HistoriaClinicaPage';
@@ -27,8 +28,13 @@ import SacarTurnoPage from './pages/patient/SacarTurnoPage';
 import { useAuth } from './context/useAuth';
 import { roleHome } from './utils/roleHome';
 import AdministrativeRoute from './routes/AdministrativeRoute';
+import AdminRoute from './routes/AdminRoute';
+import SuperAdminRoute from './routes/SuperAdminRoute';
 import AdminNoticiasPage from './pages/admin/AdminNoticiasPage';
 import AdminTurnosPage from './pages/admin/AdminTurnosPage';
+import AdminUsuariosPage from './pages/admin/AdminUsuariosPage';
+import AdminAdministradoresPage from './pages/admin/AdminAdministradoresPage';
+import BitacoraPage from './pages/admin/BitacoraPage';
 import HelpAssistant from './components/HelpAssistant';
 
 function App() {
@@ -76,9 +82,32 @@ function App() {
               <Route path="mis-turnos" element={<MisTurnosPage />} />
             </Route>
 
+            {/* Operatoria de la salita: Administrativo, Administrador y Superadmin */}
             <Route element={<AdministrativeRoute />}>
               <Route path="admin/turnos" element={<AdminTurnosPage />} />
               <Route path="admin/noticias" element={<AdminNoticiasPage />} />
+            </Route>
+
+            {/* Gestion del sistema: Administrador y Superadmin.
+                Stock, historia clinica y guardia reusan las pantallas de
+                enfermero y medico bajo rutas propias. */}
+            <Route element={<AdminRoute />}>
+              <Route path="admin/usuarios" element={<AdminUsuariosPage />} />
+              <Route path="admin/stock" element={<StockPage />} />
+              <Route
+                path="admin/historia-clinica"
+                element={<HistoriaClinicaPage />}
+              />
+              <Route path="admin/guardia" element={<GuardiaPage />} />
+            </Route>
+
+            {/* Solo Superadmin */}
+            <Route element={<SuperAdminRoute />}>
+              <Route
+                path="admin/administradores"
+                element={<AdminAdministradoresPage />}
+              />
+              <Route path="admin/bitacora" element={<BitacoraPage />} />
             </Route>
 
             {/* Perfil: comun a los cuatro roles */}
@@ -87,6 +116,11 @@ function App() {
             <Route path="inicio" element={<HomePlaceholderPage />} />
           </Route>
         </Route>
+
+        {/* Resultado de confirmar/cancelar desde el mail. Sin layout a
+            proposito: se abre desde un link, no desde la app, y tiene que
+            verse igual con o sin sesion. */}
+        <Route path="/turno-email" element={<TurnoEmailPage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

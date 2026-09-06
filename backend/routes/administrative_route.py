@@ -78,7 +78,7 @@ def create_administrative():
 @role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_administrative_users():
     try:
-        administrative_users = User.query.filter_by(rol=RoleEnum.ADMINISTRATOR).all()
+        administrative_users = User.query.filter_by(rol=RoleEnum.ADMINISTRATIVE).all()
         return jsonify([user.to_dict() for user in administrative_users]), 200
     except Exception as e:
         return jsonify({"msg": "Error fetching administrative users", "error": str(e)}), 500
@@ -181,7 +181,7 @@ def delete_administrative(user_id):
 def search_administrative_users():
     try:
         query = request.args.get('query', '')
-        administrative_users = User.query.filter(User.rol == RoleEnum.ADMINISTRATOR).filter(
+        administrative_users = User.query.filter(User.rol == RoleEnum.ADMINISTRATIVE).filter(
             (User.first_name.ilike(f'%{query}%')) |
             (User.last_name.ilike(f'%{query}%')) |
             (User.email.ilike(f'%{query}%')) |

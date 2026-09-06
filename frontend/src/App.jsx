@@ -33,7 +33,6 @@ import SuperAdminRoute from './routes/SuperAdminRoute';
 import AdminNoticiasPage from './pages/admin/AdminNoticiasPage';
 import AdminTurnosPage from './pages/admin/AdminTurnosPage';
 import AdminUsuariosPage from './pages/admin/AdminUsuariosPage';
-import AdminAdministradoresPage from './pages/admin/AdminAdministradoresPage';
 import BitacoraPage from './pages/admin/BitacoraPage';
 import HelpAssistant from './components/HelpAssistant';
 
@@ -103,10 +102,6 @@ function App() {
 
             {/* Solo Superadmin */}
             <Route element={<SuperAdminRoute />}>
-              <Route
-                path="admin/administradores"
-                element={<AdminAdministradoresPage />}
-              />
               <Route path="admin/bitacora" element={<BitacoraPage />} />
             </Route>
 

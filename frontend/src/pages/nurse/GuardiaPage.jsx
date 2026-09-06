@@ -31,6 +31,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChecklistIcon from '@mui/icons-material/PlaylistAddCheck';
 import { getNurses } from '../../api/nurses';
+import { useReadOnly } from '../../hooks/useReadOnly';
 import {
   getGuardPasses,
   createGuardPass,
@@ -56,6 +57,9 @@ const schema = yup.object({
 });
 
 export default function GuardiaPage() {
+  // Administrador y superadministrador supervisan, no cargan pases de
+  // guardia: eso es una accion de enfermeria.
+  const readOnly = useReadOnly();
   const { userId } = useAuth();
   const [rows, setRows] = useState([]);
   const [nurses, setNurses] = useState([]);
@@ -237,13 +241,17 @@ export default function GuardiaPage() {
           <Button variant="outlined" onClick={() => setSelectedDate(null)}>
             Ver todos
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={openDialog}
-          >
-            Nuevo pase
-          </Button>
+          {/* El administrador supervisa, no registra pases: eso es una
+              accion de enfermeria */}
+          {!readOnly && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openDialog}
+            >
+              Nuevo pase
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -311,7 +319,7 @@ export default function GuardiaPage() {
                       <span>
                         <IconButton
                           size="small"
-                          disabled={!editable}
+                          disabled={!editable || readOnly}
                           onClick={() => openEditDialog(g)}
                         >
                           <EditIcon fontSize="small" />

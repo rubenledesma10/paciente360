@@ -135,10 +135,12 @@ export default function StockPage() {
   const [deleteProductTarget, setDeleteProductTarget] = useState(null)
   const [deleteProductError, setDeleteProductError] = useState('')
   const [deletingProduct, setDeletingProduct] = useState(false)
+  const [invSearch, setInvSearch] = useState('')
   const [movSearch, setMovSearch] = useState('')
   const [movTypeFilter, setMovTypeFilter] = useState('')
   const [movSelectedDate, setMovSelectedDate] = useState(dayjs())
   const [movSortOrder, setMovSortOrder] = useState('desc')
+  const [trzSearch, setTrzSearch] = useState('')
   const productRowRefs = useRef({})
 
   const movForm = useForm({
@@ -227,6 +229,19 @@ export default function StockPage() {
   const expiringProducts = useMemo(() => products.filter((p) => p.por_vencer), [products])
   const expiredProducts = useMemo(() => products.filter((p) => p.vencido), [products])
 
+  const visibleProducts = useMemo(
+    () =>
+      products.filter((p) => {
+        if (!invSearch) return true
+        const term = invSearch.trim().toLowerCase()
+        return (
+          (p.name_product || '').toLowerCase().includes(term) ||
+          (p.type_product || '').toLowerCase().includes(term)
+        )
+      }),
+    [products, invSearch],
+  )
+
   // El backend manda date_time en UTC sin sufijo 'Z'; sin esto, dayjs lo toma como si ya
   // fuera hora local y el día calculado queda corrido (ej. "hoy" a la noche cae mañana).
   const toLocalDayjs = (isoString) =>
@@ -253,6 +268,21 @@ export default function StockPage() {
         return movSortOrder === 'asc' ? diff : -diff
       }),
     [visibleMovements, movSortOrder],
+  )
+
+  const visibleTraceabilities = useMemo(
+    () =>
+      traceabilities.filter((t) => {
+        if (!trzSearch) return true
+        const term = trzSearch.trim().toLowerCase()
+        const patient = patients.find((p) => p.id_user === t.id_patient)
+        const fullPatientName = patient ? `${patient.first_name} ${patient.last_name}` : ''
+        return (
+          (t.product_name || '').toLowerCase().includes(term) ||
+          fullPatientName.toLowerCase().includes(term)
+        )
+      }),
+    [traceabilities, trzSearch, patients],
   )
 
   // Nombres únicos de producto para el selector de "Registrar uso": el lote puntual
@@ -444,7 +474,17 @@ export default function StockPage() {
       </Tabs>
 
       {tab === 'inv' && (
-        <TableContainer component={Paper}>
+        <>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <TextField
+              label="Buscar producto"
+              size="small"
+              value={invSearch}
+              onChange={(e) => setInvSearch(e.target.value)}
+            />
+          </Box>
+
+          <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
@@ -458,7 +498,7 @@ export default function StockPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {products.map((p) => {
+              {visibleProducts.map((p) => {
                 const low = p.current_stock <= p.minimum_stock_level
                 return (
                   <TableRow
@@ -512,9 +552,17 @@ export default function StockPage() {
                   </TableRow>
                 )
               })}
+              {visibleProducts.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ color: paletteRaw.gray }}>
+                    No hay productos para el filtro seleccionado.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
-        </TableContainer>
+          </TableContainer>
+        </>
       )}
 
       {tab === 'mov' && (
@@ -612,6 +660,14 @@ export default function StockPage() {
               PM vencidos: {expiredProducts.map((p) => p.name_product).join(', ')}
             </Alert>
           )}
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <TextField
+              label="Buscar producto o paciente"
+              size="small"
+              value={trzSearch}
+              onChange={(e) => setTrzSearch(e.target.value)}
+            />
+          </Box>
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
@@ -627,7 +683,7 @@ export default function StockPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {traceabilities.map((t) => {
+              {visibleTraceabilities.map((t) => {
                 const patient = patients.find((p) => p.id_user === t.id_patient)
                 return (
                   <TableRow key={t.id_traceability}>
@@ -642,6 +698,13 @@ export default function StockPage() {
                   </TableRow>
                 )
               })}
+              {visibleTraceabilities.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ color: paletteRaw.gray }}>
+                    No hay registros para el filtro seleccionado.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </TableContainer>

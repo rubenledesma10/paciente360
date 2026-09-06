@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { yupResolver } from '@hookform/resolvers/yup'
-import * as yup from 'yup'
-import dayjs from 'dayjs'
+import { useEffect, useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+import dayjs from 'dayjs';
 import {
   Accordion,
   AccordionDetails,
@@ -23,49 +23,49 @@ import {
   TextField,
   Tooltip,
   Typography,
-} from '@mui/material'
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
-import { DatePicker } from '@mui/x-date-pickers/DatePicker'
-import AddIcon from '@mui/icons-material/Add'
-import EditIcon from '@mui/icons-material/Edit'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import ChecklistIcon from '@mui/icons-material/PlaylistAddCheck'
-import { getNurses } from '../../api/nurses'
+} from '@mui/material';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChecklistIcon from '@mui/icons-material/PlaylistAddCheck';
+import { getNurses } from '../../api/nurses';
 import {
   getGuardPasses,
   createGuardPass,
   updateGuardPass,
   createGuardPassChecklist,
   updateGuardPassChecklist,
-} from '../../api/guardPass'
-import { useAuth } from '../../context/useAuth'
-import { formatDateTime } from '../../utils/dateFormat'
-import { paletteRaw } from '../../theme/theme'
+} from '../../api/guardPass';
+import { useAuth } from '../../context/useAuth';
+import { formatDateTime } from '../../utils/dateFormat';
+import { paletteRaw } from '../../theme/theme';
 import {
   CHECKLIST_RATINGS,
   GUARD_PASS_CHECKLIST_SECTIONS,
   GUARD_PASS_CHECKLIST_ITEMS,
   emptyChecklistItems,
-} from '../../utils/guardPassChecklist'
+} from '../../utils/guardPassChecklist';
 
-const EDIT_WINDOW_MINUTES = 15
+const EDIT_WINDOW_MINUTES = 15;
 
 const schema = yup.object({
   rotation: yup.mixed().required('Elegí fecha y hora'),
   notes: yup.string().required('Ingresá las novedades'),
-})
+});
 
 export default function GuardiaPage() {
-  const { userId } = useAuth()
-  const [rows, setRows] = useState([])
-  const [nurses, setNurses] = useState([])
-  const [loadError, setLoadError] = useState('')
-  const [open, setOpen] = useState(false)
-  const [formError, setFormError] = useState('')
-  const [editingRow, setEditingRow] = useState(null)
-  const [selectedDate, setSelectedDate] = useState(null)
-  const [checklistItems, setChecklistItems] = useState(emptyChecklistItems())
-  const [checklistViewTarget, setChecklistViewTarget] = useState(null)
+  const { userId } = useAuth();
+  const [rows, setRows] = useState([]);
+  const [nurses, setNurses] = useState([]);
+  const [loadError, setLoadError] = useState('');
+  const [open, setOpen] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [editingRow, setEditingRow] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [checklistItems, setChecklistItems] = useState(emptyChecklistItems());
+  const [checklistViewTarget, setChecklistViewTarget] = useState(null);
 
   const {
     handleSubmit,
@@ -73,129 +73,138 @@ export default function GuardiaPage() {
     register,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm({ resolver: yupResolver(schema) })
+  } = useForm({ resolver: yupResolver(schema) });
 
   const nurseName = (id) => {
-    const n = nurses.find((x) => x.id_user === id)
-    return n ? `${n.first_name} ${n.last_name}` : '—'
-  }
+    const n = nurses.find((x) => x.id_user === id);
+    return n ? `${n.first_name} ${n.last_name}` : '—';
+  };
 
   const setChecklistItemField = (n, field, value) => {
     setChecklistItems((prev) =>
       prev.map((it) => (it.n === n ? { ...it, [field]: value } : it)),
-    )
-  }
+    );
+  };
 
   const checklistSummary = (checklist) => {
-    if (!checklist) return null
-    const counts = { Satisfactorio: 0, 'Requiere más práctica': 0, Insatisfactorio: 0 }
+    if (!checklist) return null;
+    const counts = {
+      Satisfactorio: 0,
+      'Requiere más práctica': 0,
+      Insatisfactorio: 0,
+    };
     checklist.items.forEach((it) => {
-      if (it.rating && counts[it.rating] !== undefined) counts[it.rating] += 1
-    })
-    return counts
-  }
+      if (it.rating && counts[it.rating] !== undefined) counts[it.rating] += 1;
+    });
+    return counts;
+  };
 
   const isEditable = (row) =>
     Number(row.id_nurse) === Number(userId) &&
-    dayjs().diff(dayjs(row.rotation), 'minute') < EDIT_WINDOW_MINUTES
+    dayjs().diff(dayjs(row.rotation), 'minute') < EDIT_WINDOW_MINUTES;
 
   const sortedRows = [...rows].sort(
     (a, b) => dayjs(b.rotation).valueOf() - dayjs(a.rotation).valueOf(),
-  )
+  );
 
-  const loadAll = async (date = selectedDate) => {
-    setLoadError('')
-    try {
-      const [guardRes, nursesRes] = await Promise.all([
-        getGuardPasses(date ? date.format('YYYY-MM-DD') : undefined),
-        getNurses(),
-      ])
-      setRows(guardRes.data)
-      setNurses(nursesRes.data)
-    } catch {
-      setLoadError('No se pudo cargar el historial de pases de guardia.')
+  // Guard passes are required; the nurses list is optional (used only to
+  // show names). If nurses fail (e.g. 403 for the NURSE role), the passes
+  // are still shown and the chip falls back to "—".
+  const loadAll = async (date = selectedDate, isCancelled = () => false) => {
+    setLoadError('');
+    const [guardRes, nursesRes] = await Promise.allSettled([
+      getGuardPasses(date ? date.format('YYYY-MM-DD') : undefined),
+      getNurses(),
+    ]);
+    if (isCancelled()) return;
+
+    if (guardRes.status === 'fulfilled') {
+      setRows(guardRes.value.data);
+    } else {
+      setLoadError('No se pudo cargar el historial de pases de guardia.');
     }
-  }
+
+    if (nursesRes.status === 'fulfilled') {
+      setNurses(nursesRes.value.data);
+    } else {
+      setNurses([]);
+    }
+  };
 
   useEffect(() => {
-    let ignore = false
-    ;(async () => {
-      setLoadError('')
-      try {
-        const [guardRes, nursesRes] = await Promise.all([
-          getGuardPasses(selectedDate ? selectedDate.format('YYYY-MM-DD') : undefined),
-          getNurses(),
-        ])
-        if (!ignore) {
-          setRows(guardRes.data)
-          setNurses(nursesRes.data)
-        }
-      } catch {
-        if (!ignore) {
-          setLoadError('No se pudo cargar el historial de pases de guardia.')
-        }
-      }
-    })()
+    let ignore = false;
+    loadAll(selectedDate, () => ignore);
     return () => {
-      ignore = true
-    }
-  }, [selectedDate])
+      ignore = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
 
   const openDialog = () => {
-    setFormError('')
-    setEditingRow(null)
-    setChecklistItems(emptyChecklistItems())
-    reset({ rotation: dayjs(), notes: '' })
-    setOpen(true)
-  }
+    setFormError('');
+    setEditingRow(null);
+    setChecklistItems(emptyChecklistItems());
+    reset({ rotation: dayjs(), notes: '' });
+    setOpen(true);
+  };
 
   const openEditDialog = (row) => {
-    setFormError('')
-    setEditingRow(row)
+    setFormError('');
+    setEditingRow(row);
     if (row.checklist) {
       setChecklistItems(
         GUARD_PASS_CHECKLIST_ITEMS.map((item) => {
-          const existing = row.checklist.items.find((it) => it.n === item.n)
+          const existing = row.checklist.items.find((it) => it.n === item.n);
           return existing
-            ? { n: item.n, rating: existing.rating, observation: existing.observation || '' }
-            : { n: item.n, rating: null, observation: '' }
+            ? {
+                n: item.n,
+                rating: existing.rating,
+                observation: existing.observation || '',
+              }
+            : { n: item.n, rating: null, observation: '' };
         }),
-      )
+      );
     } else {
-      setChecklistItems(emptyChecklistItems())
+      setChecklistItems(emptyChecklistItems());
     }
-    reset({ rotation: dayjs(row.rotation), notes: row.notes || '' })
-    setOpen(true)
-  }
+    reset({ rotation: dayjs(row.rotation), notes: row.notes || '' });
+    setOpen(true);
+  };
 
   const onSubmit = async (values) => {
-    setFormError('')
-    const hasChecklistData = checklistItems.some((it) => it.rating || it.observation)
+    setFormError('');
+    const hasChecklistData = checklistItems.some(
+      (it) => it.rating || it.observation,
+    );
     try {
-      let idGuardPass = editingRow?.id_guard_pass
+      let idGuardPass = editingRow?.id_guard_pass;
       if (editingRow) {
-        await updateGuardPass(editingRow.id_guard_pass, { notes: values.notes })
+        await updateGuardPass(editingRow.id_guard_pass, {
+          notes: values.notes,
+        });
       } else {
         const res = await createGuardPass({
           id_nurse: userId,
           rotation: dayjs(values.rotation).format('YYYY-MM-DD HH:mm:ss'),
           notes: values.notes,
-        })
-        idGuardPass = res.data.id_guard_pass
+        });
+        idGuardPass = res.data.id_guard_pass;
       }
       if (hasChecklistData) {
         if (editingRow?.checklist) {
-          await updateGuardPassChecklist(idGuardPass, checklistItems)
+          await updateGuardPassChecklist(idGuardPass, checklistItems);
         } else {
-          await createGuardPassChecklist(idGuardPass, checklistItems)
+          await createGuardPassChecklist(idGuardPass, checklistItems);
         }
       }
-      setOpen(false)
-      loadAll()
+      setOpen(false);
+      loadAll();
     } catch (err) {
-      setFormError(err.response?.data?.error || 'No se pudo registrar el pase de guardia.')
+      setFormError(
+        err.response?.data?.error || 'No se pudo registrar el pase de guardia.',
+      );
     }
-  }
+  };
 
   return (
     <Box>
@@ -228,13 +237,21 @@ export default function GuardiaPage() {
           <Button variant="outlined" onClick={() => setSelectedDate(null)}>
             Ver todos
           </Button>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openDialog}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={openDialog}
+          >
             Nuevo pase
           </Button>
         </Box>
       </Box>
 
-      {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {loadError}
+        </Alert>
+      )}
 
       <Box sx={{ position: 'relative', pl: 3 }}>
         <Box
@@ -249,7 +266,7 @@ export default function GuardiaPage() {
         />
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {sortedRows.map((g) => {
-            const editable = isEditable(g)
+            const editable = isEditable(g);
             return (
               <Card key={g.id_guard_pass} sx={{ p: 2.5, position: 'relative' }}>
                 <Box
@@ -264,12 +281,26 @@ export default function GuardiaPage() {
                     boxShadow: '0 0 0 3px #fff',
                   }}
                 />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" fontWeight={700} color={paletteRaw.azulD}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    fontWeight={700}
+                    color={paletteRaw.azulD}
+                  >
                     {formatDateTime(g.rotation)}
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Chip size="small" label={nurseName(g.id_nurse)} color="primary" />
+                    <Chip
+                      size="small"
+                      label={nurseName(g.id_nurse)}
+                      color="primary"
+                    />
                     <Tooltip
                       title={
                         editable
@@ -289,11 +320,22 @@ export default function GuardiaPage() {
                     </Tooltip>
                   </Box>
                 </Box>
-                <Typography variant="body2" sx={{ mt: 1 }} color={paletteRaw.ink}>
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 1 }}
+                  color={paletteRaw.ink}
+                >
                   {g.notes}
                 </Typography>
                 {g.checklist && (
-                  <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
                     <Button
                       size="small"
                       variant="text"
@@ -311,7 +353,7 @@ export default function GuardiaPage() {
                   </Box>
                 )}
               </Card>
-            )
+            );
           })}
           {sortedRows.length === 0 && (
             <Typography color={paletteRaw.gray}>
@@ -323,10 +365,19 @@ export default function GuardiaPage() {
         </Box>
       </Box>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editingRow ? 'Editar pase de guardia' : 'Registrar pase de guardia'}</DialogTitle>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {editingRow ? 'Editar pase de guardia' : 'Registrar pase de guardia'}
+        </DialogTitle>
         <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <DialogContent
+            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+          >
             {formError && <Alert severity="error">{formError}</Alert>}
             <Controller
               name="rotation"
@@ -358,35 +409,64 @@ export default function GuardiaPage() {
 
             <Accordion disableGutters>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="body2" fontWeight={700} color={paletteRaw.azulD}>
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color={paletteRaw.azulD}
+                >
                   Checklist SBAR-SAER (opcional)
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <AccordionDetails
+                sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+              >
                 {GUARD_PASS_CHECKLIST_SECTIONS.map((section) => (
                   <Box key={section.key}>
-                    <Typography variant="subtitle2" color={paletteRaw.azulD} sx={{ mb: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      color={paletteRaw.azulD}
+                      sx={{ mb: 1 }}
+                    >
                       {section.title}
                     </Typography>
                     {section.items.map((item) => {
-                      const current = checklistItems.find((it) => it.n === item.n)
+                      const current = checklistItems.find(
+                        (it) => it.n === item.n,
+                      );
                       return (
                         <Box key={item.n} sx={{ mb: 1.5 }}>
                           <Typography variant="body2" sx={{ mb: 0.5 }}>
                             {item.n}. {item.text}
                           </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2,
+                              flexWrap: 'wrap',
+                            }}
+                          >
                             <RadioGroup
                               row
                               value={current?.rating || ''}
-                              onChange={(e) => setChecklistItemField(item.n, 'rating', e.target.value)}
+                              onChange={(e) =>
+                                setChecklistItemField(
+                                  item.n,
+                                  'rating',
+                                  e.target.value,
+                                )
+                              }
                             >
                               {CHECKLIST_RATINGS.map((rating) => (
                                 <FormControlLabel
                                   key={rating}
                                   value={rating}
                                   control={<Radio size="small" />}
-                                  label={<Typography variant="caption">{rating}</Typography>}
+                                  label={
+                                    <Typography variant="caption">
+                                      {rating}
+                                    </Typography>
+                                  }
                                 />
                               ))}
                             </RadioGroup>
@@ -394,12 +474,18 @@ export default function GuardiaPage() {
                               size="small"
                               placeholder="Observación"
                               value={current?.observation || ''}
-                              onChange={(e) => setChecklistItemField(item.n, 'observation', e.target.value)}
+                              onChange={(e) =>
+                                setChecklistItemField(
+                                  item.n,
+                                  'observation',
+                                  e.target.value,
+                                )
+                              }
                               sx={{ flex: 1, minWidth: 180 }}
                             />
                           </Box>
                         </Box>
-                      )
+                      );
                     })}
                   </Box>
                 ))}
@@ -422,21 +508,37 @@ export default function GuardiaPage() {
         maxWidth="sm"
       >
         <DialogTitle>Checklist SBAR-SAER</DialogTitle>
-        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <DialogContent
+          dividers
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
           {checklistViewTarget &&
             GUARD_PASS_CHECKLIST_SECTIONS.map((section) => (
               <Box key={section.key}>
-                <Typography variant="subtitle2" color={paletteRaw.azulD} sx={{ mb: 1 }}>
+                <Typography
+                  variant="subtitle2"
+                  color={paletteRaw.azulD}
+                  sx={{ mb: 1 }}
+                >
                   {section.title}
                 </Typography>
                 {section.items.map((item) => {
-                  const found = checklistViewTarget.checklist.items.find((it) => it.n === item.n)
+                  const found = checklistViewTarget.checklist.items.find(
+                    (it) => it.n === item.n,
+                  );
                   return (
                     <Box key={item.n} sx={{ mb: 1.5 }}>
                       <Typography variant="body2">
                         {item.n}. {item.text}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          mt: 0.5,
+                        }}
+                      >
                         <Chip
                           size="small"
                           label={found?.rating || 'Sin calificar'}
@@ -457,7 +559,7 @@ export default function GuardiaPage() {
                         )}
                       </Box>
                     </Box>
-                  )
+                  );
                 })}
               </Box>
             ))}
@@ -467,5 +569,5 @@ export default function GuardiaPage() {
         </DialogActions>
       </Dialog>
     </Box>
-  )
+  );
 }

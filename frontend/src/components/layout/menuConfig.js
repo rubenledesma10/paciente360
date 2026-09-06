@@ -9,7 +9,6 @@ import EventNoteIcon from '@mui/icons-material/EventNote';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import PeopleIcon from '@mui/icons-material/People';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 
 export const NURSE_MENU = [
@@ -134,14 +133,10 @@ export const ADMINISTRATOR_MENU = [
 ];
 
 // Superadministrador: todo lo del administrador, mas administradores y bitacora
+// Los administradores ya no tienen pantalla propia: son una pestaña mas
+// dentro de Usuarios, visible solo para el superadmin.
 export const SUPERADMIN_MENU = [
   ...ADMINISTRATOR_MENU,
-  {
-    id: 'admin-admins',
-    label: 'Administradores',
-    icon: AdminPanelSettingsIcon,
-    path: '/admin/administradores',
-  },
   {
     id: 'admin-bitacora',
     label: 'Bitácora',

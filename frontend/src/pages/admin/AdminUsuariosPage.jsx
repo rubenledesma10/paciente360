@@ -42,11 +42,94 @@ import {
   updateNurse,
   toggleNurseStatus,
 } from '../../api/nurses';
+import {
+  getDoctors,
+  createDoctor,
+  updateDoctor,
+  toggleDoctorStatus,
+} from '../../api/doctors';
+import {
+  getAdministratives,
+  createAdministrative,
+  updateAdministrative,
+  toggleAdministrativeStatus,
+} from '../../api/administratives';
+import {
+  getAdministrators,
+  createAdministrator,
+  updateAdministrator,
+  toggleAdministratorStatus,
+} from '../../api/admins';
+import { getSpecialties } from '../../api/appointments';
+import { useAuth } from '../../context/useAuth';
 
 const GENDERS = ['Femenino', 'Masculino', 'Otro'];
 
 const readError = (err, fallback) =>
   err.response?.data?.msg || err.response?.data?.error || fallback;
+
+// Cada pestaña define su rol: que API usa, que columna extra muestra y que
+// campos propios pide el formulario. Asi la pantalla es una sola y no cinco.
+const TIPOS = {
+  patients: {
+    label: 'Pacientes',
+    singular: 'paciente',
+    list: getPatients,
+    create: createPatientPrivate,
+    update: updatePatient,
+    toggle: togglePatientStatus,
+    extraLabel: 'Obra social',
+    extraValue: (r) => r.health_plan_name || 'Particular',
+    campos: ['health_plan_name', 'member_number'],
+  },
+  nurses: {
+    label: 'Enfermeros',
+    singular: 'enfermero',
+    list: getNurses,
+    create: createNurse,
+    update: updateNurse,
+    toggle: toggleNurseStatus,
+    extraLabel: 'Matrícula',
+    extraValue: (r) => r.license_number || '—',
+    campos: ['license_number', 'is_reference'],
+    requeridos: ['license_number'],
+  },
+  doctors: {
+    label: 'Médicos',
+    singular: 'médico',
+    list: getDoctors,
+    create: createDoctor,
+    update: updateDoctor,
+    toggle: toggleDoctorStatus,
+    extraLabel: 'Matrícula',
+    extraValue: (r) => r.medical_license || '—',
+    campos: ['medical_license', 'id_especialidad'],
+    requeridos: ['medical_license'],
+  },
+  administratives: {
+    label: 'Administrativos',
+    singular: 'administrativo',
+    list: getAdministratives,
+    create: createAdministrative,
+    update: updateAdministrative,
+    toggle: toggleAdministrativeStatus,
+    extraLabel: 'Usuario',
+    extraValue: (r) => r.username || '—',
+    campos: [],
+  },
+  administrators: {
+    label: 'Administradores',
+    singular: 'administrador',
+    list: getAdministrators,
+    create: createAdministrator,
+    update: updateAdministrator,
+    toggle: toggleAdministratorStatus,
+    extraLabel: 'Usuario',
+    extraValue: (r) => r.username || '—',
+    campos: [],
+    soloSuperadmin: true,
+  },
+};
 
 const emptyForm = {
   first_name: '',
@@ -58,17 +141,21 @@ const emptyForm = {
   address: '',
   gender: '',
   emergency_contact: '',
-  // paciente
   health_plan_name: '',
   member_number: '',
-  // enfermero
   license_number: '',
   is_reference: false,
+  medical_license: '',
+  id_especialidad: '',
 };
 
 export default function AdminUsuariosPage() {
+  const { rol, userId } = useAuth();
+  const esSuperadmin = rol === 'Superadministrador';
+
   const [tab, setTab] = useState('patients');
   const [rows, setRows] = useState([]);
+  const [specialties, setSpecialties] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [actionOk, setActionOk] = useState('');
@@ -83,13 +170,22 @@ export default function AdminUsuariosPage() {
 
   const [toggleTarget, setToggleTarget] = useState(null);
 
-  const isPatients = tab === 'patients';
+  const tipo = TIPOS[tab];
+
+  // La pestaña de administradores solo existe para el superadmin
+  const pestañas = useMemo(
+    () =>
+      Object.entries(TIPOS).filter(
+        ([, t]) => !t.soloSuperadmin || esSuperadmin,
+      ),
+    [esSuperadmin],
+  );
 
   const loadRows = useCallback(async () => {
     setLoading(true);
     setLoadError('');
     try {
-      const res = isPatients ? await getPatients() : await getNurses();
+      const res = await tipo.list();
       setRows(res.data);
     } catch (err) {
       setLoadError(readError(err, 'No se pudo cargar el listado.'));
@@ -97,11 +193,19 @@ export default function AdminUsuariosPage() {
     } finally {
       setLoading(false);
     }
-  }, [isPatients]);
+  }, [tipo]);
 
   useEffect(() => {
     loadRows();
   }, [loadRows]);
+
+  // Las especialidades solo hacen falta para el alta de medicos
+  useEffect(() => {
+    if (tab !== 'doctors' || specialties.length) return;
+    getSpecialties()
+      .then((res) => setSpecialties(res.data))
+      .catch(() => setSpecialties([]));
+  }, [tab, specialties.length]);
 
   // Filtrado en memoria: los listados de una salita son chicos y asi el
   // buscador responde sin ir al servidor en cada tecla.
@@ -109,7 +213,15 @@ export default function AdminUsuariosPage() {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) =>
-      [r.first_name, r.last_name, r.dni, r.email, r.license_number]
+      [
+        r.first_name,
+        r.last_name,
+        r.dni,
+        r.email,
+        r.username,
+        r.license_number,
+        r.medical_license,
+      ]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q)),
     );
@@ -143,49 +255,54 @@ export default function AdminUsuariosPage() {
       'dni',
       'email',
       'date_of_birth',
-    ];
-    if (!isPatients) obligatorios.push('license_number');
-    const faltan = obligatorios.filter((c) => !form[c]);
-    if (faltan.length) {
+    ].concat(tipo.requeridos || []);
+    if (obligatorios.some((c) => !form[c])) {
       setFormError(
         'Completá nombre, apellido, DNI, email y fecha de nacimiento' +
-          (isPatients ? '.' : ', más la matrícula.'),
+          (tipo.requeridos?.length ? ', más la matrícula.' : '.'),
       );
       return;
     }
 
     setSaving(true);
     try {
-      const payload = { ...form };
-      if (isPatients) {
-        delete payload.license_number;
-        delete payload.is_reference;
+      // Se manda solo lo comun mas los campos propios de este rol
+      const comunes = [
+        'first_name',
+        'last_name',
+        'dni',
+        'email',
+        'date_of_birth',
+        'phone_number',
+        'address',
+        'gender',
+        'emergency_contact',
+      ];
+      const payload = {};
+      [...comunes, ...tipo.campos].forEach((c) => {
+        if (form[c] !== '' && form[c] !== undefined) payload[c] = form[c];
+      });
+
+      if (tab === 'patients') {
         payload.health_plan_status = Boolean(form.health_plan_name);
-      } else {
-        delete payload.health_plan_name;
-        delete payload.member_number;
-        // El alta de enfermero lee 'phone' y la edicion 'phone_number'.
-        // Se mandan las dos para que funcione en ambos casos.
+      }
+      if (tab === 'nurses') {
+        // El alta de enfermero lee 'phone' y la edicion 'phone_number'
         payload.phone = form.phone_number;
+        payload.is_reference = Boolean(form.is_reference);
       }
 
       if (editing) {
-        const id = editing.id_user;
-        if (isPatients) await updatePatient(id, payload);
-        else await updateNurse(id, payload);
+        await tipo.update(editing.id_user, payload);
         setActionOk('Datos actualizados.');
       } else {
-        // El usuario y la contraseña iniciales son el DNI; cada uno la
-        // cambia después desde su perfil. El backend NO lo completa solo:
-        // si no se manda, username queda en null y la columna no lo acepta.
+        // Usuario y contraseña iniciales = DNI. El backend no lo completa
+        // solo: si no se manda, username queda null y la columna no lo acepta.
         payload.username = form.dni;
         payload.password = form.dni;
-        // Endpoint privado: al ir con JWT, la bitacora deja registrado
-        // que el alta la hizo el administrador y no "Sistema Automatico".
-        if (isPatients) await createPatientPrivate(payload);
-        else await createNurse(payload);
+        await tipo.create(payload);
         setActionOk(
-          `${isPatients ? 'Paciente' : 'Enfermero'} creado. Usuario y contraseña iniciales: ${form.dni}`,
+          `${tipo.label.slice(0, -1)} creado. Usuario y contraseña iniciales: ${form.dni}`,
         );
       }
       setDialogOpen(false);
@@ -201,9 +318,7 @@ export default function AdminUsuariosPage() {
     if (!toggleTarget) return;
     setActionError('');
     try {
-      const id = toggleTarget.id_user;
-      if (isPatients) await togglePatientStatus(id);
-      else await toggleNurseStatus(id);
+      await tipo.toggle(toggleTarget.id_user);
       setActionOk(
         toggleTarget.is_active ? 'Cuenta dada de baja.' : 'Cuenta reactivada.',
       );
@@ -216,6 +331,9 @@ export default function AdminUsuariosPage() {
       setToggleTarget(null);
     }
   };
+
+  const nombreEspecialidad = (id) =>
+    specialties.find((s) => s.id_speciality === id)?.name || '—';
 
   return (
     <Box>
@@ -234,7 +352,7 @@ export default function AdminUsuariosPage() {
             Usuarios
           </Typography>
           <Typography variant="body2" color="#5b7387">
-            Altas y bajas de pacientes y personal de enfermería
+            Altas, ediciones y bajas de las cuentas del sistema
           </Typography>
         </Box>
         <Button
@@ -242,7 +360,7 @@ export default function AdminUsuariosPage() {
           startIcon={<AddIcon />}
           onClick={openCreate}
         >
-          {isPatients ? 'Nuevo paciente' : 'Nuevo enfermero'}
+          Nuevo {tipo.singular}
         </Button>
       </Box>
 
@@ -277,19 +395,22 @@ export default function AdminUsuariosPage() {
             setTab(v);
             setSearch('');
           }}
+          variant="scrollable"
+          scrollButtons="auto"
           sx={{ mb: 2 }}
         >
-          <Tab value="patients" label="Pacientes" />
-          <Tab value="nurses" label="Enfermeros" />
+          {pestañas.map(([key, t]) => (
+            <Tab key={key} value={key} label={t.label} />
+          ))}
         </Tabs>
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
           <TextField
             size="small"
-            label="Buscar por nombre, DNI o email"
+            label="Buscar por nombre, DNI, email o matrícula"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            sx={{ minWidth: 320 }}
+            sx={{ minWidth: 340 }}
           />
           {loading && <CircularProgress size={20} />}
           <Box sx={{ flexGrow: 1 }} />
@@ -314,8 +435,13 @@ export default function AdminUsuariosPage() {
                 <b>Teléfono</b>
               </TableCell>
               <TableCell>
-                <b>{isPatients ? 'Obra social' : 'Matrícula'}</b>
+                <b>{tipo.extraLabel}</b>
               </TableCell>
+              {tab === 'doctors' && (
+                <TableCell>
+                  <b>Especialidad</b>
+                </TableCell>
+              )}
               <TableCell>
                 <b>Estado</b>
               </TableCell>
@@ -325,65 +451,81 @@ export default function AdminUsuariosPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {visibleRows.map((row) => (
-              <TableRow
-                key={row.id_user}
-                sx={{ opacity: row.is_active ? 1 : 0.55 }}
-              >
-                <TableCell>
-                  {row.last_name}, {row.first_name}
-                  {!isPatients && row.is_reference && (
+            {visibleRows.map((row) => {
+              const esUnoMismo = row.id_user === userId;
+              return (
+                <TableRow
+                  key={row.id_user}
+                  sx={{ opacity: row.is_active === false ? 0.55 : 1 }}
+                >
+                  <TableCell>
+                    {row.last_name}, {row.first_name}
+                    {tab === 'nurses' && row.is_reference && (
+                      <Chip
+                        size="small"
+                        label="Referente"
+                        sx={{ ml: 1 }}
+                        variant="outlined"
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell>{row.dni}</TableCell>
+                  <TableCell>{row.email}</TableCell>
+                  <TableCell>{row.phone_number || '—'}</TableCell>
+                  <TableCell>{tipo.extraValue(row)}</TableCell>
+                  {tab === 'doctors' && (
+                    <TableCell>
+                      {nombreEspecialidad(row.id_especialidad)}
+                    </TableCell>
+                  )}
+                  <TableCell>
                     <Chip
                       size="small"
-                      label="Referente"
-                      sx={{ ml: 1 }}
-                      variant="outlined"
+                      label={
+                        row.is_active === false ? 'Dado de baja' : 'Activo'
+                      }
+                      color={row.is_active === false ? 'default' : 'success'}
                     />
-                  )}
-                </TableCell>
-                <TableCell>{row.dni}</TableCell>
-                <TableCell>{row.email}</TableCell>
-                <TableCell>{row.phone_number || '—'}</TableCell>
-                <TableCell>
-                  {isPatients
-                    ? row.health_plan_name || 'Particular'
-                    : row.license_number || '—'}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={row.is_active ? 'Activo' : 'Dado de baja'}
-                    color={row.is_active ? 'success' : 'default'}
-                  />
-                </TableCell>
-                <TableCell align="right">
-                  <Tooltip title="Editar">
-                    <IconButton size="small" onClick={() => openEdit(row)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title={row.is_active ? 'Dar de baja' : 'Reactivar'}>
-                    <IconButton
-                      size="small"
-                      color={row.is_active ? 'error' : 'success'}
-                      onClick={() => setToggleTarget(row)}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Editar">
+                      <IconButton size="small" onClick={() => openEdit(row)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip
+                      title={
+                        esUnoMismo
+                          ? 'No podés darte de baja a vos mismo'
+                          : row.is_active === false
+                            ? 'Reactivar'
+                            : 'Dar de baja'
+                      }
                     >
-                      {row.is_active ? (
-                        <BlockIcon fontSize="small" />
-                      ) : (
-                        <CheckCircleIcon fontSize="small" />
-                      )}
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
+                      <span>
+                        <IconButton
+                          size="small"
+                          color={row.is_active === false ? 'success' : 'error'}
+                          onClick={() => setToggleTarget(row)}
+                          disabled={esUnoMismo}
+                        >
+                          {row.is_active === false ? (
+                            <CheckCircleIcon fontSize="small" />
+                          ) : (
+                            <BlockIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
             {visibleRows.length === 0 && !loading && (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={8}>
                   <Typography color="#5b7387" sx={{ py: 2 }}>
-                    No hay {isPatients ? 'pacientes' : 'enfermeros'} para
-                    mostrar.
+                    No hay {tipo.label.toLowerCase()} para mostrar.
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -400,9 +542,7 @@ export default function AdminUsuariosPage() {
         maxWidth="sm"
       >
         <DialogTitle>
-          {editing
-            ? `Editar ${isPatients ? 'paciente' : 'enfermero'}`
-            : `Nuevo ${isPatients ? 'paciente' : 'enfermero'}`}
+          {editing ? `Editar ${tipo.singular}` : `Nuevo ${tipo.singular}`}
         </DialogTitle>
         <DialogContent
           sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
@@ -495,7 +635,7 @@ export default function AdminUsuariosPage() {
               }
             />
 
-            {isPatients ? (
+            {tab === 'patients' && (
               <>
                 <TextField
                   size="small"
@@ -517,7 +657,9 @@ export default function AdminUsuariosPage() {
                   }
                 />
               </>
-            ) : (
+            )}
+
+            {tab === 'nurses' && (
               <>
                 <TextField
                   size="small"
@@ -541,6 +683,37 @@ export default function AdminUsuariosPage() {
                   }
                   label="Enfermero de referencia"
                 />
+              </>
+            )}
+
+            {tab === 'doctors' && (
+              <>
+                <TextField
+                  size="small"
+                  label="Matrícula"
+                  required
+                  sx={{ flex: '1 1 45%' }}
+                  value={form.medical_license}
+                  onChange={(e) =>
+                    setForm({ ...form, medical_license: e.target.value })
+                  }
+                />
+                <TextField
+                  select
+                  size="small"
+                  label="Especialidad"
+                  sx={{ flex: '1 1 45%' }}
+                  value={form.id_especialidad}
+                  onChange={(e) =>
+                    setForm({ ...form, id_especialidad: e.target.value })
+                  }
+                >
+                  {specialties.map((s) => (
+                    <MenuItem key={s.id_speciality} value={s.id_speciality}>
+                      {s.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </>
             )}
           </Box>
@@ -568,20 +741,22 @@ export default function AdminUsuariosPage() {
         maxWidth="xs"
       >
         <DialogTitle>
-          {toggleTarget?.is_active ? 'Dar de baja' : 'Reactivar cuenta'}
+          {toggleTarget?.is_active === false
+            ? 'Reactivar cuenta'
+            : 'Dar de baja'}
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {toggleTarget?.is_active ? (
+            {toggleTarget?.is_active === false ? (
+              <>
+                {toggleTarget?.first_name} {toggleTarget?.last_name} va a poder
+                volver a iniciar sesión con sus datos de siempre.
+              </>
+            ) : (
               <>
                 {toggleTarget?.first_name} {toggleTarget?.last_name} no va a
                 poder iniciar sesión. Los registros que ya tiene cargados se
                 conservan, y podés reactivar la cuenta cuando quieras.
-              </>
-            ) : (
-              <>
-                {toggleTarget?.first_name} {toggleTarget?.last_name} va a poder
-                volver a iniciar sesión con sus datos de siempre.
               </>
             )}
           </DialogContentText>
@@ -590,10 +765,10 @@ export default function AdminUsuariosPage() {
           <Button onClick={() => setToggleTarget(null)}>Volver</Button>
           <Button
             variant="contained"
-            color={toggleTarget?.is_active ? 'error' : 'success'}
+            color={toggleTarget?.is_active === false ? 'success' : 'error'}
             onClick={handleToggle}
           >
-            {toggleTarget?.is_active ? 'Dar de baja' : 'Reactivar'}
+            {toggleTarget?.is_active === false ? 'Reactivar' : 'Dar de baja'}
           </Button>
         </DialogActions>
       </Dialog>

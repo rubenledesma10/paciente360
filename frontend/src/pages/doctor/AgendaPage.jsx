@@ -28,6 +28,7 @@ import {
 } from '../../api/appointments';
 import { useAuth } from '../../context/useAuth';
 import { getPatientSummary } from '../../api/ai';
+import { getSignsAndSymptomsByPatient } from '../../api/signsAndSymptoms';
 import { DISEASE_TYPES, DISEASE_TYPE_OTHER } from '../../utils/diseaseTypes';
 
 // El resumen viene con titulos de seccion en su propia linea y viñetas.
@@ -143,6 +144,12 @@ export default function AgendaPage() {
   const [newStatus, setNewStatus] = useState('');
   const [statusError, setStatusError] = useState('');
 
+  // Último registro de signos y síntomas cargado por enfermería, indexado
+  // por id_patient para no repetir el fetch si un paciente tiene más de un
+  // turno el mismo día.
+  const [lastSigns, setLastSigns] = useState({});
+  const [lastSignsLoading, setLastSignsLoading] = useState({});
+
   const loadAgenda = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
@@ -172,6 +179,42 @@ export default function AgendaPage() {
   const notifyChange = () => {
     window.dispatchEvent(new Event('appointments-changed'));
   };
+
+  useEffect(() => {
+    // queueMicrotask: el fetch por paciente es un efecto secundario hacia un
+    // sistema externo (la API), no una sincronización de estado derivado, así
+    // que se dispara fuera del cuerpo síncrono del efecto.
+    queueMicrotask(() => {
+      const uniquePatientIds = [
+        ...new Set(rows.map((r) => r.id_patient)),
+      ].filter((id) => id != null && !(id in lastSigns) && !lastSignsLoading[id]);
+      if (uniquePatientIds.length === 0) return;
+
+      setLastSignsLoading((prev) => {
+        const next = { ...prev };
+        uniquePatientIds.forEach((id) => {
+          next[id] = true;
+        });
+        return next;
+      });
+
+      uniquePatientIds.forEach(async (id) => {
+        try {
+          const res = await getSignsAndSymptomsByPatient(id);
+          const latest =
+            Array.isArray(res.data) && res.data.length > 0
+              ? res.data[0]
+              : null;
+          setLastSigns((prev) => ({ ...prev, [id]: latest }));
+        } catch {
+          setLastSigns((prev) => ({ ...prev, [id]: null }));
+        } finally {
+          setLastSignsLoading((prev) => ({ ...prev, [id]: false }));
+        }
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   // Los cancelados no forman parte de la jornada de trabajo: van al final
   const sortedRows = useMemo(
@@ -426,6 +469,116 @@ export default function AgendaPage() {
                     </>
                   )}
                 </Typography>
+
+                {(() => {
+                  const record = lastSigns[ap.id_patient];
+                  const isLoadingRecord = lastSignsLoading[ap.id_patient];
+
+                  if (isLoadingRecord) {
+                    return (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.75,
+                          mt: 0.5,
+                        }}
+                      >
+                        <CircularProgress size={12} />
+                        <Typography variant="caption" color="#5b7387">
+                          Cargando signos y síntomas...
+                        </Typography>
+                      </Box>
+                    );
+                  }
+
+                  if (!record) {
+                    return (
+                      <Typography
+                        variant="caption"
+                        color="#94a3b8"
+                        component="div"
+                        sx={{ mt: 0.5, fontStyle: 'italic' }}
+                      >
+                        Sin registros de signos y síntomas.
+                      </Typography>
+                    );
+                  }
+
+                  const isFever =
+                    record.temperature != null && record.temperature >= 38;
+
+                  return (
+                    <Box
+                      sx={{
+                        mt: 0.75,
+                        p: 1,
+                        borderRadius: 1,
+                        bgcolor: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        fontWeight={700}
+                        color="#0E4C82"
+                        component="div"
+                        sx={{ mb: 0.25 }}
+                      >
+                        Signos y síntomas (último registro)
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 0.75,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: isFever ? '#d32f2f' : '#334155',
+                            fontWeight: isFever ? 700 : 400,
+                          }}
+                        >
+                          Temp:{' '}
+                          {record.temperature != null
+                            ? `${record.temperature}°C`
+                            : '—'}
+                        </Typography>
+                        <Typography variant="caption" color="#334155">
+                          Presión: {record.blood_pressure || '—'}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={record.record_type || '—'}
+                          color={
+                            record.record_type === 'Urgencia'
+                              ? 'error'
+                              : 'primary'
+                          }
+                          sx={{ height: 18, fontSize: '0.7rem' }}
+                        />
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        color="#334155"
+                        component="div"
+                        sx={{ mt: 0.25 }}
+                      >
+                        Síntomas: {record.symptoms || '—'}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="#334155"
+                        component="div"
+                      >
+                        Signos: {record.signs || '—'}
+                      </Typography>
+                    </Box>
+                  );
+                })()}
               </Box>
 
               <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>

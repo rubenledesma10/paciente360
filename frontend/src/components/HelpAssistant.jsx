@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
 import {
   Alert,
   Avatar,
@@ -49,6 +50,10 @@ function TextoFormateado({ text }) {
 
 export default function HelpAssistant() {
   const location = useLocation();
+  // El asistente es una guia para quien llega sin cuenta y no conoce el
+  // sistema. Con sesion iniciada cada rol ya tiene su menu y su circuito,
+  // asi que no se muestra.
+  const { isAuthenticated } = useAuth();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [question, setQuestion] = useState('');
@@ -59,6 +64,8 @@ export default function HelpAssistant() {
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading, open]);
+
+  if (isAuthenticated) return null;
 
   const send = async (text) => {
     const q = (text ?? question).trim();
@@ -132,7 +139,7 @@ export default function HelpAssistant() {
             <SmartToyIcon fontSize="small" />
             <Box sx={{ flexGrow: 1 }}>
               <Typography variant="subtitle2" fontWeight={700} lineHeight={1.2}>
-                Bot360
+                Asistente virtual
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.85 }}>
                 Te ayudo a usar Paciente360

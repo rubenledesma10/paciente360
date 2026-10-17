@@ -9,6 +9,7 @@ function buildEventDetailText(evento) {
   const d = evento.detalle
   if (evento.tipo === 'Signos y Síntomas') {
     const parts = [`Temp: ${d.temperature ?? '—'}°C · Presión: ${d.blood_pressure || '—'}`]
+    if (d.triage_level) parts.push(`Triage: ${d.triage_level}`)
     if (d.signs) parts.push(`Signos: ${d.signs}`)
     if (d.symptoms) parts.push(`Síntomas: ${d.symptoms}`)
     if (d.observations) parts.push(`Observación: ${d.observations}`)

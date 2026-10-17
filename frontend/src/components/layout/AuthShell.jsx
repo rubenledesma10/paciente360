@@ -11,21 +11,30 @@ import {
   ListItemIcon,
   ListItemText,
   Toolbar,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
+import HelpIcon from '@mui/icons-material/Help';
 import { useAuth } from '../../context/useAuth';
 import { menuForRole, routeTitle, ROLE_LABELS } from './menuConfig';
 import { paletteRaw } from '../../theme/theme';
 import NotificationsBell from '../NotificationsBell';
 import Logo from '../Logo';
 import { mediaUrl } from '../../utils/mediaUrl';
+import GuidedTour from '../tour/GuidedTour';
+import { isTourDone, markTourDone } from '../tour/tourStorage';
+import { PATIENT_TOUR_STEPS, patientTourKey } from '../tour/tourSteps';
 
 const DRAWER_WIDTH = 260;
 
+// Nombre de anclaje del tutorial para cada item del menu: '/mis-turnos' -> 'nav-mis-turnos'
+const navTourName = (path) =>
+  `nav-${path.replace(/^\//, '').replace(/\//g, '-')}`;
+
 export default function AuthShell() {
-  const { rol, nombre, foto, logout } = useAuth();
+  const { rol, nombre, foto, logout, userId } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -33,6 +42,27 @@ export default function AuthShell() {
   const menu = menuForRole(rol);
   const roleLabel = ROLE_LABELS[rol] || rol;
   const photoUrl = mediaUrl(foto) || undefined;
+
+  // Tutorial: por ahora solo existe el del paciente. Se ofrece la primera vez
+  // que cada paciente inicia sesion en cada arranque de la app, y se puede
+  // volver a abrir con el boton de ayuda de la barra superior.
+  // Se calcula en cada render (no una sola vez al montar) por si los datos
+  // de la sesion tardan un instante en estar disponibles.
+  const isPatient = roleLabel === 'Paciente';
+  const tourKey = patientTourKey(userId);
+  const [manualTour, setManualTour] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const tourOpen =
+    manualTour ||
+    (isPatient && userId != null && !dismissed && !isTourDone(tourKey));
+
+  // dismissed fuerza el redibujado al cerrar el tutorial que se abrio solo
+  // (setManualTour(false) no alcanza: ya valia false y React no redibuja)
+  const closeTour = () => {
+    markTourDone(tourKey);
+    setDismissed(true);
+    setManualTour(false);
+  };
 
   const goToProfile = () => {
     setMobileOpen(false);
@@ -82,6 +112,7 @@ export default function AuthShell() {
               to={item.path}
               onClick={() => setMobileOpen(false)}
               selected={active}
+              data-tour={navTourName(item.path)}
               sx={{
                 borderRadius: 2,
                 mb: 0.5,
@@ -111,6 +142,7 @@ export default function AuthShell() {
       <Box sx={{ p: 1.5, borderTop: '1px solid #E3EEF6' }}>
         <Box
           onClick={goToProfile}
+          data-tour="profile-sidebar"
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -207,6 +239,8 @@ export default function AuthShell() {
                   color: paletteRaw.azul,
                 }}
                 onClick={() => setMobileOpen(true)}
+                aria-label="Abrir menú"
+                data-tour="menu-button"
               >
                 <MenuIcon />
               </IconButton>
@@ -224,9 +258,25 @@ export default function AuthShell() {
               </Box>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <NotificationsBell />
+              {isPatient && (
+                <Tooltip title="Ver tutorial">
+                  <IconButton
+                    onClick={() => setManualTour(true)}
+                    aria-label="Ver tutorial"
+                    data-tour="tour-replay"
+                    sx={{ color: paletteRaw.azul }}
+                  >
+                    <HelpIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {/* Envoltorio para que el tutorial pueda resaltar la campana */}
+              <Box data-tour="notifications" sx={{ display: 'flex' }}>
+                <NotificationsBell />
+              </Box>
               <Box
                 onClick={goToProfile}
+                data-tour="profile-topbar"
                 sx={{
                   display: { xs: 'none', sm: 'flex' },
                   alignItems: 'center',
@@ -266,6 +316,11 @@ export default function AuthShell() {
           <Outlet />
         </Box>
       </Box>
+
+      {/* Vive en el layout para seguir abierto mientras navega entre paginas */}
+      {tourOpen && (
+        <GuidedTour steps={PATIENT_TOUR_STEPS} onClose={closeTour} />
+      )}
     </Box>
   );
 }

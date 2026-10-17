@@ -4,19 +4,11 @@ import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import Logo from '../Logo';
 import { paletteRaw } from '../../theme/theme';
 import { createIntroAudio } from './introAudio';
+import { markIntroSeen, shouldShowIntro } from './introVisibility';
 import './IntroOpening.css';
 
-// The intro shows once per app start: every `npm run dev` (or every new
-// build, once deployed) gets a new id, defined in vite.config.js. The browser
-// remembers which id it already played, so a page refresh does not replay it.
-// It can still be forced with ?intro at the end: localhost:5173/?intro
-const SEEN_KEY = 'p360_intro_seen';
-// typeof keeps it working (and ESLint quiet) if the define is missing
-const APP_SESSION =
-  typeof __APP_SESSION__ !== 'undefined' ? String(__APP_SESSION__) : 'default';
-
-// Timeline, in milliseconds from "Ver presentación"
-const ECG_BEATS = [851, 1851]; // moments when the line draws each spike
+// Linea de tiempo, en milisegundos desde "Ver presentación"
+const ECG_BEATS = [851, 1851]; // momentos en que la linea dibuja cada pico
 const RING_START = 3400;
 const STEP = 2800;
 const FINAL_AT = RING_START + STEP * 4;
@@ -28,7 +20,7 @@ const ECG_PATH =
   'L400,60 L425,48 L450,60 L590,60 L610,52 L625,60 L635,60 L645,70 L660,10 ' +
   'L675,100 L688,60 L710,60 L735,48 L760,60 L1000,60';
 
-// Each pillar fills a quarter of the ring: four of them make the 360°
+// Cada pilar completa un cuarto del anillo: los cuatro forman los 360°
 const PILLARS = [
   {
     title: 'Turnos sin filas',
@@ -48,25 +40,14 @@ const PILLARS = [
   },
 ];
 
-function shouldShowIntro() {
-  try {
-    if (new URLSearchParams(window.location.search).has('intro')) return true;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-      return false;
-    return localStorage.getItem(SEEN_KEY) !== APP_SESSION;
-  } catch {
-    return false;
-  }
-}
-
-// Logo size inside the final ring, which scales with the screen
+// Tamaño del logo dentro del anillo final, que escala con la pantalla
 function finalLogoSize() {
   const vmin = Math.min(window.innerWidth, window.innerHeight);
   const ring = Math.min(330, Math.max(210, vmin * 0.44));
   return Math.round(ring * 0.58 * 0.7);
 }
 
-// Quarter of a circle, starting at 12 o'clock, with a small gap at each end
+// Un cuarto de circulo, arrancando a las 12, con un pequeño espacio en cada punta
 function arcPath(index, r = 100, center = 120, gap = 3) {
   const toRad = (deg) => (deg * Math.PI) / 180;
   const a0 = toRad(-90 + index * 90 + gap);
@@ -94,7 +75,7 @@ function LogoMark({ size, className }) {
   );
 }
 
-// onFinish runs once the intro is gone (used to focus the login form)
+// onFinish se ejecuta cuando la intro desaparece (el login lo usa para el foco)
 export default function IntroOpening({ onFinish }) {
   const [visible, setVisible] = useState(shouldShowIntro);
   const [logoSize] = useState(finalLogoSize);
@@ -119,13 +100,9 @@ export default function IntroOpening({ onFinish }) {
     rt.timers = [];
     rt.audio?.fadeOutAndClose(LEAVE_MS / 1000);
 
-    try {
-      localStorage.setItem(SEEN_KEY, APP_SESSION);
-    } catch {
-      // Storage unavailable: it will show again next time, nothing breaks
-    }
+    markIntroSeen();
 
-    // Remove ?intro so a reload does not replay it
+    // Saca ?intro de la URL para que al refrescar no se repita
     const url = new URL(window.location.href);
     if (url.searchParams.has('intro')) {
       url.searchParams.delete('intro');
@@ -145,7 +122,7 @@ export default function IntroOpening({ onFinish }) {
 
   const start = () => {
     const rt = runtime.current;
-    // Created here, inside the click, so the browser allows the sound
+    // Se crea aca, dentro del clic, para que el navegador permita el sonido
     rt.audio = createIntroAudio();
     rt.audio?.setMuted(muted);
     rt.audio?.startPad();
@@ -179,7 +156,7 @@ export default function IntroOpening({ onFinish }) {
     runtime.current.audio?.setMuted(next);
   };
 
-  // Degree counter: climbs 90° each time a quadrant is drawn
+  // Contador de grados: sube 90° cada vez que se dibuja un cuarto
   useEffect(() => {
     if (quadrant < 0) return undefined;
     const from = quadrant * 90;
@@ -197,7 +174,7 @@ export default function IntroOpening({ onFinish }) {
     return () => cancelAnimationFrame(raf);
   }, [quadrant]);
 
-  // Esc skips the intro
+  // Esc saltea la intro
   useEffect(() => {
     if (!visible) return undefined;
     const onKey = (e) => {
@@ -207,7 +184,7 @@ export default function IntroOpening({ onFinish }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [visible, finish]);
 
-  // The page behind does not scroll while the intro is on screen
+  // La pagina de atras no se desplaza mientras la intro esta en pantalla
   useEffect(() => {
     if (!visible) return undefined;
     const previous = document.body.style.overflow;
@@ -217,7 +194,7 @@ export default function IntroOpening({ onFinish }) {
     };
   }, [visible]);
 
-  // Cleanup if the page changes in the middle of the intro
+  // Limpieza por si se cambia de pagina en medio de la intro
   useEffect(() => {
     const rt = runtime.current;
     return () => {

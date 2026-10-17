@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import HelpIcon from '@mui/icons-material/Help';
 import {
   getSpecialties,
   getDoctorsBySpecialty,
@@ -25,6 +26,12 @@ import {
   getPublicBusyHours,
 } from '../api/appointments';
 import SpecialtySuggester from '../components/SpecialtySuggester';
+import GuidedTour from '../components/tour/GuidedTour';
+import { useAutoTour } from '../components/tour/useAutoTour';
+import {
+  BOOKING_TOUR_KEY,
+  BOOKING_TOUR_STEPS,
+} from '../components/tour/tourSteps';
 
 const APPOINTMENT_MINUTES = 20;
 
@@ -101,6 +108,10 @@ export default function SacarTurnoPublicoPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [booked, setBooked] = useState(null);
+
+  // Tutorial: se abre solo una vez por arranque de la app y queda el boton
+  // debajo del titulo para volver a verlo
+  const tour = useAutoTour(BOOKING_TOUR_KEY);
 
   useEffect(() => {
     getSpecialties()
@@ -288,6 +299,15 @@ export default function SacarTurnoPublicoPage() {
         <Typography variant="body1" color="#5b7387">
           No necesitás cuenta. Completá tus datos y elegí el horario.
         </Typography>
+        <Button
+          size="small"
+          startIcon={<HelpIcon />}
+          onClick={tour.openTour}
+          data-tour="booking-tour-replay"
+          sx={{ mt: 1, textTransform: 'none', fontWeight: 600 }}
+        >
+          ¿Cómo funciona?
+        </Button>
       </Box>
 
       {error && (
@@ -297,7 +317,7 @@ export default function SacarTurnoPublicoPage() {
       )}
 
       {/* 1. Datos personales */}
-      <Card sx={{ p: 2.5, mb: 2 }}>
+      <Card sx={{ p: 2.5, mb: 2 }} data-tour="booking-personal-data">
         <StepTitle number={1}>Tus datos</StepTitle>
 
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -373,13 +393,17 @@ export default function SacarTurnoPublicoPage() {
       {/* 2. Especialidad */}
       <Card sx={{ p: 2.5, mb: 2 }}>
         <StepTitle number={2}>Especialidad</StepTitle>
-        {/* Con 109 especialidades nadie sabe cual elegir: el asistente orienta */}
-        <SpecialtySuggester onSelect={(id) => handleSpecialtyChange(id)} />
+        {/* Con 109 especialidades nadie sabe cual elegir: el asistente orienta.
+            El envoltorio es el anclaje del tutorial. */}
+        <Box data-tour="specialty-help">
+          <SpecialtySuggester onSelect={(id) => handleSpecialtyChange(id)} />
+        </Box>
         <TextField
           select
           fullWidth
           size="small"
           label="Elegí una especialidad"
+          data-tour="booking-specialty"
           value={specialtyId}
           onChange={(e) => handleSpecialtyChange(e.target.value)}
         >
@@ -565,6 +589,10 @@ export default function SacarTurnoPublicoPage() {
             {saving ? 'Reservando...' : 'Reservar turno'}
           </Button>
         </Card>
+      )}
+
+      {tour.open && (
+        <GuidedTour steps={BOOKING_TOUR_STEPS} onClose={tour.closeTour} />
       )}
     </Box>
   );

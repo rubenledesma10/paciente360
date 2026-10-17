@@ -22,10 +22,18 @@ import {
 } from '@mui/material';
 import Logo from '../components/Logo';
 import IntroOpening from '../components/intro/IntroOpening';
+import { shouldShowIntro } from '../components/intro/introVisibility';
+import GuidedTour from '../components/tour/GuidedTour';
+import { isTourDone, markTourDone } from '../components/tour/tourStorage';
+import {
+  PUBLIC_TOUR_KEY,
+  PUBLIC_TOUR_STEPS,
+} from '../components/tour/tourSteps';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import HelpIcon from '@mui/icons-material/Help';
 import { useAuth } from '../context/useAuth';
 import { roleHome } from '../utils/roleHome';
 import { gradients, paletteRaw } from '../theme/theme';
@@ -43,6 +51,12 @@ export default function LoginPage() {
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Tutorial: se ofrece una vez por arranque de la app. Si la intro esta por
+  // reproducirse, espera a que termine para no taparse una con otra.
+  const [tourOpen, setTourOpen] = useState(
+    () => !shouldShowIntro() && !isTourDone(PUBLIC_TOUR_KEY),
+  );
 
   // Noticias públicas
   const [news, setNews] = useState([]);
@@ -72,6 +86,17 @@ export default function LoginPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleIntroFinish = () => {
+    if (isTourDone(PUBLIC_TOUR_KEY)) setFocus('username');
+    else setTourOpen(true);
+  };
+
+  const closeTour = () => {
+    markTourDone(PUBLIC_TOUR_KEY);
+    setTourOpen(false);
+    setFocus('username');
   };
 
   const formatDate = (isoString) => {
@@ -132,6 +157,21 @@ export default function LoginPage() {
                 <Typography variant="body2" sx={{ color: '#D7ECF8' }}>
                   Ingresá con tu usuario y contraseña
                 </Typography>
+                <Button
+                  size="small"
+                  startIcon={<HelpIcon />}
+                  onClick={() => setTourOpen(true)}
+                  data-tour="tour-replay"
+                  sx={{
+                    mt: 1,
+                    color: '#fff',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' },
+                  }}
+                >
+                  ¿Primera vez? Mirá cómo funciona
+                </Button>
               </Box>
               <Paper sx={{ p: 4 }}>
                 <Box
@@ -144,48 +184,50 @@ export default function LoginPage() {
                       {serverError}
                     </Alert>
                   )}
-                  <TextField
-                    label="Usuario"
-                    fullWidth
-                    margin="normal"
-                    autoFocus
-                    {...register('username')}
-                    error={!!errors.username}
-                    helperText={errors.username?.message}
-                  />
-                  <TextField
-                    label="Contraseña"
-                    type={showPassword ? 'text' : 'password'}
-                    fullWidth
-                    margin="normal"
-                    {...register('password')}
-                    error={!!errors.password}
-                    helperText={errors.password?.message}
-                    slotProps={{
-                      input: {
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton
-                              onClick={() => setShowPassword((v) => !v)}
-                              edge="end"
-                              size="small"
-                              aria-label={
-                                showPassword
-                                  ? 'Ocultar contraseña'
-                                  : 'Mostrar contraseña'
-                              }
-                            >
-                              {showPassword ? (
-                                <VisibilityOff />
-                              ) : (
-                                <Visibility />
-                              )}
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      },
-                    }}
-                  />
+                  <Box data-tour="login-fields">
+                    <TextField
+                      label="Usuario"
+                      fullWidth
+                      margin="normal"
+                      autoFocus
+                      {...register('username')}
+                      error={!!errors.username}
+                      helperText={errors.username?.message}
+                    />
+                    <TextField
+                      label="Contraseña"
+                      type={showPassword ? 'text' : 'password'}
+                      fullWidth
+                      margin="normal"
+                      {...register('password')}
+                      error={!!errors.password}
+                      helperText={errors.password?.message}
+                      slotProps={{
+                        input: {
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                onClick={() => setShowPassword((v) => !v)}
+                                edge="end"
+                                size="small"
+                                aria-label={
+                                  showPassword
+                                    ? 'Ocultar contraseña'
+                                    : 'Mostrar contraseña'
+                                }
+                              >
+                                {showPassword ? (
+                                  <VisibilityOff />
+                                ) : (
+                                  <Visibility />
+                                )}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+                  </Box>
                   <Button
                     type="submit"
                     variant="contained"
@@ -197,7 +239,11 @@ export default function LoginPage() {
                     {submitting ? 'Ingresando…' : 'Ingresar'}
                   </Button>
                   <Typography variant="body2" align="center" sx={{ mt: 1.5 }}>
-                    <Link component={RouterLink} to="/recuperar-cuenta">
+                    <Link
+                      component={RouterLink}
+                      to="/recuperar-cuenta"
+                      data-tour="forgot"
+                    >
                       ¿Olvidaste tu usuario o contraseña?
                     </Link>
                   </Typography>
@@ -208,7 +254,11 @@ export default function LoginPage() {
                     color={paletteRaw.gray}
                   >
                     ¿Sos paciente y no tenés cuenta?{' '}
-                    <Link component={RouterLink} to="/register">
+                    <Link
+                      component={RouterLink}
+                      to="/register"
+                      data-tour="register"
+                    >
                       Crear cuenta
                     </Link>
                   </Typography>
@@ -226,6 +276,7 @@ export default function LoginPage() {
                     variant="outlined"
                     fullWidth
                     startIcon={<EventAvailableIcon />}
+                    data-tour="book-no-account"
                   >
                     Sacar un turno sin cuenta
                   </Button>
@@ -246,7 +297,7 @@ export default function LoginPage() {
                 flexWrap: 'wrap',
               }}
             >
-              <Box>
+              <Box data-tour="news">
                 <Typography variant="h4" fontWeight={800} color="#0E4C82">
                   Noticias y Prevención
                 </Typography>
@@ -365,10 +416,10 @@ export default function LoginPage() {
         </Grid>
       </Box>
 
-      {/* Presentacion inicial. Va al final para que su boton tome el foco
-          (si fuera primero, el autoFocus de "Usuario" se lo sacaria). Al
-          terminar, el foco vuelve al campo de usuario. */}
-      <IntroOpening onFinish={() => setFocus('username')} />
+      {/* Presentacion inicial y tutorial. Van al final para que tomen el foco
+          (si fueran primero, el autoFocus de "Usuario" se lo sacaria). */}
+      <IntroOpening onFinish={handleIntroFinish} />
+      {tourOpen && <GuidedTour steps={PUBLIC_TOUR_STEPS} onClose={closeTour} />}
     </>
   );
 }

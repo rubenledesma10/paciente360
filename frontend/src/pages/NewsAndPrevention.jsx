@@ -12,9 +12,13 @@ import {
 } from '@mui/material';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import HelpIcon from '@mui/icons-material/Help';
 import { useAuth } from '../context/useAuth';
 import { getNews } from '../api/news';
 import { mediaUrl } from '../utils/mediaUrl';
+import GuidedTour from '../components/tour/GuidedTour';
+import { useAutoTour } from '../components/tour/useAutoTour';
+import { NEWS_TOUR_KEY, NEWS_TOUR_STEPS } from '../components/tour/tourSteps';
 
 export default function NewsAndPrevention() {
   // Con sesion iniciada esta pantalla vive dentro del AuthShell y ya tiene
@@ -23,6 +27,10 @@ export default function NewsAndPrevention() {
   const [news, setNews] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const navigate = useNavigate();
+
+  // Tutorial: se abre solo para quien entra sin sesion (el paciente ya tiene
+  // el suyo). El boton debajo del titulo lo abre para cualquiera.
+  const tour = useAutoTour(NEWS_TOUR_KEY, !isAuthenticated);
 
   useEffect(() => {
     getNews()
@@ -66,9 +74,19 @@ export default function NewsAndPrevention() {
         <Typography variant="body1" color="#5b7387">
           Contenido confiable de salud para vos y tu familia
         </Typography>
+        <Button
+          size="small"
+          startIcon={<HelpIcon />}
+          onClick={tour.openTour}
+          data-tour="news-tour-replay"
+          sx={{ mt: 1, textTransform: 'none', fontWeight: 600 }}
+        >
+          ¿Cómo funciona?
+        </Button>
       </Box>
 
       <Box
+        data-tour="news-filters"
         sx={{
           display: 'flex',
           justifyContent: 'center',
@@ -90,12 +108,14 @@ export default function NewsAndPrevention() {
       </Box>
 
       <Grid container spacing={3}>
-        {filteredNews.map((item) => {
+        {filteredNews.map((item, index) => {
           const photo = mediaUrl(item.photo);
           return (
             <Grid
               key={item.id_news_and_prevention}
               size={{ xs: 12, sm: 6, md: 4 }}
+              // La primera tarjeta es el anclaje del tutorial
+              data-tour={index === 0 ? 'news-first' : undefined}
             >
               <Card sx={{ height: '100%', borderRadius: 3 }}>
                 <CardActionArea
@@ -173,6 +193,10 @@ export default function NewsAndPrevention() {
           );
         })}
       </Grid>
+
+      {tour.open && (
+        <GuidedTour steps={NEWS_TOUR_STEPS} onClose={tour.closeTour} />
+      )}
     </Box>
   );
 }

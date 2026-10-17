@@ -203,7 +203,8 @@ export default function MisTurnosPage() {
         ))}
       </Box>
 
-      <Grid container spacing={2}>
+      {/* data-tour: el tutorial resalta la lista para explicar confirmar y cancelar */}
+      <Grid container spacing={2} data-tour="appointments-list">
         {filteredRows.map((ap) => {
           const d = daysUntil(ap.date);
           const doctorName = ap.doctor_name || '—';

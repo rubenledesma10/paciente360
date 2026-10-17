@@ -86,7 +86,7 @@ export default function HelpAssistant() {
     const q = (text ?? question).trim();
     if (!q || loading || blocked) return;
 
-    // Offensive messages never reach the model
+    // Los mensajes ofensivos nunca llegan al modelo
     const verdict = check(q);
     if (!verdict.ok) {
       setWarning(verdict.blocked ? '' : buildWarning(verdict.strikesLeft));
@@ -102,7 +102,7 @@ export default function HelpAssistant() {
     setLoading(true);
     try {
       const res = await askAssistant(q, history, location.pathname);
-      if (sessionAtSend !== sessionRef.current) return; // the chat was reset meanwhile
+      if (sessionAtSend !== sessionRef.current) return; // el chat se reinicio mientras tanto
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', text: res.data.answer },
@@ -145,6 +145,7 @@ export default function HelpAssistant() {
             onClick={() => setOpen(true)}
             sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1300 }}
             aria-label="Abrir asistente virtual"
+            data-tour="assistant"
           >
             <SmartToyIcon />
           </Fab>

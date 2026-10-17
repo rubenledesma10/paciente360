@@ -219,8 +219,11 @@ export default function SacarTurnoPage() {
       {/* 1. Especialidad */}
       <Card sx={{ p: 2.5, mb: 2 }}>
         <StepTitle number={1}>Especialidad</StepTitle>
-        {/* Con 109 especialidades nadie sabe cual elegir: el asistente orienta */}
-        <SpecialtySuggester onSelect={(id) => handleSpecialtyChange(id)} />
+        {/* Con 109 especialidades nadie sabe cual elegir: el asistente orienta.
+            El envoltorio es el anclaje del tutorial. */}
+        <Box data-tour="specialty-help">
+          <SpecialtySuggester onSelect={(id) => handleSpecialtyChange(id)} />
+        </Box>
         <TextField
           select
           fullWidth

@@ -17,7 +17,9 @@ import {
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { askAssistant } from '../api/ai';
+import { useModeration, BLOCK_MINUTES } from '../hooks/useModeration';
 
 // Sugerencias de arranque, para que el panel vacio no intimide
 const SUGERENCIAS = [
@@ -25,6 +27,14 @@ const SUGERENCIAS = [
   '¿Cómo cancelo un turno?',
   '¿Cómo cambio mi contraseña?',
 ];
+
+function buildWarning(strikesLeft) {
+  const repeticion =
+    strikesLeft === 1
+      ? 'Si se repite una vez más'
+      : `Si se repite ${strikesLeft} veces más`;
+  return `Ese mensaje tiene lenguaje ofensivo y no se envió. ${repeticion}, el asistente se va a bloquear por ${BLOCK_MINUTES} minutos.`;
+}
 
 function TextoFormateado({ text }) {
   return (
@@ -59,36 +69,71 @@ export default function HelpAssistant() {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
+  const { blocked, blockedUntil, check } = useModeration();
   const endRef = useRef(null);
+  // Se incrementa en cada reinicio: permite descartar respuestas que llegan
+  // de una conversacion anterior.
+  const sessionRef = useRef(0);
 
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading, open]);
+  }, [messages, loading, open, warning, blocked]);
 
   if (isAuthenticated) return null;
 
   const send = async (text) => {
     const q = (text ?? question).trim();
-    if (!q || loading) return;
+    if (!q || loading || blocked) return;
+
+    // Offensive messages never reach the model
+    const verdict = check(q);
+    if (!verdict.ok) {
+      setWarning(verdict.blocked ? '' : buildWarning(verdict.strikesLeft));
+      return;
+    }
+
+    setWarning('');
     setError('');
     setQuestion('');
     const history = messages;
+    const sessionAtSend = sessionRef.current;
     setMessages((prev) => [...prev, { role: 'user', text: q }]);
     setLoading(true);
     try {
       const res = await askAssistant(q, history, location.pathname);
+      if (sessionAtSend !== sessionRef.current) return; // the chat was reset meanwhile
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', text: res.data.answer },
       ]);
     } catch (err) {
+      if (sessionAtSend !== sessionRef.current) return;
       setError(
         err.response?.data?.msg || 'No se pudo responder. Probá de nuevo.',
       );
     } finally {
-      setLoading(false);
+      if (sessionAtSend === sessionRef.current) setLoading(false);
     }
   };
+
+  const resetChat = () => {
+    sessionRef.current += 1;
+    setMessages([]);
+    setQuestion('');
+    setError('');
+    setWarning('');
+    setLoading(false);
+  };
+
+  const horaDesbloqueo = blocked
+    ? new Date(blockedUntil).toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '';
+
+  const puedeReiniciar = messages.length > 0 || Boolean(error);
 
   return (
     <>
@@ -145,13 +190,35 @@ export default function HelpAssistant() {
                 Te ayudo a usar Paciente360
               </Typography>
             </Box>
-            <IconButton
-              size="small"
-              onClick={() => setOpen(false)}
-              sx={{ color: '#fff' }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
+
+            {/* El span permite mostrar el tooltip aunque el boton este deshabilitado */}
+            <Tooltip title="Nueva conversación">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={resetChat}
+                  disabled={!puedeReiniciar}
+                  sx={{
+                    color: '#fff',
+                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.4)' },
+                  }}
+                  aria-label="Reiniciar conversación"
+                >
+                  <RestartAltIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            <Tooltip title="Cerrar">
+              <IconButton
+                size="small"
+                onClick={() => setOpen(false)}
+                sx={{ color: '#fff' }}
+                aria-label="Cerrar asistente virtual"
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Box>
 
           {/* Mensajes */}
@@ -171,6 +238,7 @@ export default function HelpAssistant() {
                       size="small"
                       variant="outlined"
                       onClick={() => send(s)}
+                      disabled={blocked}
                       sx={{
                         justifyContent: 'flex-start',
                         textTransform: 'none',
@@ -239,43 +307,61 @@ export default function HelpAssistant() {
                 {error}
               </Alert>
             )}
+            {warning && !blocked && (
+              <Alert
+                severity="error"
+                sx={{ mt: 1 }}
+                onClose={() => setWarning('')}
+              >
+                {warning}
+              </Alert>
+            )}
             <div ref={endRef} />
           </Box>
 
-          {/* Entrada */}
-          <Box
-            sx={{
-              p: 1.5,
-              borderTop: '1px solid #e2e8f0',
-              display: 'flex',
-              gap: 1,
-            }}
-          >
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Escribí tu pregunta"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
-                }
+          {/* Entrada (o aviso de bloqueo) */}
+          {blocked ? (
+            <Box sx={{ p: 1.5, borderTop: '1px solid #e2e8f0' }}>
+              <Alert severity="error">
+                El asistente quedó bloqueado por uso de lenguaje ofensivo. Vas a
+                poder usarlo de nuevo a las {horaDesbloqueo}.
+              </Alert>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                p: 1.5,
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                gap: 1,
               }}
-              slotProps={{ htmlInput: { maxLength: 400 } }}
-              disabled={loading}
-              autoFocus
-            />
-            <Button
-              variant="contained"
-              onClick={() => send()}
-              disabled={loading || !question.trim()}
-              sx={{ minWidth: 40, px: 1.5 }}
             >
-              <SendIcon fontSize="small" />
-            </Button>
-          </Box>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Escribí tu pregunta"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                slotProps={{ htmlInput: { maxLength: 400 } }}
+                disabled={loading}
+                autoFocus
+              />
+              <Button
+                variant="contained"
+                onClick={() => send()}
+                disabled={loading || !question.trim()}
+                sx={{ minWidth: 40, px: 1.5 }}
+              >
+                <SendIcon fontSize="small" />
+              </Button>
+            </Box>
+          )}
 
           <Typography
             variant="caption"

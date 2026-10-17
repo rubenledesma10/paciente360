@@ -1,8 +1,8 @@
-// Synthesized soundtrack for the intro. There are no audio files: every sound
-// is generated with the Web Audio API, so there is nothing to download and no
-// licensing to worry about.
-// It must be created inside a user gesture (a click): browsers block audio
-// until the user interacts with the page.
+// Banda sonora sintetizada de la intro. No hay archivos de audio: cada sonido
+// se genera con la Web Audio API, asi que no hay nada que descargar ni
+// licencias de las que preocuparse.
+// Se tiene que crear dentro de una accion del usuario (un clic): los
+// navegadores bloquean el audio hasta que el usuario interactua con la pagina.
 
 const MASTER_LEVEL = 0.85;
 
@@ -47,7 +47,7 @@ export function createIntroAudio() {
   reverb.connect(reverbOut);
   reverbOut.connect(master);
 
-  // Every sound goes dry to the master and partly to the reverb
+  // Cada sonido va directo a la salida y una parte a la reverberacion
   const connectOut = (node, wet = 0.5) => {
     node.connect(master);
     if (wet > 0) {
@@ -89,7 +89,7 @@ export function createIntroAudio() {
     osc.stop(start + attack + decay + 0.05);
   }
 
-  // Bell-like note: a fundamental plus two quieter, shorter harmonics
+  // Nota tipo campana: la fundamental mas dos armonicos mas suaves y cortos
   function bell(freq, start, level, decay = 2.4, attack = 0.004) {
     tone({ freq, start, attack, decay, level });
     tone({
@@ -109,7 +109,7 @@ export function createIntroAudio() {
   }
 
   return {
-    // Low ambient drone that stays under the whole intro
+    // Colchon grave de ambiente que acompaña toda la intro
     startPad() {
       const now = ctx.currentTime;
       const filter = ctx.createBiquadFilter();
@@ -143,7 +143,7 @@ export function createIntroAudio() {
       pad = { filter, gain, oscs, lfo };
     },
 
-    // "Lub-dub" plus a soft heart-monitor beep
+    // Latido "lub-dub" mas un pitido suave de monitor cardiaco
     heartbeat() {
       const t = ctx.currentTime;
       tone({
@@ -174,7 +174,7 @@ export function createIntroAudio() {
       });
     },
 
-    // One rising note per quadrant of the ring (A major arpeggio)
+    // Una nota ascendente por cada cuarto del anillo (arpegio de La mayor)
     chime(step) {
       const notes = [440, 554.37, 659.25, 880];
       const freq = notes[step % notes.length];
@@ -190,7 +190,7 @@ export function createIntroAudio() {
       });
     },
 
-    // Whoosh + full chord when the logo appears
+    // Barrido de aire y acorde completo cuando aparece el logo
     finale() {
       const t = ctx.currentTime;
 

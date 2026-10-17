@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { containsProfanity } from '../utils/profanity';
 
-// Shared by every AI assistant: offensive messages in one count for all.
+// Compartido por todos los asistentes de IA: lo ofensivo en uno cuenta para todos.
 export const MAX_STRIKES = 3;
 export const BLOCK_MINUTES = 30;
 
@@ -31,13 +31,13 @@ function setState(next) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch {
-    // Storage unavailable: the block still works for this session.
+    // Sin almacenamiento disponible: el bloqueo igual funciona en esta sesion.
   }
   scheduleUnblock();
   listeners.forEach((listener) => listener());
 }
 
-// Lifts the block automatically when its time is up.
+// Levanta el bloqueo solo cuando se cumple el tiempo.
 function scheduleUnblock() {
   clearTimeout(unblockTimer);
   if (!state.blockedUntil) return;
@@ -49,7 +49,7 @@ function scheduleUnblock() {
   unblockTimer = setTimeout(() => setState(EMPTY), remaining);
 }
 
-// Handles a block saved in a previous visit (still active or already expired).
+// Contempla un bloqueo guardado en una visita anterior (vigente o ya vencido).
 scheduleUnblock();
 
 function subscribe(listener) {
@@ -68,8 +68,8 @@ export function useModeration() {
   );
   const blocked = blockedUntil > 0;
 
-  // Returns { ok: true } when the text can be sent. Otherwise registers the
-  // strike and reports whether the assistant just got blocked.
+  // Devuelve { ok: true } si el texto se puede enviar. Si no, suma la
+  // advertencia e informa si el asistente acaba de quedar bloqueado.
   const check = (text) => {
     if (blocked) return { ok: false, blocked: true, strikesLeft: 0 };
     if (!containsProfanity(text)) return { ok: true };

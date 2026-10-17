@@ -1,6 +1,6 @@
-// Basic offensive-language filter for the AI assistants.
-// It is not exhaustive: it catches the common cases so they never reach the
-// model. The backend must apply the same check; this is only the first line.
+// Filtro basico de lenguaje ofensivo para los asistentes de IA.
+// No es exhaustivo: frena los casos comunes para que nunca lleguen al modelo.
+// El backend tiene que aplicar el mismo control; esto es solo la primera barrera.
 
 const LEET_MAP = {
   0: 'o',
@@ -13,8 +13,8 @@ const LEET_MAP = {
   $: 's',
 };
 
-// Insults and profanity. Crude anatomical words are left out on purpose:
-// in a health app some people describe their symptoms that way.
+// Insultos y malas palabras. Las palabras anatomicas groseras quedan afuera a
+// proposito: en una app de salud hay gente que describe asi sus sintomas.
 const BLOCKED_PATTERNS = [
   /^p[uv]t[oa]s?$/,
   /^p[uv]tit[oa]s?$/,
@@ -42,8 +42,8 @@ const BLOCKED_PATTERNS = [
   /^ctm$/,
 ];
 
-// Lowercase, strip accents, undo common letter swaps (pvt0, 1diota) and
-// collapse stretched letters (puuuuto -> puto).
+// Pasa a minusculas, saca tildes, deshace reemplazos de letras comunes
+// (pvt0, 1diota) y junta letras estiradas (puuuuto -> puto).
 export function normalizeText(text) {
   return text
     .toLowerCase()
@@ -54,7 +54,7 @@ export function normalizeText(text) {
     .replace(/([a-z])\1{2,}/g, '$1');
 }
 
-// Whole-word matching, so "computadora" never matches "puta".
+// Compara palabras completas, asi "computadora" nunca coincide con "puta".
 export function containsProfanity(text) {
   if (!text) return false;
   return normalizeText(text)

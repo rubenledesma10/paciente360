@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, useWatch, Controller } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import dayjs from 'dayjs'
@@ -43,6 +43,7 @@ import {
 import { formatDateTime } from '../../utils/dateFormat'
 import { getPatientAge, getPatientDni } from '../../utils/patientDisplay'
 import { paletteRaw } from '../../theme/theme'
+import { TRIAGE_LEVELS, getTriageLevel } from '../../utils/triage'
 
 const EDIT_WINDOW_MINUTES = 5
 
@@ -57,6 +58,7 @@ const schema = yup.object({
   symptoms: yup.string().required('Describí los síntomas'),
   observations: yup.string().nullable(),
   record_type: yup.string().required(),
+  triage_level: yup.string().nullable(),
 })
 
 const obsSchema = yup.object({
@@ -89,11 +91,13 @@ export default function SignosPage() {
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: { record_type: 'Rutina' },
+    defaultValues: { record_type: 'Rutina', triage_level: '' },
   })
+  const isUrgencia = useWatch({ control, name: 'record_type' }) === 'Urgencia'
 
   const obsForm = useForm({ resolver: yupResolver(obsSchema) })
 
@@ -211,6 +215,7 @@ export default function SignosPage() {
       symptoms: '',
       observations: '',
       record_type: 'Rutina',
+      triage_level: '',
     })
     try {
       const res = await getPatientsByStatus()
@@ -234,6 +239,7 @@ export default function SignosPage() {
       symptoms: row.symptoms || '',
       observations: restricted ? '' : row.observations || '',
       record_type: row.record_type,
+      triage_level: row.triage_level || '',
     })
     if (restricted) {
       obsForm.reset({ observations: '' })
@@ -256,6 +262,7 @@ export default function SignosPage() {
 
   const onSubmit = async (values) => {
     setFormError('')
+    const triageValue = values.record_type === 'Urgencia' && values.triage_level ? values.triage_level : null
     try {
       if (editingRow) {
         await updateSignsAndSymptoms(editingRow.id_signs_and_symptoms, {
@@ -265,9 +272,10 @@ export default function SignosPage() {
           symptoms: values.symptoms,
           observations: values.observations,
           record_type: values.record_type,
+          triage_level: triageValue,
         })
       } else {
-        await createSignsAndSymptoms(values)
+        await createSignsAndSymptoms({ ...values, triage_level: triageValue })
       }
       setOpen(false)
       loadAll()
@@ -342,6 +350,7 @@ export default function SignosPage() {
               <TableCell>Síntomas</TableCell>
               <TableCell>Signos</TableCell>
               <TableCell>Tipo</TableCell>
+              <TableCell>Triage</TableCell>
               <TableCell>Fecha/Hora</TableCell>
               <TableCell align="right">Acciones</TableCell>
             </TableRow>
@@ -379,6 +388,21 @@ export default function SignosPage() {
                       label={r.record_type}
                       color={r.record_type === 'Urgencia' ? 'error' : 'primary'}
                     />
+                  </TableCell>
+                  <TableCell>
+                    {getTriageLevel(r.triage_level) ? (
+                      <Chip
+                        size="small"
+                        label={r.triage_level}
+                        sx={{
+                          bgcolor: getTriageLevel(r.triage_level).color,
+                          color: getTriageLevel(r.triage_level).textColor,
+                          fontWeight: 600,
+                        }}
+                      />
+                    ) : (
+                      '—'
+                    )}
                   </TableCell>
                   <TableCell sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}>
                     {formatDateTime(r.date_and_time)}
@@ -426,7 +450,7 @@ export default function SignosPage() {
             })}
             {!loading && visibleRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} align="center" sx={{ color: paletteRaw.gray }}>
+                <TableCell colSpan={11} align="center" sx={{ color: paletteRaw.gray }}>
                   No hay registros para el día seleccionado.
                 </TableCell>
               </TableRow>
@@ -528,9 +552,51 @@ export default function SignosPage() {
               name="record_type"
               control={control}
               render={({ field }) => (
-                <TextField {...field} select label="Tipo" disabled={observationOnlyMode}>
+                <TextField
+                  {...field}
+                  select
+                  label="Tipo"
+                  disabled={observationOnlyMode}
+                  onChange={(e) => {
+                    field.onChange(e)
+                    if (e.target.value !== 'Urgencia') setValue('triage_level', '')
+                  }}
+                >
                   <MenuItem value="Rutina">Rutina</MenuItem>
                   <MenuItem value="Urgencia">Urgencia</MenuItem>
+                </TextField>
+              )}
+            />
+            <Controller
+              name="triage_level"
+              control={control}
+              defaultValue=""
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  value={field.value ?? ''}
+                  select
+                  label="Triage (Manchester)"
+                  disabled={observationOnlyMode || !isUrgencia}
+                  helperText={!isUrgencia ? 'Disponible solo para registros de tipo Urgencia' : ''}
+                >
+                  <MenuItem value="">Sin triage</MenuItem>
+                  {TRIAGE_LEVELS.map((t) => (
+                    <MenuItem key={t.value} value={t.value}>
+                      <Box
+                        component="span"
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          bgcolor: t.color,
+                          display: 'inline-block',
+                          mr: 1,
+                        }}
+                      />
+                      {t.value} — {t.description}
+                    </MenuItem>
+                  ))}
                 </TextField>
               )}
             />

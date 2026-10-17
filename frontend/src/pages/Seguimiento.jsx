@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import dayjs from 'dayjs';
 import { getPatients } from '../api/patients';
 import { getAttendedPatients } from '../api/appointments';
 import {
@@ -30,6 +31,13 @@ import {
 import { useAuth } from '../context/useAuth';
 import MedicalHistoryDialog from '../components/MedicalHistoryDialog';
 import { getPatientAge, getPatientDni } from '../utils/patientDisplay';
+
+// Minúsculas y sin tildes, para que la búsqueda no distinga "Gómez" de "gomez"
+const normalizeText = (s) =>
+  String(s ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
 
 // Fecha de hoy en formato YYYY-MM-DD (para validar el mínimo del formulario)
 const today = new Date().toISOString().split('T')[0];
@@ -58,7 +66,6 @@ const STATUS_LABELS = {
 
 // Filtros: cada uno con su clave interna y su etiqueta visible
 const FILTERS = [
-  { key: 'activos', label: 'Activos' },
   { key: 'active', label: 'Hoy' },
   { key: 'pending', label: 'Pendientes' },
   { key: 'scheduled', label: 'Programados' },
@@ -79,7 +86,10 @@ export default function Seguimiento() {
   const [loadError, setLoadError] = useState('');
   const [open, setOpen] = useState(false);
   const [formError, setFormError] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('activos');
+  const [selectedFilter, setSelectedFilter] = useState('active');
+  // Filtros extra: fecha de registro (YYYY-MM-DD) y búsqueda por nombre/DNI
+  const [selectedDate, setSelectedDate] = useState('');
+  const [search, setSearch] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyPatient, setHistoryPatient] = useState({
     id: null,
@@ -223,14 +233,39 @@ export default function Seguimiento() {
     }
   };
 
+  const showDateFilter = selectedFilter === 'finished' || selectedFilter === 'todos';
+  const hasExtraFilter =
+    (showDateFilter && !!selectedDate) || (selectedFilter === 'todos' && !!search.trim());
+
+  const changeFilter = (key) => {
+    setSelectedFilter(key);
+    setSelectedDate('');
+    setSearch('');
+  };
+
   // Filtra: solo MIS seguimientos, y después según el filtro seleccionado
   const filteredRows = rows.filter((fu) => {
     if (fu.id_nurse !== userId) return false; // solo los que atiendo yo
-    if (selectedFilter === 'todos') return true;
-    if (selectedFilter === 'activos') {
-      return fu.status !== 'finished';
+    if (selectedFilter !== 'todos' && fu.status !== selectedFilter) return false;
+
+    // La fecha aplica solo en Finalizados y Todos
+    if (showDateFilter && selectedDate) {
+      if (!fu.date_time || dayjs(fu.date_time).format('YYYY-MM-DD') !== selectedDate) {
+        return false;
+      }
     }
-    return fu.status === selectedFilter;
+
+    // El buscador aplica solo en Todos
+    if (selectedFilter === 'todos' && search.trim()) {
+      const patient = patients.find((p) => p.id_user === fu.id_patient);
+      const name = fu.patient_name || patientName(fu.id_patient);
+      const dni = patient ? String(getPatientDni(patient) ?? '') : '';
+      const term = normalizeText(search.trim());
+      if (!normalizeText(name).includes(term) && !normalizeText(dni).includes(term)) {
+        return false;
+      }
+    }
+    return true;
   });
 
   // Cuenta mis pendientes (vencidos) para la alerta
@@ -291,13 +326,49 @@ export default function Seguimiento() {
           <Chip
             key={f.key}
             label={f.label}
-            onClick={() => setSelectedFilter(f.key)}
+            onClick={() => changeFilter(f.key)}
             color={selectedFilter === f.key ? 'primary' : 'default'}
             variant={selectedFilter === f.key ? 'filled' : 'outlined'}
             sx={{ fontWeight: 600 }}
           />
         ))}
       </Box>
+
+      {/* Buscador y calendario: Finalizados (fecha) y Todos (nombre/DNI + fecha) */}
+      {showDateFilter && (
+        <Box
+          sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}
+        >
+          {selectedFilter === 'todos' && (
+            <TextField
+              size="small"
+              label="Buscar por nombre o DNI"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              sx={{ minWidth: 260 }}
+            />
+          )}
+          <TextField
+            size="small"
+            type="date"
+            label="Fecha"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+          {hasExtraFilter && (
+            <Button
+              size="small"
+              onClick={() => {
+                setSelectedDate('');
+                setSearch('');
+              }}
+            >
+              Limpiar
+            </Button>
+          )}
+        </Box>
+      )}
 
       {/* Lista de seguimientos */}
       <Grid container spacing={2}>
@@ -421,7 +492,9 @@ export default function Seguimiento() {
         {filteredRows.length === 0 && (
           <Grid size={{ xs: 12 }}>
             <Typography color="#5b7387">
-              No hay seguimientos en esta categoría.
+              {hasExtraFilter
+                ? 'No hay seguimientos para ese filtro.'
+                : 'No hay seguimientos en esta categoría.'}
             </Typography>
           </Grid>
         )}

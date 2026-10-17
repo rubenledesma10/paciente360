@@ -274,7 +274,7 @@ def seed():
         signo2 = SignsAndSymptoms(
             id_patient=paciente2.id_user, id_nurse=enfermero2.id_user,
             temperature=38.6, blood_pressure="130/85", observations="Se administra antitérmico, queda en observación",
-            signs="Fiebre", symptoms="Malestar general, escalofríos", record_type="Urgencia",
+            signs="Fiebre", symptoms="Malestar general, escalofríos", record_type="Urgencia", triage_level="Amarillo",
         )
 
         seguimiento_programado = PatientFollowUp(

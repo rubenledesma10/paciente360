@@ -27,7 +27,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import HistoryIcon from '@mui/icons-material/History'
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -268,6 +268,7 @@ export default function IndicacionesPage() {
               <TableCell>Indicación</TableCell>
               <TableCell>Tratamiento</TableCell>
               <TableCell>Fecha</TableCell>
+              <TableCell align="center">Historial</TableCell>
               <TableCell align="center">PDF</TableCell>
               <TableCell align="right">Acciones</TableCell>
             </TableRow>
@@ -289,9 +290,11 @@ export default function IndicacionesPage() {
                   <TableCell align="center">
                     <Tooltip title="Ver historial del paciente">
                       <IconButton size="small" onClick={() => setHistoryTarget(patient)}>
-                        <HistoryIcon fontSize="small" sx={{ color: paletteRaw.azul }} />
+                        <HourglassEmptyIcon fontSize="small" sx={{ color: paletteRaw.azul }} />
                       </IconButton>
                     </Tooltip>
+                  </TableCell>
+                  <TableCell align="center">
                     <Tooltip title="Descargar PDF">
                       <IconButton size="small" onClick={() => downloadIndicationPdf(r)}>
                         <PictureAsPdfIcon fontSize="small" sx={{ color: paletteRaw.azul }} />
@@ -325,7 +328,7 @@ export default function IndicacionesPage() {
             })}
             {!loading && sortedRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ color: paletteRaw.gray }}>
+                <TableCell colSpan={9} align="center" sx={{ color: paletteRaw.gray }}>
                   Todavía no hay indicaciones registradas.
                 </TableCell>
               </TableRow>

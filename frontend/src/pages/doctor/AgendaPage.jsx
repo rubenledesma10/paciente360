@@ -30,6 +30,7 @@ import { useAuth } from '../../context/useAuth';
 import { getPatientSummary } from '../../api/ai';
 import { getSignsAndSymptomsByPatient } from '../../api/signsAndSymptoms';
 import { DISEASE_TYPES, DISEASE_TYPE_OTHER } from '../../utils/diseaseTypes';
+import { getTriageLevel } from '../../utils/triage';
 
 // El resumen viene con titulos de seccion en su propia linea y viñetas.
 // Se renderiza sin libreria de markdown.
@@ -560,6 +561,19 @@ export default function AgendaPage() {
                           }
                           sx={{ height: 18, fontSize: '0.7rem' }}
                         />
+                        {getTriageLevel(record.triage_level) && (
+                          <Chip
+                            size="small"
+                            label={`Triage ${record.triage_level}`}
+                            sx={{
+                              height: 18,
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              bgcolor: getTriageLevel(record.triage_level).color,
+                              color: getTriageLevel(record.triage_level).textColor,
+                            }}
+                          />
+                        )}
                       </Box>
                       <Typography
                         variant="caption"

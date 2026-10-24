@@ -13,6 +13,7 @@ class SignsAndSymptoms(db.Model):
     signs = db.Column(db.String(255), nullable=False)
     symptoms = db.Column(db.String(255), nullable=False)
     record_type = db.Column(db.String(50), nullable=False)
+    triage_level = db.Column(db.String(20), nullable=True)
 
     nurse = db.relationship('Nurse', back_populates='signs_and_symptoms')
     patient = db.relationship('Patient', back_populates='signs_and_symptoms')
@@ -29,6 +30,7 @@ class SignsAndSymptoms(db.Model):
             'signs': self.signs,
             'symptoms': self.symptoms,
             'record_type': self.record_type,
+            'triage_level': self.triage_level,
             'nurse_name': f"{self.nurse.first_name} {self.nurse.last_name}" if self.nurse else None
         }
 

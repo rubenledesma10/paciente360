@@ -12,6 +12,14 @@ from datetime import datetime, timedelta, date
 
 signs_and_symptoms_bp = Blueprint('signs_and_symptoms', __name__, url_prefix='/api/signs_and_symptoms')
 
+TRIAGE_LEVELS = ['Rojo', 'Naranja', 'Amarillo', 'Verde', 'Azul'] #escala Manchester
+
+def normalize_triage(value):
+    # devuelve (valor_normalizado, es_valido); vacio equivale a sin triage
+    if value in (None, ''):
+        return None, True
+    return value, value in TRIAGE_LEVELS
+
 @signs_and_symptoms_bp.route('/', methods=['POST'])
 @role_required(RoleEnum.NURSE)
 def create_signs_and_symptoms():
@@ -26,8 +34,12 @@ def create_signs_and_symptoms():
     if not Patient.query.get(data['id_patient']):
         return jsonify({"error":"Patient not found"}),404
     
+    triage_level, triage_ok = normalize_triage(data.get('triage_level'))
+    if not triage_ok:
+        return jsonify({"error": f"Invalid triage_level. Allowed: {', '.join(TRIAGE_LEVELS)}"}),400
+
     id_nurse_login=int(get_jwt_identity())
-    
+
     try:
         new_signs_and_symptoms = SignsAndSymptoms(
             id_patient=data['id_patient'],
@@ -37,7 +49,8 @@ def create_signs_and_symptoms():
             observations=data.get('observations'),
             signs=data.get('signs'),
             symptoms=data.get('symptoms'),
-            record_type=data.get('record_type')
+            record_type=data.get('record_type'),
+            triage_level=triage_level
         )
 
         db.session.add(new_signs_and_symptoms)
@@ -119,7 +132,7 @@ def update_signs_and_symptoms(id_signs_and_symptoms):
     time_limit = signs_and_symptoms.date_and_time + timedelta(minutes=5)
     is_past_time_limit = now > time_limit
     
-    restricted_fields = ['temperature', 'blood_pressure', 'signs', 'symptoms', 'record_type'] #validar que campos intentan editar si ya pasaron los 5 minutos
+    restricted_fields = ['temperature', 'blood_pressure', 'signs', 'symptoms', 'record_type', 'triage_level'] #validar que campos intentan editar si ya pasaron los 5 minutos
     
     
     attempting_restricted_edit = any(field in data for field in restricted_fields) #verificamos si en el JSON mandaron alguno de los campos clinicos bloqueados
@@ -128,6 +141,10 @@ def update_signs_and_symptoms(id_signs_and_symptoms):
         return jsonify({
             'error': 'Update window has expired. After 5 minutes, you can only append new observations.'
         }), 403
+
+    triage_level, triage_ok = normalize_triage(data.get('triage_level'))
+    if not triage_ok:
+        return jsonify({"error": f"Invalid triage_level. Allowed: {', '.join(TRIAGE_LEVELS)}"}), 400
 
     try:
         if not is_past_time_limit: #actualizar campos si aun no han pasado los 5 minutos
@@ -141,6 +158,8 @@ def update_signs_and_symptoms(id_signs_and_symptoms):
                 signs_and_symptoms.symptoms = data['symptoms']
             if 'record_type' in data:
                 signs_and_symptoms.record_type = data['record_type']
+            if 'triage_level' in data:
+                signs_and_symptoms.triage_level = triage_level
 
         new_observation = data.get('observations')
         

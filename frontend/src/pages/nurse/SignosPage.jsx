@@ -25,18 +25,6 @@ import {
   TextField,
   Tooltip,
   Typography,
-<<<<<<< HEAD
-} from '@mui/material'
-import { DatePicker } from '@mui/x-date-pickers/DatePicker'
-import AddIcon from '@mui/icons-material/Add'
-import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
-import { getPatients, updatePatientAllergies } from '../../api/patients'
-import { getPatientsByStatus } from '../../api/appointments'
-import MedicalHistoryDialog from '../../components/MedicalHistoryDialog'
-=======
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import AddIcon from '@mui/icons-material/Add';
@@ -47,7 +35,6 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { getPatients, updatePatientAllergies } from '../../api/patients';
 import { getPatientsByStatus } from '../../api/appointments';
 import MedicalHistoryDialog from '../../components/MedicalHistoryDialog';
->>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
 import {
   getSignsAndSymptoms,
   createSignsAndSymptoms,
@@ -80,28 +67,6 @@ const obsSchema = yup.object({
 });
 
 export default function SignosPage() {
-<<<<<<< HEAD
-  const [rows, setRows] = useState([])
-  const [patients, setPatients] = useState([])
-  const [availablePatients, setAvailablePatients] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState('')
-  const [open, setOpen] = useState(false)
-  const [formError, setFormError] = useState('')
-  const [editingRow, setEditingRow] = useState(null)
-  const [observationOnlyMode, setObservationOnlyMode] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const [historyPatient, setHistoryPatient] = useState({ id: null, name: '', dni: null, age: null })
-  const [deleteError, setDeleteError] = useState('')
-  const [deleting, setDeleting] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(dayjs())
-  const [dateOrder, setDateOrder] = useState('desc')
-  const [allergyTarget, setAllergyTarget] = useState(null)
-  const [allergyValue, setAllergyValue] = useState('')
-  const [allergyError, setAllergyError] = useState('')
-  const [allergySaving, setAllergySaving] = useState(false)
-=======
   const [rows, setRows] = useState([]);
   const [patients, setPatients] = useState([]);
   const [availablePatients, setAvailablePatients] = useState([]);
@@ -126,7 +91,6 @@ export default function SignosPage() {
   const [allergyValue, setAllergyValue] = useState('');
   const [allergyError, setAllergyError] = useState('');
   const [allergySaving, setAllergySaving] = useState(false);
->>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
 
   const {
     register,
@@ -199,18 +163,9 @@ export default function SignosPage() {
         label: `${p.first_name} ${p.last_name} — DNI ${getPatientDni(p)}`,
       }));
 
-<<<<<<< HEAD
-  const visibleRows = rows
-    .filter((r) => !selectedDate || dayjs(r.date_and_time).isSame(selectedDate, 'day'))
-    .sort((a, b) => {
-      const diff = dayjs(a.date_and_time).valueOf() - dayjs(b.date_and_time).valueOf()
-      return dateOrder === 'asc' ? diff : -diff
-    })
-=======
   const visibleRows = rows.filter(
     (r) => !selectedDate || dayjs(r.date_and_time).isSame(selectedDate, 'day'),
   );
->>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
 
   const loadAll = async () => {
     setLoading(true);
@@ -432,7 +387,9 @@ export default function SignosPage() {
                 <TableSortLabel
                   active
                   direction={dateOrder}
-                  onClick={() => setDateOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                  onClick={() =>
+                    setDateOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+                  }
                 >
                   Fecha/Hora
                 </TableSortLabel>
@@ -463,12 +420,6 @@ export default function SignosPage() {
                       </Tooltip>
                     )}
                   </TableCell>
-<<<<<<< HEAD
-                  <TableCell align="center">{getPatientDni(patient)}</TableCell>
-                  <TableCell align="center">{getPatientAge(patient?.date_of_birth) ?? '—'}</TableCell>
-                  <TableCell align="center"
-                    sx={{ color: r.temperature >= 38 ? paletteRaw.danger : 'inherit', fontWeight: r.temperature >= 38 ? 700 : 400 }}
-=======
                   <TableCell>{getPatientDni(patient)}</TableCell>
                   <TableCell>
                     {getPatientAge(patient?.date_of_birth) ?? '—'}
@@ -479,11 +430,12 @@ export default function SignosPage() {
                         r.temperature >= 38 ? paletteRaw.danger : 'inherit',
                       fontWeight: r.temperature >= 38 ? 700 : 400,
                     }}
->>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
                   >
                     {r.temperature}°C
                   </TableCell>
-                  <TableCell align="center">{r.blood_pressure || '—'}</TableCell>
+                  <TableCell align="center">
+                    {r.blood_pressure || '—'}
+                  </TableCell>
                   <TableCell align="center">{r.symptoms}</TableCell>
                   <TableCell align="center">{r.signs || '—'}</TableCell>
                   <TableCell align="center">
@@ -508,13 +460,9 @@ export default function SignosPage() {
                       '—'
                     )}
                   </TableCell>
-<<<<<<< HEAD
-                  <TableCell align="center" sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}>
-=======
                   <TableCell
                     sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}
                   >
->>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
                     {formatDateTime(r.date_and_time)}
                   </TableCell>
                   <TableCell align="center">
@@ -525,7 +473,10 @@ export default function SignosPage() {
                           openHistory(r.id_patient, patientName(r.id_patient))
                         }
                       >
-                        <HourglassEmptyIcon fontSize="small" sx={{ color: paletteRaw.azul }} />
+                        <HourglassEmptyIcon
+                          fontSize="small"
+                          sx={{ color: paletteRaw.azul }}
+                        />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
@@ -580,15 +531,11 @@ export default function SignosPage() {
             })}
             {!loading && visibleRows.length === 0 && (
               <TableRow>
-<<<<<<< HEAD
-                <TableCell colSpan={13} align="center" sx={{ color: paletteRaw.gray }}>
-=======
                 <TableCell
                   colSpan={11}
                   align="center"
                   sx={{ color: paletteRaw.gray }}
                 >
->>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
                   No hay registros para el día seleccionado.
                 </TableCell>
               </TableRow>

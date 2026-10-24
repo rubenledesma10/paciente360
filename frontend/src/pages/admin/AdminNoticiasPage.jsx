@@ -174,6 +174,7 @@ export default function AdminNoticiasPage() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={openCreate}
+          data-tour="admin-news-new"
         >
           Nueva noticia
         </Button>

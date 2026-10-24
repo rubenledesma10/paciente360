@@ -19,7 +19,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { askAssistant } from '../api/ai';
-import { useModeration, BLOCK_MINUTES } from '../hooks/useModeration';
+import {
+  useModeration,
+  syncBlockFromServer,
+  BLOCK_MINUTES,
+} from '../hooks/useModeration';
 
 // Sugerencias de arranque, para que el panel vacio no intimide
 const SUGERENCIAS = [
@@ -109,9 +113,19 @@ export default function HelpAssistant() {
       ]);
     } catch (err) {
       if (sessionAtSend !== sessionRef.current) return;
-      setError(
-        err.response?.data?.msg || 'No se pudo responder. Probá de nuevo.',
-      );
+      const data = err.response?.data;
+      // El backend tambien filtra: si rechazo el mensaje, se saca del chat
+      // porque nunca llego al modelo.
+      if (data?.code === 'ai_blocked' || data?.code === 'offensive_language') {
+        setMessages((prev) => prev.slice(0, -1));
+        if (data.code === 'ai_blocked') {
+          syncBlockFromServer(data.blocked_until);
+        } else {
+          setWarning(data.msg);
+        }
+        return;
+      }
+      setError(data?.msg || 'No se pudo responder. Probá de nuevo.');
     } finally {
       if (sessionAtSend === sessionRef.current) setLoading(false);
     }

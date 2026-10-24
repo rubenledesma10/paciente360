@@ -10,6 +10,7 @@ from models.medical_indication import MedicalIndication
 from models.specialty import Specialty
 from enums import RoleEnum, AppointmentStatusEnum
 from utils.role_required import role_required
+from utils.moderation import check_ai_request
 from utils.ai_service import (
     explicar_simple,
     conversar_sobre_noticia,
@@ -77,6 +78,12 @@ def chat_about_news(id_news_and_prevention):
         return jsonify({"msg": "Escribi tu pregunta."}), 400
     if not isinstance(historial, list):
         return jsonify({"msg": "El historial tiene un formato invalido."}), 400
+
+    # Lo ofensivo se corta aca: no llega al modelo ni gasta cuota
+    rechazo = check_ai_request(pregunta, historial)
+    if rechazo:
+        body, status = rechazo
+        return jsonify(body), status
 
     try:
         respuesta = conversar_sobre_noticia(news.title, news.content, pregunta, historial)
@@ -261,6 +268,12 @@ def app_assistant():
     if not isinstance(historial, list):
         return jsonify({"msg": "El historial tiene un formato invalido."}), 400
 
+    # Lo ofensivo se corta aca: no llega al modelo ni gasta cuota
+    rechazo = check_ai_request(pregunta, historial)
+    if rechazo:
+        body, status = rechazo
+        return jsonify(body), status
+
     # JWT opcional: si viene y es valido, sacamos el rol; si no, visitante.
     rol = None
     try:
@@ -298,6 +311,12 @@ def specialty_suggest():
     descripcion = (request.get_json().get('description') or '').strip()
     if not descripcion:
         return jsonify({"msg": "Contanos brevemente qué te pasa."}), 400
+
+    # Lo ofensivo se corta aca: no llega al modelo ni gasta cuota
+    rechazo = check_ai_request(descripcion)
+    if rechazo:
+        body, status = rechazo
+        return jsonify(body), status
 
     especialidades = [
         {"id": e.id_speciality, "name": e.name}

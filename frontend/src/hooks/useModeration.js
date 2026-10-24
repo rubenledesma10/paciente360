@@ -61,6 +61,15 @@ function getSnapshot() {
   return state;
 }
 
+// El backend tiene su propio contador (por si alguien borra localStorage o
+// llama a la API directo). Si responde que el cliente esta bloqueado, el front
+// se alinea con esa fecha para mostrar el aviso y deshabilitar el envio.
+export function syncBlockFromServer(blockedUntil) {
+  const until = Number(blockedUntil) || 0;
+  if (until <= Date.now()) return;
+  setState({ strikes: 0, blockedUntil: until });
+}
+
 export function useModeration() {
   const { strikes, blockedUntil } = useSyncExternalStore(
     subscribe,

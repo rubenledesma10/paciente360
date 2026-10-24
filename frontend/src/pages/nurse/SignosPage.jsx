@@ -30,7 +30,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import HistoryIcon from '@mui/icons-material/History';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { getPatients, updatePatientAllergies } from '../../api/patients';
 import { getPatientsByStatus } from '../../api/appointments';
@@ -87,6 +87,7 @@ export default function SignosPage() {
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [dateOrder, setDateOrder] = useState('desc');
   const [allergyTarget, setAllergyTarget] = useState(null);
   const [allergyValue, setAllergyValue] = useState('');
   const [allergyError, setAllergyError] = useState('');
@@ -163,9 +164,16 @@ export default function SignosPage() {
         label: `${p.first_name} ${p.last_name} — DNI ${getPatientDni(p)}`,
       }));
 
-  const visibleRows = rows.filter(
-    (r) => !selectedDate || dayjs(r.date_and_time).isSame(selectedDate, 'day'),
-  );
+  const visibleRows = rows
+    .filter(
+      (r) =>
+        !selectedDate || dayjs(r.date_and_time).isSame(selectedDate, 'day'),
+    )
+    .sort((a, b) => {
+      const diff =
+        dayjs(a.date_and_time).valueOf() - dayjs(b.date_and_time).valueOf();
+      return dateOrder === 'asc' ? diff : -diff;
+    });
 
   const loadAll = async () => {
     setLoading(true);
@@ -420,11 +428,12 @@ export default function SignosPage() {
                       </Tooltip>
                     )}
                   </TableCell>
-                  <TableCell>{getPatientDni(patient)}</TableCell>
-                  <TableCell>
+                  <TableCell align="center">{getPatientDni(patient)}</TableCell>
+                  <TableCell align="center">
                     {getPatientAge(patient?.date_of_birth) ?? '—'}
                   </TableCell>
                   <TableCell
+                    align="center"
                     sx={{
                       color:
                         r.temperature >= 38 ? paletteRaw.danger : 'inherit',
@@ -461,6 +470,7 @@ export default function SignosPage() {
                     )}
                   </TableCell>
                   <TableCell
+                    align="center"
                     sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}
                   >
                     {formatDateTime(r.date_and_time)}
@@ -532,7 +542,7 @@ export default function SignosPage() {
             {!loading && visibleRows.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={11}
+                  colSpan={13}
                   align="center"
                   sx={{ color: paletteRaw.gray }}
                 >

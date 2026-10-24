@@ -492,6 +492,7 @@ export default function StockPage() {
               color="warning"
               startIcon={<WarningAmberIcon />}
               onClick={() => setAlertsOpen(true)}
+              data-tour="stock-alerts"
             >
               Alertas
             </Button>
@@ -537,7 +538,12 @@ export default function StockPage() {
         </Alert>
       )}
 
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+      <Tabs
+        value={tab}
+        onChange={(_, v) => setTab(v)}
+        sx={{ mb: 2 }}
+        data-tour="stock-tabs"
+      >
         <Tab value="inv" label="Inventario" />
         <Tab value="mov" label="Movimientos" />
         <Tab value="trz" label="Trazabilidad" />

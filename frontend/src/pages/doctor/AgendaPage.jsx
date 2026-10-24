@@ -1,349 +1,329 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+import dayjs from 'dayjs';
 import {
   Alert,
-  Avatar,
+  Autocomplete,
   Box,
   Button,
   Card,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Grid,
+  IconButton,
   MenuItem,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
-import EditNoteIcon from '@mui/icons-material/EditNote';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import { searchPatients } from '../../api/patients';
+import { getMedicalHistory } from '../../api/medicalHistory';
 import {
-  getAppointments,
-  getAllowedTransitions,
-  updateAppointmentStatus,
-  updateAppointmentDiagnosis,
+  createMedicalIndication,
+  updateMedicalIndication,
+} from '../../api/medicalIndications';
+import {
+  getAppointmentsByPatient,
+  getPatientsByStatus,
 } from '../../api/appointments';
 import { useAuth } from '../../context/useAuth';
-import { getPatientSummary } from '../../api/ai';
-import { getSignsAndSymptomsByPatient } from '../../api/signsAndSymptoms';
-import { DISEASE_TYPES, DISEASE_TYPE_OTHER } from '../../utils/diseaseTypes';
-import { getTriageLevel } from '../../utils/triage';
+import { downloadMedicalHistoryPdf } from '../../utils/medicalHistoryPdf';
+import { formatDateTime } from '../../utils/dateFormat';
+import {
+  formatPatientLabel,
+  getPatientAge,
+  getPatientDni,
+} from '../../utils/patientDisplay';
+import { paletteRaw } from '../../theme/theme';
 
-// El resumen viene con titulos de seccion en su propia linea y viñetas.
-// Se renderiza sin libreria de markdown.
-const TITULOS_RESUMEN = [
-  'Paciente',
-  'Antecedentes en el sistema',
-  'Ultimos signos vitales',
-  'Últimos signos vitales',
-  'Seguimiento de enfermeria',
-  'Seguimiento de enfermería',
-  'Indicaciones registradas',
-  'Puntos a tener en cuenta',
+const EDIT_WINDOW_MINUTES = 5;
+
+const TIPO_COLOR = {
+  'Signos y Síntomas': 'warning',
+  Seguimiento: 'info',
+  'Indicación Médica': 'primary',
+};
+
+const MESES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
 ];
 
-function ResumenFormateado({ text }) {
+const schema = yup.object({
+  indication: yup.string().required('Ingresá la indicación'),
+  treatment: yup.string().nullable(),
+});
+
+function EventDetail({ evento }) {
+  const { detalle } = evento;
+  if (evento.tipo === 'Signos y Síntomas') {
+    return (
+      <Typography
+        variant="body2"
+        color={paletteRaw.ink}
+        sx={{ whiteSpace: 'pre-line' }}
+      >
+        Temp. {detalle.temperature}°C · Presión {detalle.blood_pressure || '—'}
+        {detalle.symptoms && <> · Síntomas: {detalle.symptoms}</>}
+        {detalle.observations && <> · {detalle.observations}</>}
+      </Typography>
+    );
+  }
+  if (evento.tipo === 'Seguimiento') {
+    return (
+      <Typography
+        variant="body2"
+        color={paletteRaw.ink}
+        sx={{ whiteSpace: 'pre-line' }}
+      >
+        {detalle.observations || 'Sin observaciones'}
+        {detalle.next_check_up && (
+          <> · Próximo control: {detalle.next_check_up}</>
+        )}
+      </Typography>
+    );
+  }
   return (
-    <Box>
-      {text.split('\n').map((linea, i) => {
-        const limpia = linea
-          .trim()
-          .replace(/^\*\*|\*\*$/g, '')
-          .replace(/^#+\s*/, '');
-        if (!limpia) return <Box key={i} sx={{ height: 6 }} />;
-        const esTitulo = TITULOS_RESUMEN.some(
-          (t) => limpia.toLowerCase().replace(':', '') === t.toLowerCase(),
-        );
-        const esItem = /^[-*•]\s+/.test(limpia);
-        if (esTitulo) {
-          return (
-            <Typography
-              key={i}
-              variant="subtitle2"
-              fontWeight={800}
-              color="#0E4C82"
-              sx={{ mt: 1.5, mb: 0.5 }}
-            >
-              {limpia.replace(':', '')}
-            </Typography>
-          );
-        }
-        return (
-          <Typography
-            key={i}
-            variant="body2"
-            color="#334155"
-            sx={{ lineHeight: 1.7, pl: esItem ? 2 : 0 }}
-          >
-            {esItem ? `• ${limpia.replace(/^[-*•]\s+/, '')}` : limpia}
-          </Typography>
-        );
-      })}
-    </Box>
+    <Typography variant="body2" color={paletteRaw.ink}>
+      {detalle.indication}
+      {detalle.treatment && <> · Tratamiento: {detalle.treatment}</>}
+    </Typography>
   );
 }
 
-const today = new Date().toISOString().split('T')[0];
-
-const statusColor = (status) => {
-  if (status === 'Reservado') return 'info';
-  if (status === 'En espera') return 'warning';
-  if (status === 'Atendido') return 'success';
-  if (status === 'Cancelado') return 'error';
-  return 'default';
-};
-
-const parseDate = (value) => {
-  if (!value) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [y, m, d] = value.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  }
-  return new Date(value);
-};
-
-const formatDate = (value) => {
-  const d = parseDate(value);
-  return d ? d.toLocaleDateString('es-AR') : '—';
-};
-
-const readError = (err, fallback) =>
-  err.response?.data?.msg || err.response?.data?.error || fallback;
-
-export default function AgendaPage() {
+export default function HistoriaClinicaPage() {
   const { userId } = useAuth();
-  const [rows, setRows] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedPatientObj, setSelectedPatientObj] = useState(null);
+  const [visitCount, setVisitCount] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [filterYear, setFilterYear] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterDay, setFilterDay] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
-  const [actionOk, setActionOk] = useState('');
+  const [open, setOpen] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [editingEvent, setEditingEvent] = useState(null);
 
-  // Resumen clínico previo a la consulta
-  const [summaryTarget, setSummaryTarget] = useState(null);
-  const [summary, setSummary] = useState('');
-  const [summaryMeta, setSummaryMeta] = useState(null);
-  const [loadingSummary, setLoadingSummary] = useState(false);
-  const [summaryError, setSummaryError] = useState('');
+  const selectedPatient = selectedPatientObj?.id_user || '';
 
-  // Diálogo de cierre de consulta / edición de diagnóstico
-  const [diagnosisTarget, setDiagnosisTarget] = useState(null);
-  // 'close' cierra la consulta (guarda y pasa a Atendido); 'edit' solo corrige
-  const [diagnosisMode, setDiagnosisMode] = useState('close');
-  const [diagnosisForm, setDiagnosisForm] = useState({
-    disease_type: '',
-    diagnosis: '',
-    disease_details: '',
-  });
-  const [diagnosisError, setDiagnosisError] = useState('');
-  const [savingDiagnosis, setSavingDiagnosis] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({ resolver: yupResolver(schema) });
 
-  const [statusTarget, setStatusTarget] = useState(null);
-  const [allowedStatuses, setAllowedStatuses] = useState([]);
-  const [newStatus, setNewStatus] = useState('');
-  const [statusError, setStatusError] = useState('');
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return undefined;
+    let ignore = false;
+    const timeoutId = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await searchPatients(trimmed);
+        if (!ignore) setSearchResults(res.data);
+      } catch {
+        if (!ignore) setLoadError('No se pudo buscar pacientes.');
+      } finally {
+        if (!ignore) setSearchLoading(false);
+      }
+    }, 300);
+    return () => {
+      ignore = true;
+      clearTimeout(timeoutId);
+    };
+  }, [searchQuery]);
 
-  // Último registro de signos y síntomas cargado por enfermería, indexado
-  // por id_patient para no repetir el fetch si un paciente tiene más de un
-  // turno el mismo día.
-  const [lastSigns, setLastSigns] = useState({});
-  const [lastSignsLoading, setLastSignsLoading] = useState({});
+  const handleSearchInputChange = (_, value) => {
+    setSearchQuery(value);
+    if (!value.trim()) setSearchResults([]);
+  };
 
-  const loadAgenda = useCallback(async () => {
-    if (!userId) return;
+  const loadHistory = async (patientId) => {
     setLoading(true);
     setLoadError('');
     try {
-      const params = { id_doctor: userId };
-      if (selectedDate) params.date = selectedDate;
-      const res = await getAppointments(params);
-      setRows(res.data);
-    } catch (err) {
-      setLoadError(readError(err, 'No se pudo cargar la agenda.'));
+      const res = await getMedicalHistory(patientId);
+      setEvents(res.data);
+    } catch {
+      setLoadError('No se pudo cargar la historia clínica de este paciente.');
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedDate]);
-
-  useEffect(() => {
-    loadAgenda();
-  }, [loadAgenda]);
-
-  useEffect(() => {
-    const handler = () => loadAgenda();
-    window.addEventListener('appointments-changed', handler);
-    return () => window.removeEventListener('appointments-changed', handler);
-  }, [loadAgenda]);
-
-  const notifyChange = () => {
-    window.dispatchEvent(new Event('appointments-changed'));
   };
 
-  useEffect(() => {
-    // queueMicrotask: el fetch por paciente es un efecto secundario hacia un
-    // sistema externo (la API), no una sincronización de estado derivado, así
-    // que se dispara fuera del cuerpo síncrono del efecto.
-    queueMicrotask(() => {
-      const uniquePatientIds = [
-        ...new Set(rows.map((r) => r.id_patient)),
-      ].filter((id) => id != null && !(id in lastSigns) && !lastSignsLoading[id]);
-      if (uniquePatientIds.length === 0) return;
+  const loadVisitCount = async (patientId) => {
+    setVisitCount(null);
+    try {
+      const res = await getAppointmentsByPatient(patientId);
+      setVisitCount(res.data.filter((a) => a.status === 'Atendido').length);
+    } catch {
+      setVisitCount(null);
+    }
+  };
 
-      setLastSignsLoading((prev) => {
-        const next = { ...prev };
-        uniquePatientIds.forEach((id) => {
-          next[id] = true;
+  const handleSelectPatient = (patient) => {
+    setSelectedPatientObj(patient);
+    setEvents([]);
+    setVisitCount(null);
+    setFilterYear('');
+    setFilterMonth('');
+    setFilterDay('');
+    if (patient) {
+      loadHistory(patient.id_user);
+      loadVisitCount(patient.id_user);
+    }
+  };
+
+  const yearOptions = useMemo(() => {
+    const years = new Set(
+      events.filter((e) => e.fecha).map((e) => dayjs(e.fecha).year()),
+    );
+    return [...years].sort((a, b) => b - a);
+  }, [events]);
+
+  const filteredEvents = useMemo(() => {
+    if (!filterYear && !filterMonth && !filterDay) return events;
+    return events.filter((evento) => {
+      if (!evento.fecha) return false;
+      const d = dayjs(evento.fecha);
+      if (filterYear && d.year() !== Number(filterYear)) return false;
+      if (filterMonth && d.month() + 1 !== Number(filterMonth)) return false;
+      if (filterDay && d.date() !== Number(filterDay)) return false;
+      return true;
+    });
+  }, [events, filterYear, filterMonth, filterDay]);
+
+  const isEditable = (evento) =>
+    evento.tipo === 'Indicación Médica' &&
+    Number(evento.id_doctor) === Number(userId) &&
+    dayjs().diff(dayjs(evento.fecha), 'minute') < EDIT_WINDOW_MINUTES;
+
+  const openCreateDialog = () => {
+    setFormError('');
+    setEditingEvent(null);
+    reset({ indication: '', treatment: '' });
+    setOpen(true);
+  };
+
+  const openEditDialog = (evento) => {
+    setFormError('');
+    setEditingEvent(evento);
+    reset({
+      indication: evento.detalle.indication,
+      treatment: evento.detalle.treatment || '',
+    });
+    setOpen(true);
+  };
+
+  const onSubmit = async (values) => {
+    setFormError('');
+    try {
+      if (editingEvent) {
+        await updateMedicalIndication(editingEvent.id, {
+          indication: values.indication,
+          treatment: values.treatment,
         });
-        return next;
-      });
-
-      uniquePatientIds.forEach(async (id) => {
-        try {
-          const res = await getSignsAndSymptomsByPatient(id);
-          const latest =
-            Array.isArray(res.data) && res.data.length > 0
-              ? res.data[0]
-              : null;
-          setLastSigns((prev) => ({ ...prev, [id]: latest }));
-        } catch {
-          setLastSigns((prev) => ({ ...prev, [id]: null }));
-        } finally {
-          setLastSignsLoading((prev) => ({ ...prev, [id]: false }));
-        }
-      });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows]);
-
-  // Los cancelados no forman parte de la jornada de trabajo: van al final
-  const sortedRows = useMemo(
-    () =>
-      [...rows].sort((a, b) => {
-        if (a.status === 'Cancelado' && b.status !== 'Cancelado') return 1;
-        if (b.status === 'Cancelado' && a.status !== 'Cancelado') return -1;
-        return (a.hour || '').localeCompare(b.hour || '');
-      }),
-    [rows],
-  );
-
-  const attendedCount = rows.filter((ap) => ap.status === 'Atendido').length;
-  const pendingCount = rows.filter(
-    (ap) => ap.status === 'Reservado' || ap.status === 'En espera',
-  ).length;
-
-  const openSummary = async (appointment) => {
-    setSummaryTarget(appointment);
-    setSummary('');
-    setSummaryMeta(null);
-    setSummaryError('');
-    setLoadingSummary(true);
-    try {
-      const res = await getPatientSummary(appointment.id_patient);
-      setSummary(res.data.summary);
-      setSummaryMeta(res.data.registros);
-    } catch (err) {
-      setSummaryError(readError(err, 'No se pudo generar el resumen.'));
-    } finally {
-      setLoadingSummary(false);
-    }
-  };
-
-  const openDiagnosisDialog = (appointment, mode) => {
-    setDiagnosisTarget(appointment);
-    setDiagnosisMode(mode);
-    setDiagnosisForm({
-      disease_type: appointment.disease_type || '',
-      diagnosis: appointment.diagnosis || '',
-      disease_details: appointment.disease_details || '',
-    });
-    setDiagnosisError('');
-  };
-
-  const handleSaveDiagnosis = async () => {
-    if (!diagnosisTarget) return;
-    setDiagnosisError('');
-
-    if (!diagnosisForm.disease_type || !diagnosisForm.diagnosis.trim()) {
-      setDiagnosisError('Completá el tipo de enfermedad y el diagnóstico.');
-      return;
-    }
-    if (
-      diagnosisForm.disease_type === DISEASE_TYPE_OTHER &&
-      !diagnosisForm.disease_details.trim()
-    ) {
-      setDiagnosisError('Si elegís "Otra", aclará cuál en los detalles.');
-      return;
-    }
-
-    const id = diagnosisTarget.id_medical_appointment;
-    setSavingDiagnosis(true);
-    try {
-      // Primero el diagnóstico. Si esto falla, el turno NO se marca como
-      // atendido: quedaría una consulta cerrada sin registro clínico.
-      await updateAppointmentDiagnosis(id, {
-        disease_type: diagnosisForm.disease_type,
-        diagnosis: diagnosisForm.diagnosis.trim(),
-        disease_details: diagnosisForm.disease_details.trim() || null,
-      });
-
-      if (diagnosisMode === 'close') {
-        await updateAppointmentStatus(id, 'Atendido');
-        setActionOk('Consulta cerrada y diagnóstico registrado.');
       } else {
-        setActionOk('Diagnóstico actualizado.');
+        // el backend exige el turno: se toma el de hoy (En espera/Atendido) con este medico
+        const eligibleRes = await getPatientsByStatus({ id_doctor: userId });
+        const appointment = eligibleRes.data.find(
+          (p) => p.id_user === selectedPatient,
+        );
+        if (!appointment) {
+          setFormError(
+            'El paciente no tiene un turno En espera/Atendido hoy con vos; no se puede registrar la indicación.',
+          );
+          return;
+        }
+        await createMedicalIndication({
+          id_patient: selectedPatient,
+          id_medical_appointment: appointment.id_medical_appointment,
+          indication: values.indication,
+          treatment: values.treatment,
+        });
       }
-
-      setDiagnosisTarget(null);
-      await loadAgenda();
-      notifyChange();
+      setOpen(false);
+      loadHistory(selectedPatient);
     } catch (err) {
-      setDiagnosisError(readError(err, 'No se pudo guardar el diagnóstico.'));
-    } finally {
-      setSavingDiagnosis(false);
-    }
-  };
-
-  const openStatusDialog = async (appointment) => {
-    setStatusTarget(appointment);
-    setNewStatus('');
-    setStatusError('');
-    setAllowedStatuses([]);
-    try {
-      const res = await getAllowedTransitions(
-        appointment.id_medical_appointment,
+      setFormError(
+        err.response?.data?.msg || 'No se pudo guardar la información.',
       );
-      setAllowedStatuses(res.data.allowed || []);
-    } catch (err) {
-      setStatusError(
-        readError(err, 'No se pudieron obtener los estados posibles.'),
-      );
-    }
-  };
-
-  const applyStatus = async (appointmentId, status) => {
-    setStatusError('');
-    try {
-      await updateAppointmentStatus(appointmentId, status);
-      setActionOk(`Turno marcado como "${status}".`);
-      setStatusTarget(null);
-      await loadAgenda();
-      notifyChange();
-    } catch (err) {
-      setStatusError(readError(err, 'No se pudo cambiar el estado.'));
     }
   };
 
   return (
     <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={800} color="#0E4C82">
-          Mis turnos
-        </Typography>
-        <Typography variant="body2" color="#5b7387">
-          Agenda de pacientes del día
-        </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 3,
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography variant="h5" fontWeight={800} color={paletteRaw.azulD}>
+            Historia clínica digital
+          </Typography>
+          <Typography variant="body2" color={paletteRaw.gray}>
+            Historial completo y cronológico por paciente
+          </Typography>
+        </Box>
+        {selectedPatient && (
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            {filteredEvents.length > 0 && (
+              <Button
+                variant="outlined"
+                startIcon={<PictureAsPdfIcon />}
+                onClick={() =>
+                  downloadMedicalHistoryPdf({
+                    patientName: `${selectedPatientObj.first_name} ${selectedPatientObj.last_name}`,
+                    patientDni: getPatientDni(selectedPatientObj),
+                    patientAge: getPatientAge(selectedPatientObj.date_of_birth),
+                    healthPlanName: selectedPatientObj.health_plan_name,
+                    memberNumber: selectedPatientObj.member_number,
+                    allergies: selectedPatientObj.allergies,
+                    events: filteredEvents,
+                  })
+                }
+              >
+                Descargar PDF
+              </Button>
+            )}
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openCreateDialog}
+            >
+              Nueva indicación
+            </Button>
+          </Box>
+        )}
       </Box>
 
       {loadError && (
@@ -351,546 +331,300 @@ export default function AgendaPage() {
           {loadError}
         </Alert>
       )}
-      {actionOk && (
-        <Alert
-          severity="success"
-          sx={{ mb: 2 }}
-          onClose={() => setActionOk('')}
-        >
-          {actionOk}
-        </Alert>
+
+      <Autocomplete
+        options={searchResults}
+        value={selectedPatientObj}
+        inputValue={searchQuery}
+        onInputChange={handleSearchInputChange}
+        onChange={(_, value) => handleSelectPatient(value)}
+        getOptionLabel={(p) => formatPatientLabel(p)}
+        isOptionEqualToValue={(a, b) => a.id_user === b.id_user}
+        loading={searchLoading}
+        noOptionsText={
+          searchQuery.trim()
+            ? 'Sin resultados'
+            : 'Escribí un nombre, apellido o DNI'
+        }
+        sx={{ mb: 3, minWidth: 320 }}
+        data-tour="history-search"
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Buscar paciente (nombre, apellido o DNI)"
+          />
+        )}
+      />
+
+      {selectedPatientObj && (
+        <Card sx={{ p: 2.5, mb: 3 }}>
+          <Typography
+            variant="subtitle1"
+            fontWeight={800}
+            color={paletteRaw.azulD}
+            sx={{ mb: 1 }}
+          >
+            Resumen del paciente
+          </Typography>
+          <Grid container spacing={1.5}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                Nombre y apellido
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.first_name} {selectedPatientObj.last_name}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                DNI
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {getPatientDni(selectedPatientObj)}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                Edad
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {getPatientAge(selectedPatientObj.date_of_birth) ?? '—'} años
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                Veces que fue al médico
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {visitCount != null ? visitCount : '—'}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                Email
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.email || '—'}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                Teléfono
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.phone_number || '—'}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                Dirección
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.address || '—'}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                Contacto de emergencia
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.emergency_contact || '—'}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                Género
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.gender || '—'}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                Obra social
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.health_plan_name || '—'}
+                {selectedPatientObj.health_plan_status
+                  ? ` (${selectedPatientObj.health_plan_status})`
+                  : ''}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Typography variant="caption" color={paletteRaw.gray}>
+                N° de socio
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {selectedPatientObj.member_number || '—'}
+              </Typography>
+            </Grid>
+          </Grid>
+          {selectedPatientObj.allergies && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Alergias: {selectedPatientObj.allergies}
+            </Alert>
+          )}
+        </Card>
       )}
 
-      <Card sx={{ p: 2, mb: 3 }}>
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 2,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
+      {selectedPatient && (
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
           <TextField
-            type="date"
-            size="small"
-            label="Fecha"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-            sx={{ minWidth: 170 }}
-          />
-          <Button size="small" onClick={() => setSelectedDate(today)}>
-            Hoy
-          </Button>
-          <Button size="small" startIcon={<RefreshIcon />} onClick={loadAgenda}>
-            Actualizar
-          </Button>
-          {loading && <CircularProgress size={20} />}
-
-          <Box sx={{ flexGrow: 1 }} />
-          <Chip
-            size="small"
-            label={`${pendingCount} por atender`}
-            color="warning"
-            variant="outlined"
-          />
-          <Chip
-            size="small"
-            label={`${attendedCount} atendidos`}
-            color="success"
-            variant="outlined"
-          />
+            select
+            label="Año"
+            value={filterYear}
+            onChange={(e) => setFilterYear(e.target.value)}
+            sx={{ minWidth: 140 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            {yearOptions.map((year) => (
+              <MenuItem key={year} value={year}>
+                {year}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Mes"
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            sx={{ minWidth: 160 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            {MESES.map((mes, index) => (
+              <MenuItem key={mes} value={index + 1}>
+                {mes}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Día"
+            value={filterDay}
+            onChange={(e) => setFilterDay(e.target.value)}
+            sx={{ minWidth: 120 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+              <MenuItem key={day} value={day}>
+                {day}
+              </MenuItem>
+            ))}
+          </TextField>
         </Box>
-      </Card>
+      )}
 
-      {sortedRows.length === 0 && !loading && (
-        <Typography color="#5b7387">
-          No tenés turnos para el {formatDate(selectedDate)}.
+      {!selectedPatient && (
+        <Typography color={paletteRaw.gray}>
+          Elegí un paciente para ver su historia clínica.
         </Typography>
       )}
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        {sortedRows.map((ap) => {
-          const isClosed =
-            ap.status === 'Atendido' || ap.status === 'Cancelado';
-          const patientName = ap.patient_name || '—';
+      {selectedPatient && !loading && events.length === 0 && (
+        <Typography color={paletteRaw.gray}>
+          Este paciente todavía no tiene registros en su historia clínica.
+        </Typography>
+      )}
 
+      {selectedPatient &&
+        !loading &&
+        events.length > 0 &&
+        filteredEvents.length === 0 && (
+          <Typography color={paletteRaw.gray}>
+            No hay registros para el período seleccionado.
+          </Typography>
+        )}
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {filteredEvents.map((evento) => {
+          const editable = isEditable(evento);
           return (
-            <Card
-              key={ap.id_medical_appointment}
-              sx={{
-                p: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                flexWrap: 'wrap',
-                opacity: ap.status === 'Cancelado' ? 0.6 : 1,
-                borderLeft: '5px solid',
-                borderLeftColor:
-                  ap.status === 'Atendido'
-                    ? '#2e7d32'
-                    : ap.status === 'Cancelado'
-                      ? '#d32f2f'
-                      : '#29ABE2',
-              }}
-            >
-              <Box sx={{ minWidth: 64 }}>
-                <Typography variant="h6" fontWeight={800} color="#0E4C82">
-                  {ap.hour}
-                </Typography>
-                <Typography variant="caption" color="#5b7387">
-                  {formatDate(ap.date)}
-                </Typography>
-              </Box>
-
-              <Avatar sx={{ bgcolor: '#29ABE2', fontWeight: 700 }}>
-                {patientName.charAt(0)}
-              </Avatar>
-
-              <Box sx={{ flexGrow: 1, minWidth: 180 }}>
-                <Typography fontWeight={700} color="#0E4C82">
-                  {patientName}
-                </Typography>
-                <Typography variant="caption" color="#5b7387" component="div">
-                  {ap.reason || 'Consulta médica'}
-                  {ap.diagnosis && (
-                    <>
-                      {/* La barra separa el motivo (lo que trajo al paciente)
-                          del diagnostico (lo que el medico concluyo) */}
-                      <Box component="span" sx={{ mx: 0.75, color: '#c3d0da' }}>
-                        |
-                      </Box>
-                      <Box
-                        component="span"
-                        sx={{ color: '#1565A8', fontWeight: 700 }}
-                      >
-                        Diagnóstico: {ap.diagnosis}
-                        {ap.disease_type ? ` (${ap.disease_type})` : ''}
-                      </Box>
-                    </>
-                  )}
-                </Typography>
-
-                {(() => {
-                  const record = lastSigns[ap.id_patient];
-                  const isLoadingRecord = lastSignsLoading[ap.id_patient];
-
-                  if (isLoadingRecord) {
-                    return (
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 0.75,
-                          mt: 0.5,
-                        }}
-                      >
-                        <CircularProgress size={12} />
-                        <Typography variant="caption" color="#5b7387">
-                          Cargando signos y síntomas...
-                        </Typography>
-                      </Box>
-                    );
-                  }
-
-                  if (!record) {
-                    return (
-                      <Typography
-                        variant="caption"
-                        color="#94a3b8"
-                        component="div"
-                        sx={{ mt: 0.5, fontStyle: 'italic' }}
-                      >
-                        Sin registros de signos y síntomas.
-                      </Typography>
-                    );
-                  }
-
-                  const isFever =
-                    record.temperature != null && record.temperature >= 38;
-
-                  return (
-                    <Box
-                      sx={{
-                        mt: 0.75,
-                        p: 1,
-                        borderRadius: 1,
-                        bgcolor: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        fontWeight={700}
-                        color="#0E4C82"
-                        component="div"
-                        sx={{ mb: 0.25 }}
-                      >
-                        Signos y síntomas (último registro)
-                      </Typography>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: 0.75,
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: isFever ? '#d32f2f' : '#334155',
-                            fontWeight: isFever ? 700 : 400,
-                          }}
-                        >
-                          Temp:{' '}
-                          {record.temperature != null
-                            ? `${record.temperature}°C`
-                            : '—'}
-                        </Typography>
-                        <Typography variant="caption" color="#334155">
-                          Presión: {record.blood_pressure || '—'}
-                        </Typography>
-                        <Chip
-                          size="small"
-                          label={record.record_type || '—'}
-                          color={
-                            record.record_type === 'Urgencia'
-                              ? 'error'
-                              : 'primary'
-                          }
-                          sx={{ height: 18, fontSize: '0.7rem' }}
-                        />
-                        {getTriageLevel(record.triage_level) && (
-                          <Chip
-                            size="small"
-                            label={`Triage ${record.triage_level}`}
-                            sx={{
-                              height: 18,
-                              fontSize: '0.7rem',
-                              fontWeight: 600,
-                              bgcolor: getTriageLevel(record.triage_level).color,
-                              color: getTriageLevel(record.triage_level).textColor,
-                            }}
-                          />
-                        )}
-                      </Box>
-                      <Typography
-                        variant="caption"
-                        color="#334155"
-                        component="div"
-                        sx={{ mt: 0.25 }}
-                      >
-                        Síntomas: {record.symptoms || '—'}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="#334155"
-                        component="div"
-                      >
-                        Signos: {record.signs || '—'}
-                      </Typography>
-                    </Box>
-                  );
-                })()}
-              </Box>
-
-              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                <Chip
-                  size="small"
-                  label={ap.status}
-                  color={statusColor(ap.status)}
-                />
-                {ap.is_overbooking && (
+            <Card key={`${evento.tipo}-${evento.id}`} sx={{ p: 2.5 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Chip
                     size="small"
-                    label="Sobreturno"
-                    color="secondary"
-                    variant="outlined"
+                    label={evento.tipo}
+                    color={TIPO_COLOR[evento.tipo] || 'default'}
                   />
-                )}
-                {ap.confirmed && (
-                  <Chip size="small" label="Confirmado" variant="outlined" />
-                )}
-                {ap.status === 'Atendido' && !ap.diagnosis && (
-                  <Chip size="small" label="Sin diagnóstico" color="warning" />
+                  <Typography variant="body2" color={paletteRaw.gray}>
+                    {formatDateTime(evento.fecha)}
+                  </Typography>
+                </Box>
+                {evento.tipo === 'Indicación Médica' && (
+                  <Tooltip
+                    title={
+                      editable
+                        ? 'Editar'
+                        : 'Solo se puede editar dentro de los 5 minutos posteriores al registro'
+                    }
+                  >
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={!editable}
+                        onClick={() => openEditDialog(evento)}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                 )}
               </Box>
-
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                {/* Resumen de lo que el sistema sabe del paciente, para
-                    llegar a la consulta con contexto */}
-                {!isClosed && (
-                  <Button
-                    size="small"
-                    variant="text"
-                    startIcon={<AutoAwesomeIcon />}
-                    onClick={() => openSummary(ap)}
-                  >
-                    Preparar consulta
-                  </Button>
-                )}
-                {/* Cerrar la consulta exige diagnóstico: no se puede dar por
-                    atendido un turno sin dejar registro de qué se encontró */}
-                {ap.status === 'En espera' && (
-                  <Button
-                    size="small"
-                    variant="contained"
-                    startIcon={<AssignmentTurnedInIcon />}
-                    onClick={() => openDiagnosisDialog(ap, 'close')}
-                  >
-                    Cerrar consulta
-                  </Button>
-                )}
-                {ap.status === 'Atendido' && (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<EditNoteIcon />}
-                    onClick={() => openDiagnosisDialog(ap, 'edit')}
-                  >
-                    {ap.diagnosis ? 'Ver diagnóstico' : 'Cargar diagnóstico'}
-                  </Button>
-                )}
-                {!isClosed && (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<SwapHorizIcon />}
-                    onClick={() => openStatusDialog(ap)}
-                  >
-                    Cambiar estado
-                  </Button>
-                )}
+              <Box sx={{ mt: 1 }}>
+                <EventDetail evento={evento} />
               </Box>
             </Card>
           );
         })}
       </Box>
 
-      {/* Diálogo: resumen clínico */}
       <Dialog
-        open={Boolean(summaryTarget)}
-        onClose={() => setSummaryTarget(null)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AutoAwesomeIcon sx={{ color: '#1565A8' }} />
-          Preparar consulta
-        </DialogTitle>
-        <DialogContent>
-          {summaryTarget && (
-            <Typography variant="body2" color="#5b7387" sx={{ mb: 2 }}>
-              {summaryTarget.patient_name} — {formatDate(summaryTarget.date)} a
-              las {summaryTarget.hour}
-              {summaryTarget.reason ? ` · ${summaryTarget.reason}` : ''}
-            </Typography>
-          )}
-
-          {loadingSummary && (
-            <Box
-              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 3 }}
-            >
-              <CircularProgress size={22} />
-              <Typography variant="body2" color="#5b7387">
-                Leyendo la historia del paciente...
-              </Typography>
-            </Box>
-          )}
-
-          {summaryError && <Alert severity="warning">{summaryError}</Alert>}
-
-          {summary && (
-            <>
-              <Box
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  bgcolor: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                }}
-              >
-                <ResumenFormateado text={summary} />
-              </Box>
-
-              {summaryMeta && (
-                <Typography
-                  variant="caption"
-                  color="#5b7387"
-                  sx={{ display: 'block', mt: 1.5 }}
-                >
-                  Resumen armado a partir de {summaryMeta.consultas}{' '}
-                  consulta(s), {summaryMeta.signos} registro(s) de signos,{' '}
-                  {summaryMeta.seguimientos} seguimiento(s) y{' '}
-                  {summaryMeta.indicaciones} indicación(es) cargadas en el
-                  sistema.
-                </Typography>
-              )}
-
-              {/* Aclaracion obligatoria: es sintesis de lo registrado, no una
-                  evaluacion clinica */}
-              <Alert severity="info" sx={{ mt: 1.5 }}>
-                Generado automáticamente a partir de los registros del sistema.
-                Es un apoyo para la lectura, no reemplaza la revisión de la
-                historia clínica ni el criterio profesional.
-              </Alert>
-            </>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setSummaryTarget(null)}>Cerrar</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Diálogo de diagnóstico */}
-      <Dialog
-        open={Boolean(diagnosisTarget)}
-        onClose={() => setDiagnosisTarget(null)}
+        open={open}
+        onClose={() => setOpen(false)}
         fullWidth
         maxWidth="sm"
       >
         <DialogTitle>
-          {diagnosisMode === 'close'
-            ? 'Cerrar consulta'
-            : 'Diagnóstico de la consulta'}
+          {editingEvent
+            ? 'Editar indicación médica'
+            : 'Nueva indicación médica'}
         </DialogTitle>
-        <DialogContent
-          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
-        >
-          {diagnosisError && <Alert severity="error">{diagnosisError}</Alert>}
-
-          {diagnosisTarget && (
-            <Typography variant="body2" color="#5b7387">
-              {diagnosisTarget.patient_name} —{' '}
-              {formatDate(diagnosisTarget.date)} a las {diagnosisTarget.hour}
-              {diagnosisTarget.reason ? ` · ${diagnosisTarget.reason}` : ''}
-            </Typography>
-          )}
-
-          <TextField
-            select
-            label="Tipo de enfermedad"
-            required
-            value={diagnosisForm.disease_type}
-            onChange={(e) =>
-              setDiagnosisForm({
-                ...diagnosisForm,
-                disease_type: e.target.value,
-              })
-            }
-            helperText="Se usa para los reportes por período"
+        <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+          <DialogContent
+            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
           >
-            {DISEASE_TYPES.map((t) => (
-              <MenuItem key={t} value={t}>
-                {t}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            label="Diagnóstico"
-            required
-            multiline
-            minRows={2}
-            value={diagnosisForm.diagnosis}
-            onChange={(e) =>
-              setDiagnosisForm({ ...diagnosisForm, diagnosis: e.target.value })
-            }
-          />
-
-          <TextField
-            label={
-              diagnosisForm.disease_type === DISEASE_TYPE_OTHER
-                ? 'Especificá cuál'
-                : 'Detalles (opcional)'
-            }
-            required={diagnosisForm.disease_type === DISEASE_TYPE_OTHER}
-            multiline
-            minRows={2}
-            value={diagnosisForm.disease_details}
-            onChange={(e) =>
-              setDiagnosisForm({
-                ...diagnosisForm,
-                disease_details: e.target.value,
-              })
-            }
-          />
-
-          {diagnosisMode === 'close' && (
-            <Alert severity="info">
-              Al guardar, el turno queda marcado como <strong>Atendido</strong>.
-              El paciente va a aparecer en la lista de seguimiento del
-              enfermero.
-            </Alert>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDiagnosisTarget(null)}>Cancelar</Button>
-          <Button
-            variant="contained"
-            onClick={handleSaveDiagnosis}
-            disabled={savingDiagnosis}
-          >
-            {savingDiagnosis
-              ? 'Guardando...'
-              : diagnosisMode === 'close'
-                ? 'Guardar y cerrar consulta'
-                : 'Guardar'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Diálogo de cambio de estado */}
-      <Dialog
-        open={Boolean(statusTarget)}
-        onClose={() => setStatusTarget(null)}
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle>Cambiar estado del turno</DialogTitle>
-        <DialogContent
-          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
-        >
-          {statusError && <Alert severity="error">{statusError}</Alert>}
-          {statusTarget && (
-            <Typography variant="body2" color="#5b7387">
-              {statusTarget.patient_name} — {statusTarget.hour}
-              <br />
-              Estado actual: <strong>{statusTarget.status}</strong>
-            </Typography>
-          )}
-          {allowedStatuses.length === 0 ? (
-            <Typography variant="body2" color="#5b7387">
-              Este turno ya está en un estado final: no admite más cambios.
-            </Typography>
-          ) : (
+            {formError && <Alert severity="error">{formError}</Alert>}
             <TextField
-              select
-              label="Nuevo estado"
-              value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value)}
-            >
-              {allowedStatuses.map((s) => (
-                <MenuItem key={s} value={s}>
-                  {s}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setStatusTarget(null)}>Cancelar</Button>
-          <Button
-            variant="contained"
-            disabled={!newStatus}
-            onClick={() =>
-              applyStatus(statusTarget.id_medical_appointment, newStatus)
-            }
-          >
-            Guardar
-          </Button>
-        </DialogActions>
+              label="Indicación"
+              multiline
+              minRows={3}
+              placeholder="Detalle de la indicación médica..."
+              {...register('indication')}
+              error={!!errors.indication}
+              helperText={errors.indication?.message}
+            />
+            <TextField
+              label="Tratamiento"
+              multiline
+              minRows={2}
+              placeholder="Tratamiento asociado (opcional)..."
+              {...register('treatment')}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" variant="contained" disabled={isSubmitting}>
+              Guardar
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
     </Box>
   );

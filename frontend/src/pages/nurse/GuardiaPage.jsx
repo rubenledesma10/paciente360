@@ -211,7 +211,11 @@ export default function GuardiaPage() {
             Comunicación entre turnos
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        {/* data-tour: lo resalta el tutorial del enfermero */}
+        <Box
+          sx={{ display: 'flex', gap: 1, alignItems: 'center' }}
+          data-tour="guardia-actions"
+        >
           <DatePicker
             label="Fecha"
             value={selectedDate}
@@ -356,12 +360,7 @@ export default function GuardiaPage() {
         </Box>
       </Box>
 
-      <Dialog
-        open={open}
-        onClose={() => closeDialog()}
-        fullWidth
-        maxWidth="sm"
-      >
+      <Dialog open={open} onClose={() => closeDialog()} fullWidth maxWidth="sm">
         <DialogTitle>
           {editingRow ? 'Editar pase de guardia' : 'Registrar pase de guardia'}
         </DialogTitle>
@@ -408,7 +407,10 @@ export default function GuardiaPage() {
                 inputLabel: { shrink: true },
                 input: {
                   endAdornment: (
-                    <InputAdornment position="end" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                    <InputAdornment
+                      position="end"
+                      sx={{ alignSelf: 'flex-start', mt: 1 }}
+                    >
                       <Tooltip
                         title={
                           !speechSupported
@@ -420,7 +422,9 @@ export default function GuardiaPage() {
                       >
                         <span>
                           <IconButton
-                            aria-label={listening ? 'Detener dictado' : 'Dictar'}
+                            aria-label={
+                              listening ? 'Detener dictado' : 'Dictar'
+                            }
                             disabled={!speechSupported}
                             color={listening ? 'error' : 'primary'}
                             onClick={listening ? stopListening : startListening}

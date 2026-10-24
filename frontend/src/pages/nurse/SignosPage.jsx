@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import { useForm, useWatch, Controller } from 'react-hook-form'
-import { yupResolver } from '@hookform/resolvers/yup'
-import * as yup from 'yup'
-import dayjs from 'dayjs'
+import { useEffect, useState } from 'react';
+import { useForm, useWatch, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+import dayjs from 'dayjs';
 import {
   Alert,
   Box,
@@ -24,28 +24,28 @@ import {
   TextField,
   Tooltip,
   Typography,
-} from '@mui/material'
-import { DatePicker } from '@mui/x-date-pickers/DatePicker'
-import AddIcon from '@mui/icons-material/Add'
-import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
-import HistoryIcon from '@mui/icons-material/History'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
-import { getPatients, updatePatientAllergies } from '../../api/patients'
-import { getPatientsByStatus } from '../../api/appointments'
-import MedicalHistoryDialog from '../../components/MedicalHistoryDialog'
+} from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import HistoryIcon from '@mui/icons-material/History';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { getPatients, updatePatientAllergies } from '../../api/patients';
+import { getPatientsByStatus } from '../../api/appointments';
+import MedicalHistoryDialog from '../../components/MedicalHistoryDialog';
 import {
   getSignsAndSymptoms,
   createSignsAndSymptoms,
   updateSignsAndSymptoms,
   deleteSignsAndSymptoms,
-} from '../../api/signsAndSymptoms'
-import { formatDateTime } from '../../utils/dateFormat'
-import { getPatientAge, getPatientDni } from '../../utils/patientDisplay'
-import { paletteRaw } from '../../theme/theme'
-import { TRIAGE_LEVELS, getTriageLevel } from '../../utils/triage'
+} from '../../api/signsAndSymptoms';
+import { formatDateTime } from '../../utils/dateFormat';
+import { getPatientAge, getPatientDni } from '../../utils/patientDisplay';
+import { paletteRaw } from '../../theme/theme';
+import { TRIAGE_LEVELS, getTriageLevel } from '../../utils/triage';
 
-const EDIT_WINDOW_MINUTES = 5
+const EDIT_WINDOW_MINUTES = 5;
 
 const schema = yup.object({
   id_patient: yup.number().typeError('Elegí un paciente').required(),
@@ -59,32 +59,37 @@ const schema = yup.object({
   observations: yup.string().nullable(),
   record_type: yup.string().required(),
   triage_level: yup.string().nullable(),
-})
+});
 
 const obsSchema = yup.object({
   observations: yup.string().required('Escribí una observación'),
-})
+});
 
 export default function SignosPage() {
-  const [rows, setRows] = useState([])
-  const [patients, setPatients] = useState([])
-  const [availablePatients, setAvailablePatients] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState('')
-  const [open, setOpen] = useState(false)
-  const [formError, setFormError] = useState('')
-  const [editingRow, setEditingRow] = useState(null)
-  const [observationOnlyMode, setObservationOnlyMode] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const [historyPatient, setHistoryPatient] = useState({ id: null, name: '', dni: null, age: null })
-  const [deleteError, setDeleteError] = useState('')
-  const [deleting, setDeleting] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(dayjs())
-  const [allergyTarget, setAllergyTarget] = useState(null)
-  const [allergyValue, setAllergyValue] = useState('')
-  const [allergyError, setAllergyError] = useState('')
-  const [allergySaving, setAllergySaving] = useState(false)
+  const [rows, setRows] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [availablePatients, setAvailablePatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [open, setOpen] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [editingRow, setEditingRow] = useState(null);
+  const [observationOnlyMode, setObservationOnlyMode] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyPatient, setHistoryPatient] = useState({
+    id: null,
+    name: '',
+    dni: null,
+    age: null,
+  });
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [allergyTarget, setAllergyTarget] = useState(null);
+  const [allergyValue, setAllergyValue] = useState('');
+  const [allergyError, setAllergyError] = useState('');
+  const [allergySaving, setAllergySaving] = useState(false);
 
   const {
     register,
@@ -96,21 +101,21 @@ export default function SignosPage() {
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: { record_type: 'Rutina', triage_level: '' },
-  })
-  const isUrgencia = useWatch({ control, name: 'record_type' }) === 'Urgencia'
+  });
+  const isUrgencia = useWatch({ control, name: 'record_type' }) === 'Urgencia';
 
-  const obsForm = useForm({ resolver: yupResolver(obsSchema) })
+  const obsForm = useForm({ resolver: yupResolver(obsSchema) });
 
   const patientName = (id) => {
-    const p = patients.find((x) => x.id_user === id)
-    return p ? `${p.first_name} ${p.last_name}` : '—'
-  }
+    const p = patients.find((x) => x.id_user === id);
+    return p ? `${p.first_name} ${p.last_name}` : '—';
+  };
 
   const isEditable = (row) =>
-    dayjs().diff(dayjs(row.date_and_time), 'minute') < EDIT_WINDOW_MINUTES
+    dayjs().diff(dayjs(row.date_and_time), 'minute') < EDIT_WINDOW_MINUTES;
 
   const openHistory = (patientId, name) => {
-    const patient = patients.find((p) => p.id_user === patientId)
+    const patient = patients.find((p) => p.id_user === patientId);
     setHistoryPatient({
       id: patientId,
       name,
@@ -119,31 +124,33 @@ export default function SignosPage() {
       healthPlan: patient?.health_plan_name || null,
       memberNumber: patient?.member_number || null,
       allergies: patient?.allergies || null,
-    })
-    setHistoryOpen(true)
-  }
+    });
+    setHistoryOpen(true);
+  };
 
   const openAllergyDialog = (patientId, name) => {
-    const patient = patients.find((p) => p.id_user === patientId)
-    setAllergyError('')
-    setAllergyValue(patient?.allergies || '')
-    setAllergyTarget({ id: patientId, name })
-  }
+    const patient = patients.find((p) => p.id_user === patientId);
+    setAllergyError('');
+    setAllergyValue(patient?.allergies || '');
+    setAllergyTarget({ id: patientId, name });
+  };
 
   const saveAllergies = async () => {
-    if (!allergyTarget) return
-    setAllergySaving(true)
-    setAllergyError('')
+    if (!allergyTarget) return;
+    setAllergySaving(true);
+    setAllergyError('');
     try {
-      await updatePatientAllergies(allergyTarget.id, allergyValue)
-      setAllergyTarget(null)
-      loadAll()
+      await updatePatientAllergies(allergyTarget.id, allergyValue);
+      setAllergyTarget(null);
+      loadAll();
     } catch (err) {
-      setAllergyError(err.response?.data?.msg || 'No se pudieron guardar las alergias.')
+      setAllergyError(
+        err.response?.data?.msg || 'No se pudieron guardar las alergias.',
+      );
     } finally {
-      setAllergySaving(false)
+      setAllergySaving(false);
     }
-  }
+  };
 
   const patientOptions = editingRow
     ? patients.map((p) => ({
@@ -153,60 +160,62 @@ export default function SignosPage() {
     : availablePatients.map((p) => ({
         id: p.id_user,
         label: `${p.first_name} ${p.last_name} — DNI ${getPatientDni(p)}`,
-      }))
+      }));
 
   const visibleRows = rows.filter(
     (r) => !selectedDate || dayjs(r.date_and_time).isSame(selectedDate, 'day'),
-  )
+  );
 
   const loadAll = async () => {
-    setLoading(true)
-    setLoadError('')
+    setLoading(true);
+    setLoadError('');
     try {
       const [signsRes, patientsRes] = await Promise.all([
         getSignsAndSymptoms(),
         getPatients(),
-      ])
-      setRows(signsRes.data)
-      setPatients(patientsRes.data)
+      ]);
+      setRows(signsRes.data);
+      setPatients(patientsRes.data);
     } catch {
-      setLoadError('No se pudo cargar la información. Reintentá más tarde.')
+      setLoadError('No se pudo cargar la información. Reintentá más tarde.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    let ignore = false
-    ;(async () => {
-      setLoading(true)
-      setLoadError('')
+    let ignore = false;
+    (async () => {
+      setLoading(true);
+      setLoadError('');
       try {
         const [signsRes, patientsRes] = await Promise.all([
           getSignsAndSymptoms(),
           getPatients(),
-        ])
+        ]);
         if (!ignore) {
-          setRows(signsRes.data)
-          setPatients(patientsRes.data)
+          setRows(signsRes.data);
+          setPatients(patientsRes.data);
         }
       } catch {
         if (!ignore) {
-          setLoadError('No se pudo cargar la información. Reintentá más tarde.')
+          setLoadError(
+            'No se pudo cargar la información. Reintentá más tarde.',
+          );
         }
       } finally {
-        if (!ignore) setLoading(false)
+        if (!ignore) setLoading(false);
       }
-    })()
+    })();
     return () => {
-      ignore = true
-    }
-  }, [])
+      ignore = true;
+    };
+  }, []);
 
   const openCreateDialog = async () => {
-    setFormError('')
-    setEditingRow(null)
-    setObservationOnlyMode(false)
+    setFormError('');
+    setEditingRow(null);
+    setObservationOnlyMode(false);
     reset({
       id_patient: '',
       temperature: '',
@@ -216,21 +225,23 @@ export default function SignosPage() {
       observations: '',
       record_type: 'Rutina',
       triage_level: '',
-    })
+    });
     try {
-      const res = await getPatientsByStatus()
-      setAvailablePatients(res.data)
+      const res = await getPatientsByStatus();
+      setAvailablePatients(res.data);
     } catch {
-      setFormError('No se pudo cargar la lista de pacientes atendidos/en espera.')
+      setFormError(
+        'No se pudo cargar la lista de pacientes atendidos/en espera.',
+      );
     }
-    setOpen(true)
-  }
+    setOpen(true);
+  };
 
   const openEditDialog = (row) => {
-    setFormError('')
-    setEditingRow(row)
-    const restricted = !isEditable(row)
-    setObservationOnlyMode(restricted)
+    setFormError('');
+    setEditingRow(row);
+    const restricted = !isEditable(row);
+    setObservationOnlyMode(restricted);
     reset({
       id_patient: row.id_patient,
       temperature: row.temperature,
@@ -240,29 +251,34 @@ export default function SignosPage() {
       observations: restricted ? '' : row.observations || '',
       record_type: row.record_type,
       triage_level: row.triage_level || '',
-    })
+    });
     if (restricted) {
-      obsForm.reset({ observations: '' })
+      obsForm.reset({ observations: '' });
     }
-    setOpen(true)
-  }
+    setOpen(true);
+  };
 
   const onObsSubmit = async (values) => {
-    setFormError('')
+    setFormError('');
     try {
       await updateSignsAndSymptoms(editingRow.id_signs_and_symptoms, {
         observations: values.observations,
-      })
-      setOpen(false)
-      loadAll()
+      });
+      setOpen(false);
+      loadAll();
     } catch (err) {
-      setFormError(err.response?.data?.error || 'No se pudo guardar la observación.')
+      setFormError(
+        err.response?.data?.error || 'No se pudo guardar la observación.',
+      );
     }
-  }
+  };
 
   const onSubmit = async (values) => {
-    setFormError('')
-    const triageValue = values.record_type === 'Urgencia' && values.triage_level ? values.triage_level : null
+    setFormError('');
+    const triageValue =
+      values.record_type === 'Urgencia' && values.triage_level
+        ? values.triage_level
+        : null;
     try {
       if (editingRow) {
         await updateSignsAndSymptoms(editingRow.id_signs_and_symptoms, {
@@ -273,33 +289,35 @@ export default function SignosPage() {
           observations: values.observations,
           record_type: values.record_type,
           triage_level: triageValue,
-        })
+        });
       } else {
-        await createSignsAndSymptoms({ ...values, triage_level: triageValue })
+        await createSignsAndSymptoms({ ...values, triage_level: triageValue });
       }
-      setOpen(false)
-      loadAll()
+      setOpen(false);
+      loadAll();
     } catch (err) {
       setFormError(
         err.response?.data?.error || 'No se pudo guardar el registro.',
-      )
+      );
     }
-  }
+  };
 
   const confirmDelete = async () => {
-    if (!deleteTarget) return
-    setDeleting(true)
-    setDeleteError('')
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError('');
     try {
-      await deleteSignsAndSymptoms(deleteTarget.id_signs_and_symptoms)
-      setDeleteTarget(null)
-      loadAll()
+      await deleteSignsAndSymptoms(deleteTarget.id_signs_and_symptoms);
+      setDeleteTarget(null);
+      loadAll();
     } catch (err) {
-      setDeleteError(err.response?.data?.error || 'No se pudo eliminar el registro.')
+      setDeleteError(
+        err.response?.data?.error || 'No se pudo eliminar el registro.',
+      );
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
-  }
+  };
 
   return (
     <Box>
@@ -319,14 +337,27 @@ export default function SignosPage() {
             Registro clínico en tiempo real
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={openCreateDialog}
+          data-tour="signos-new"
+        >
           Registrar
         </Button>
       </Box>
 
-      {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {loadError}
+        </Alert>
+      )}
 
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+      {/* data-tour: lo resalta el tutorial del enfermero */}
+      <Box
+        sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}
+        data-tour="signos-date"
+      >
         <DatePicker
           label="Día"
           value={selectedDate}
@@ -357,8 +388,8 @@ export default function SignosPage() {
           </TableHead>
           <TableBody>
             {visibleRows.map((r) => {
-              const patient = patients.find((p) => p.id_user === r.id_patient)
-              const editable = isEditable(r)
+              const patient = patients.find((p) => p.id_user === r.id_patient);
+              const editable = isEditable(r);
               return (
                 <TableRow key={r.id_signs_and_symptoms}>
                   <TableCell sx={{ fontWeight: 600 }}>
@@ -367,15 +398,25 @@ export default function SignosPage() {
                       <Tooltip title={`Alergias: ${patient.allergies}`}>
                         <WarningAmberIcon
                           fontSize="small"
-                          sx={{ color: paletteRaw.danger, ml: 0.5, verticalAlign: 'middle' }}
+                          sx={{
+                            color: paletteRaw.danger,
+                            ml: 0.5,
+                            verticalAlign: 'middle',
+                          }}
                         />
                       </Tooltip>
                     )}
                   </TableCell>
                   <TableCell>{getPatientDni(patient)}</TableCell>
-                  <TableCell>{getPatientAge(patient?.date_of_birth) ?? '—'}</TableCell>
+                  <TableCell>
+                    {getPatientAge(patient?.date_of_birth) ?? '—'}
+                  </TableCell>
                   <TableCell
-                    sx={{ color: r.temperature >= 38 ? paletteRaw.danger : 'inherit', fontWeight: r.temperature >= 38 ? 700 : 400 }}
+                    sx={{
+                      color:
+                        r.temperature >= 38 ? paletteRaw.danger : 'inherit',
+                      fontWeight: r.temperature >= 38 ? 700 : 400,
+                    }}
                   >
                     {r.temperature}°C
                   </TableCell>
@@ -404,14 +445,18 @@ export default function SignosPage() {
                       '—'
                     )}
                   </TableCell>
-                  <TableCell sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}>
+                  <TableCell
+                    sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}
+                  >
                     {formatDateTime(r.date_and_time)}
                   </TableCell>
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                     <Tooltip title="Historial clínico">
                       <IconButton
                         size="small"
-                        onClick={() => openHistory(r.id_patient, patientName(r.id_patient))}
+                        onClick={() =>
+                          openHistory(r.id_patient, patientName(r.id_patient))
+                        }
                       >
                         <HistoryIcon fontSize="small" />
                       </IconButton>
@@ -419,9 +464,17 @@ export default function SignosPage() {
                     <Tooltip title="Alergias">
                       <IconButton
                         size="small"
-                        onClick={() => openAllergyDialog(r.id_patient, patientName(r.id_patient))}
+                        onClick={() =>
+                          openAllergyDialog(
+                            r.id_patient,
+                            patientName(r.id_patient),
+                          )
+                        }
                       >
-                        <WarningAmberIcon fontSize="small" sx={{ color: paletteRaw.danger }} />
+                        <WarningAmberIcon
+                          fontSize="small"
+                          sx={{ color: paletteRaw.danger }}
+                        />
                       </IconButton>
                     </Tooltip>
                     <Tooltip
@@ -431,26 +484,36 @@ export default function SignosPage() {
                           : 'Ya pasaron 5 minutos del registro — solo se puede agregar una observación'
                       }
                     >
-                      <IconButton size="small" onClick={() => openEditDialog(r)}>
+                      <IconButton
+                        size="small"
+                        onClick={() => openEditDialog(r)}
+                      >
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <IconButton
                       size="small"
                       onClick={() => {
-                        setDeleteError('')
-                        setDeleteTarget(r)
+                        setDeleteError('');
+                        setDeleteTarget(r);
                       }}
                     >
-                      <DeleteIcon fontSize="small" sx={{ color: paletteRaw.danger }} />
+                      <DeleteIcon
+                        fontSize="small"
+                        sx={{ color: paletteRaw.danger }}
+                      />
                     </IconButton>
                   </TableCell>
                 </TableRow>
-              )
+              );
             })}
             {!loading && visibleRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={11} align="center" sx={{ color: paletteRaw.gray }}>
+                <TableCell
+                  colSpan={11}
+                  align="center"
+                  sx={{ color: paletteRaw.gray }}
+                >
                   No hay registros para el día seleccionado.
                 </TableCell>
               </TableRow>
@@ -459,7 +522,12 @@ export default function SignosPage() {
         </Table>
       </TableContainer>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>
           {observationOnlyMode
             ? 'Agregar observación'
@@ -470,11 +538,15 @@ export default function SignosPage() {
         <Box
           component="form"
           onSubmit={
-            observationOnlyMode ? obsForm.handleSubmit(onObsSubmit) : handleSubmit(onSubmit)
+            observationOnlyMode
+              ? obsForm.handleSubmit(onObsSubmit)
+              : handleSubmit(onSubmit)
           }
           noValidate
         >
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <DialogContent
+            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+          >
             {formError && <Alert severity="error">{formError}</Alert>}
             <Controller
               name="id_patient"
@@ -541,12 +613,22 @@ export default function SignosPage() {
               </Alert>
             )}
             <TextField
-              label={observationOnlyMode ? 'Nueva observación' : 'Observaciones'}
+              label={
+                observationOnlyMode ? 'Nueva observación' : 'Observaciones'
+              }
               multiline
               minRows={2}
-              {...(observationOnlyMode ? obsForm.register('observations') : register('observations'))}
-              error={observationOnlyMode && !!obsForm.formState.errors.observations}
-              helperText={observationOnlyMode ? obsForm.formState.errors.observations?.message : ''}
+              {...(observationOnlyMode
+                ? obsForm.register('observations')
+                : register('observations'))}
+              error={
+                observationOnlyMode && !!obsForm.formState.errors.observations
+              }
+              helperText={
+                observationOnlyMode
+                  ? obsForm.formState.errors.observations?.message
+                  : ''
+              }
             />
             <Controller
               name="record_type"
@@ -558,8 +640,9 @@ export default function SignosPage() {
                   label="Tipo"
                   disabled={observationOnlyMode}
                   onChange={(e) => {
-                    field.onChange(e)
-                    if (e.target.value !== 'Urgencia') setValue('triage_level', '')
+                    field.onChange(e);
+                    if (e.target.value !== 'Urgencia')
+                      setValue('triage_level', '');
                   }}
                 >
                   <MenuItem value="Rutina">Rutina</MenuItem>
@@ -578,7 +661,11 @@ export default function SignosPage() {
                   select
                   label="Triage (Manchester)"
                   disabled={observationOnlyMode || !isUrgencia}
-                  helperText={!isUrgencia ? 'Disponible solo para registros de tipo Urgencia' : ''}
+                  helperText={
+                    !isUrgencia
+                      ? 'Disponible solo para registros de tipo Urgencia'
+                      : ''
+                  }
                 >
                   <MenuItem value="">Sin triage</MenuItem>
                   {TRIAGE_LEVELS.map((t) => (
@@ -606,7 +693,11 @@ export default function SignosPage() {
             <Button
               type="submit"
               variant="contained"
-              disabled={observationOnlyMode ? obsForm.formState.isSubmitting : isSubmitting}
+              disabled={
+                observationOnlyMode
+                  ? obsForm.formState.isSubmitting
+                  : isSubmitting
+              }
             >
               {observationOnlyMode ? 'Agregar' : 'Guardar'}
             </Button>
@@ -614,19 +705,31 @@ export default function SignosPage() {
         </Box>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} fullWidth maxWidth="xs">
+      <Dialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Eliminar registro</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
           {deleteError && <Alert severity="error">{deleteError}</Alert>}
           <Typography variant="body2">
             ¿Seguro que querés eliminar este registro de signos y síntomas
-            {deleteTarget ? ` de ${patientName(deleteTarget.id_patient)}` : ''}? Esta
-            acción no se puede deshacer.
+            {deleteTarget ? ` de ${patientName(deleteTarget.id_patient)}` : ''}?
+            Esta acción no se puede deshacer.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-          <Button color="error" variant="contained" onClick={confirmDelete} disabled={deleting}>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={confirmDelete}
+            disabled={deleting}
+          >
             Eliminar
           </Button>
         </DialogActions>
@@ -644,9 +747,18 @@ export default function SignosPage() {
         patientAllergies={historyPatient.allergies}
       />
 
-      <Dialog open={!!allergyTarget} onClose={() => setAllergyTarget(null)} fullWidth maxWidth="xs">
-        <DialogTitle>Alergias{allergyTarget ? ` — ${allergyTarget.name}` : ''}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Dialog
+        open={!!allergyTarget}
+        onClose={() => setAllergyTarget(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          Alergias{allergyTarget ? ` — ${allergyTarget.name}` : ''}
+        </DialogTitle>
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
           {allergyError && <Alert severity="error">{allergyError}</Alert>}
           <TextField
             label="Alergias"
@@ -660,11 +772,15 @@ export default function SignosPage() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setAllergyTarget(null)}>Cancelar</Button>
-          <Button variant="contained" onClick={saveAllergies} disabled={allergySaving}>
+          <Button
+            variant="contained"
+            onClick={saveAllergies}
+            disabled={allergySaving}
+          >
             Guardar
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
-  )
+  );
 }

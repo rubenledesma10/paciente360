@@ -38,7 +38,8 @@ def get_medical_history(patient_id):
                 "signs": s.signs,
                 "symptoms": s.symptoms,
                 "observations": s.observations,
-                "record_type": s.record_type
+                "record_type": s.record_type,
+                "triage_level": s.triage_level
             }
         })
 

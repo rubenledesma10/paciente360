@@ -10,7 +10,7 @@ from models.medical_indication import MedicalIndication
 from models.specialty import Specialty
 from enums import RoleEnum, AppointmentStatusEnum
 from utils.role_required import role_required
-from utils.moderation import check_ai_request
+from utils.moderation import check_ai_request, register_ai_offense
 from utils.ai_service import (
     explicar_simple,
     conversar_sobre_noticia,
@@ -18,6 +18,7 @@ from utils.ai_service import (
     asistente_app,
     sugerir_especialidad,
     AIServiceError,
+    ContenidoOfensivoError,
 )
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/api/ai')
@@ -91,6 +92,11 @@ def chat_about_news(id_news_and_prevention):
             "id_news_and_prevention": news.id_news_and_prevention,
             "answer": respuesta
         }), 200
+    except ContenidoOfensivoError:
+        # La IA detecto una ofensa que no estaba en las listas: cuenta
+        # como una advertencia mas
+        body, status = register_ai_offense()
+        return jsonify(body), status
     except AIServiceError as e:
         return jsonify({"msg": str(e)}), 503
     except Exception as e:
@@ -299,6 +305,11 @@ def app_assistant():
         # Siempre como visitante: con sesion ya se rechazo arriba
         respuesta = asistente_app(pregunta, historial, rol=None, ruta=ruta)
         return jsonify({"answer": respuesta}), 200
+    except ContenidoOfensivoError:
+        # La IA detecto una ofensa que no estaba en las listas: cuenta
+        # como una advertencia mas
+        body, status = register_ai_offense()
+        return jsonify(body), status
     except AIServiceError as e:
         return jsonify({"msg": str(e)}), 503
     except Exception as e:
@@ -341,6 +352,11 @@ def specialty_suggest():
     try:
         resultado = sugerir_especialidad(descripcion, especialidades)
         return jsonify(resultado), 200
+    except ContenidoOfensivoError:
+        # La IA detecto una ofensa que no estaba en las listas: cuenta
+        # como una advertencia mas
+        body, status = register_ai_offense()
+        return jsonify(body), status
     except AIServiceError as e:
         return jsonify({"msg": str(e)}), 503
     except Exception as e:

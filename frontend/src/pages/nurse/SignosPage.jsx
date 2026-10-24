@@ -53,6 +53,7 @@ const schema = yup.object({
   temperature: yup
     .number()
     .typeError('Ingresá la temperatura')
+    .min(0, 'La temperatura no puede ser negativa')
     .required('Ingresá la temperatura'),
   blood_pressure: yup.string().required('Ingresá la presión arterial'),
   signs: yup.string().nullable(),
@@ -604,7 +605,7 @@ export default function SignosPage() {
                 label="Temperatura (°C)"
                 type="number"
                 fullWidth
-                inputProps={{ step: '0.1' }}
+                inputProps={{ step: '0.1', min: 0 }}
                 {...register('temperature')}
                 error={!!errors.temperature}
                 helperText={errors.temperature?.message}

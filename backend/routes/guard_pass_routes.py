@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 guard_pass_bp = Blueprint('guard_pass', __name__, url_prefix='/api/guard_pass')
 
 @guard_pass_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, solo_lectura_admins=True)
 def create_guard_pass():
 
     data = request.get_json()
@@ -23,11 +23,10 @@ def create_guard_pass():
         return jsonify({"Error":"Nurse not found"}),404
         
     try:
-        rotation = data.get('rotation')
         new_guard_pass = GuardPass(
             id_nurse=id_nurse,
             notes=data.get('notes'),
-            **({'rotation': datetime.fromisoformat(rotation)} if rotation else {})
+            rotation=datetime.now() #la fecha y hora la fija el servidor, el cliente no la elige
         )
 
         db.session.add(new_guard_pass)
@@ -61,7 +60,7 @@ def get_guard_pass(id_guard_pass):
         return jsonify({'error': 'Guard pass not found'}), 404
     
 @guard_pass_bp.route('/<int:id_guard_pass>', methods=['PUT'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, solo_lectura_admins=True)
 def update_guard_pass(id_guard_pass):
     guard_pass = GuardPass.query.get(id_guard_pass)
     if not guard_pass:
@@ -87,7 +86,7 @@ def update_guard_pass(id_guard_pass):
 
 
 @guard_pass_bp.route('/<int:id_guard_pass>/checklist', methods=['POST'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, solo_lectura_admins=True)
 def create_guard_pass_checklist(id_guard_pass):
     guard_pass = GuardPass.query.get(id_guard_pass)
     if not guard_pass:
@@ -119,7 +118,7 @@ def create_guard_pass_checklist(id_guard_pass):
 
 
 @guard_pass_bp.route('/<int:id_guard_pass>/checklist', methods=['PUT'])
-@role_required(RoleEnum.NURSE)
+@role_required(RoleEnum.NURSE, solo_lectura_admins=True)
 def update_guard_pass_checklist(id_guard_pass):
     guard_pass = GuardPass.query.get(id_guard_pass)
     if not guard_pass:

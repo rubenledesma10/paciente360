@@ -122,7 +122,7 @@ def create_patient_private():
     
 
 @patients_bp.route('/', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_patients():
     try:
         patients = Patient.query.all()
@@ -244,7 +244,7 @@ def delete_patient(patient_id):
 
 
 @patients_bp.route('/search', methods=['GET'])
-@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
+@role_required(RoleEnum.NURSE, RoleEnum.DOCTOR, RoleEnum.ADMINISTRATIVE, RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def search_patients():
     try:
         query = request.args.get('query', '')

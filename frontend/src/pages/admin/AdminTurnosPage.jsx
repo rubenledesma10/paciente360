@@ -121,6 +121,7 @@ export default function AdminTurnosPage() {
   const [reason, setReason] = useState('');
   const [isOverbooking, setIsOverbooking] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [patientsError, setPatientsError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const loadAppointments = useCallback(async () => {
@@ -145,8 +146,14 @@ export default function AdminTurnosPage() {
 
   useEffect(() => {
     getPatients()
-      .then((res) => setPatients(res.data))
-      .catch(() => setPatients([]));
+      .then((res) => {
+        setPatients(res.data);
+        setPatientsError('');
+      })
+      .catch((err) => {
+        setPatients([]);
+        setPatientsError(readError(err, 'No se pudo cargar la lista de pacientes.'));
+      });
     getSpecialties()
       .then((res) => setSpecialties(res.data))
       .catch(() => setSpecialties([]));
@@ -278,6 +285,10 @@ export default function AdminTurnosPage() {
     setCreateError('');
     if (!dni.trim()) {
       setCreateError('Ingresá el DNI del paciente.');
+      return;
+    }
+    if (patientsError) {
+      setCreateError(patientsError);
       return;
     }
     const match = patients.find((p) => String(p.dni) === dni.trim());

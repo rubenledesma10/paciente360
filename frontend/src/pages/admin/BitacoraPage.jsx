@@ -12,6 +12,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -121,6 +122,7 @@ export default function BitacoraPage() {
   const [error, setError] = useState('');
   const [table, setTable] = useState('');
   const [action, setAction] = useState('');
+  const [dateOrder, setDateOrder] = useState('desc');
 
   // Se trae todo una vez y se filtra en memoria. Asi las opciones de los
   // desplegables salen del total registrado y no se achican al filtrar.
@@ -142,10 +144,15 @@ export default function BitacoraPage() {
     load();
   }, [load]);
 
-  const rows = allRows.filter(
-    (r) =>
-      (!table || r.table_name === table) && (!action || r.action === action),
-  );
+  const rows = allRows
+    .filter(
+      (r) =>
+        (!table || r.table_name === table) && (!action || r.action === action),
+    )
+    .sort((a, b) => {
+      const diff = new Date(a.timestamp) - new Date(b.timestamp);
+      return dateOrder === 'asc' ? diff : -diff;
+    });
 
   const tablas = [
     ...new Set(allRows.map((r) => r.table_name).filter(Boolean)),
@@ -235,7 +242,15 @@ export default function BitacoraPage() {
           <TableHead>
             <TableRow>
               <TableCell>
-                <b>Fecha y hora</b>
+                <TableSortLabel
+                  active
+                  direction={dateOrder}
+                  onClick={() =>
+                    setDateOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+                  }
+                >
+                  <b>Fecha y hora</b>
+                </TableSortLabel>
               </TableCell>
               <TableCell>
                 <b>Usuario</b>

@@ -1,19 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
-  Avatar,
   Box,
   Button,
-  Card,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Grid,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  TextField,
   Typography,
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { useAuth } from '../../context/useAuth';
@@ -57,6 +65,13 @@ const formatDate = (value) => {
   return d ? d.toLocaleDateString('es-AR') : '—';
 };
 
+// Minúsculas y sin tildes, para que la búsqueda no distinga "Gómez" de "gomez"
+const normalizeText = (s) =>
+  String(s ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+
 const FILTERS = [
   { key: 'proximos', label: 'Próximos' },
   { key: 'historial', label: 'Historial' },
@@ -70,6 +85,11 @@ export default function MisTurnosPage() {
   const [actionError, setActionError] = useState('');
   const [actionOk, setActionOk] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('proximos');
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState('date');
+  const [sortOrder, setSortOrder] = useState('asc');
+  // Día elegido en el calendario (null = sin filtro por día)
+  const [selectedDate, setSelectedDate] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
 
@@ -140,7 +160,36 @@ export default function MisTurnosPage() {
       const upcoming = isOpen(ap.status) && d !== null && d >= 0;
       return selectedFilter === 'proximos' ? upcoming : !upcoming;
     })
-    .sort((a, b) => parseDate(a.date) - parseDate(b.date));
+    .filter((ap) => {
+      if (!selectedDate) return true;
+      const d = parseDate(ap.date);
+      return d !== null && dayjs(d).isSame(selectedDate, 'day');
+    })
+    .filter((ap) => {
+      const term = normalizeText(search.trim());
+      if (!term) return true;
+      return [ap.doctor_name, ap.reason, ap.status].some((field) =>
+        normalizeText(field).includes(term),
+      );
+    })
+    .sort((a, b) => {
+      const byDate = parseDate(a.date) - parseDate(b.date);
+      const byHour = String(a.hour ?? '').localeCompare(String(b.hour ?? ''));
+      const diff =
+        sortKey === 'hour' ? byHour || byDate : byDate || byHour;
+      return sortOrder === 'asc' ? diff : -diff;
+    });
+
+  // Click en un encabezado: si ya ordena por esa columna invierte el sentido,
+  // si no, pasa a ordenar por ella en ascendente.
+  const toggleSort = (key) => {
+    if (sortKey === key) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+  };
 
   // Sin cartel de "turnos por confirmar": confirmar es opcional, el paciente
   // puede presentarse igual. El boton alcanza como invitacion.
@@ -203,133 +252,149 @@ export default function MisTurnosPage() {
         ))}
       </Box>
 
-      {/* data-tour: el tutorial resalta la lista para explicar confirmar y cancelar */}
-      <Grid container spacing={2} data-tour="appointments-list">
-        {filteredRows.map((ap) => {
-          const d = daysUntil(ap.date);
-          const doctorName = ap.doctor_name || '—';
-          const open = isOpen(ap.status);
-          const isToday = d === 0;
-          const chip = statusChip(ap);
-          const busy = busyId === ap.id_medical_appointment;
+      <Box
+        sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}
+      >
+        <TextField
+          size="small"
+          label="Buscar por médico, motivo o estado"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          sx={{ minWidth: 260 }}
+        />
+        <DatePicker
+          label="Fecha"
+          value={selectedDate}
+          onChange={(value) => setSelectedDate(value)}
+          slotProps={{ textField: { size: 'small' }, field: { clearable: true } }}
+        />
+        {(selectedDate || search.trim()) && (
+          <Button
+            size="small"
+            onClick={() => {
+              setSelectedDate(null);
+              setSearch('');
+            }}
+          >
+            Limpiar
+          </Button>
+        )}
+      </Box>
 
-          return (
-            <Grid key={ap.id_medical_appointment} size={{ xs: 12, md: 6 }}>
-              <Card sx={{ p: 2.5, opacity: open ? 1 : 0.75 }}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                  }}
+      {/* data-tour: el tutorial resalta la lista para explicar confirmar y cancelar */}
+      <TableContainer component={Paper} data-tour="appointments-list">
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell align="center">Médico</TableCell>
+              <TableCell align="center">Motivo</TableCell>
+              <TableCell align="center">
+                <TableSortLabel
+                  active={sortKey === 'date'}
+                  direction={sortKey === 'date' ? sortOrder : 'asc'}
+                  onClick={() => toggleSort('date')}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Avatar
-                      sx={{
-                        bgcolor: '#29ABE2',
-                        color: '#fff',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {doctorName.charAt(0)}
-                    </Avatar>
-                    <Box>
-                      <Typography fontWeight={700} color="#0E4C82">
-                        {doctorName}
-                      </Typography>
-                      <Typography variant="caption" color="#5b7387">
-                        {ap.reason || 'Consulta médica'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      gap: 0.5,
-                      flexWrap: 'wrap',
-                      justifyContent: 'flex-end',
-                    }}
-                  >
+                  Fecha
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center">
+                <TableSortLabel
+                  active={sortKey === 'hour'}
+                  direction={sortKey === 'hour' ? sortOrder : 'asc'}
+                  onClick={() => toggleSort('hour')}
+                >
+                  Hora
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center">Estado</TableCell>
+              <TableCell align="center">Acciones</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredRows.map((ap) => {
+              const d = daysUntil(ap.date);
+              const open = isOpen(ap.status);
+              const isToday = d === 0;
+              const chip = statusChip(ap);
+              const busy = busyId === ap.id_medical_appointment;
+
+              return (
+                <TableRow
+                  key={ap.id_medical_appointment}
+                  sx={{ opacity: open ? 1 : 0.75 }}
+                >
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>
+                    {ap.doctor_name || '—'}
+                  </TableCell>
+                  <TableCell align="center">
+                    {ap.reason || 'Consulta médica'}
+                  </TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+                    {formatDate(ap.date)}
+                    {open && isToday && (
+                      <Chip
+                        size="small"
+                        label="Hoy"
+                        color="info"
+                        sx={{ ml: 1 }}
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell align="center">{ap.hour}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+                    <Chip size="small" label={chip.label} color={chip.color} />
                     {ap.is_overbooking && (
                       <Chip
                         size="small"
                         label="Sobreturno"
                         color="secondary"
                         variant="outlined"
+                        sx={{ ml: 0.5 }}
                       />
                     )}
-                    <Chip size="small" label={chip.label} color={chip.color} />
-                  </Box>
-                </Box>
-
-                <Typography
-                  variant="body2"
-                  sx={{ mt: 2 }}
-                  color="#1565A8"
-                  fontWeight={700}
-                >
-                  {formatDate(ap.date)} a las {ap.hour}
-                  {open && isToday && ' — es hoy'}
-                </Typography>
-
-                {open && (
-                  <Typography
-                    variant="caption"
-                    sx={{ mt: 0.5, display: 'block' }}
-                    color="#5b7387"
-                  >
-                    Estado del turno: {ap.status}
-                  </Typography>
-                )}
-
-                <Box
-                  sx={{
-                    mt: 2,
-                    display: 'flex',
-                    gap: 1,
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                  }}
-                >
-                  {/* Las reglas de negocio viven en el backend: el front solo obedece */}
-                  {ap.patient_can_confirm && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<EventAvailableIcon />}
-                      disabled={busy}
-                      onClick={() => handleConfirm(ap.id_medical_appointment)}
-                    >
-                      Confirmar asistencia
-                    </Button>
-                  )}
-
-                  {ap.patient_can_cancel && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="error"
-                      startIcon={<EventBusyIcon />}
-                      disabled={busy}
-                      onClick={() => setCancelTarget(ap)}
-                    >
-                      Cancelar turno
-                    </Button>
-                  )}
-                </Box>
-              </Card>
-            </Grid>
-          );
-        })}
-
-        {filteredRows.length === 0 && (
-          <Grid size={{ xs: 12 }}>
-            <Typography color="#5b7387">
-              No tenés turnos en esta categoría.
-            </Typography>
-          </Grid>
-        )}
-      </Grid>
+                  </TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+                    {/* Las reglas de negocio viven en el backend: el front solo obedece */}
+                    {ap.patient_can_confirm && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<EventAvailableIcon />}
+                        disabled={busy}
+                        sx={{ mr: 1 }}
+                        onClick={() => handleConfirm(ap.id_medical_appointment)}
+                      >
+                        Confirmar asistencia
+                      </Button>
+                    )}
+                    {ap.patient_can_cancel && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        startIcon={<EventBusyIcon />}
+                        disabled={busy}
+                        onClick={() => setCancelTarget(ap)}
+                      >
+                        Cancelar turno
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {filteredRows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ color: '#5b7387' }}>
+                  {search.trim() || selectedDate
+                    ? 'No hay turnos que coincidan con la búsqueda.'
+                    : 'No tenés turnos en esta categoría.'}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* Confirmación antes de cancelar: es una acción que no se puede deshacer */}
       <Dialog

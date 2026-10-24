@@ -21,6 +21,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -91,6 +92,8 @@ export default function AdminTurnosPage() {
   const [filterDate, setFilterDate] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDoctor, setFilterDoctor] = useState('');
+  const [sortKey, setSortKey] = useState('date');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   // Diálogo de cambio de estado
   const [statusTarget, setStatusTarget] = useState(null);
@@ -175,11 +178,23 @@ export default function AdminTurnosPage() {
       ? rows.filter((ap) => String(ap.id_doctor) === String(filterDoctor))
       : rows;
     return [...filtered].sort((a, b) => {
-      const dateDiff = parseDate(a.date) - parseDate(b.date);
-      if (dateDiff !== 0) return dateDiff;
-      return (a.hour || '').localeCompare(b.hour || '');
+      const byDate = parseDate(a.date) - parseDate(b.date);
+      const byHour = (a.hour || '').localeCompare(b.hour || '');
+      const diff = sortKey === 'hour' ? byHour || byDate : byDate || byHour;
+      return sortOrder === 'asc' ? diff : -diff;
     });
-  }, [rows, filterDoctor]);
+  }, [rows, filterDoctor, sortKey, sortOrder]);
+
+  // Click en un encabezado: si ya ordena por esa columna invierte el sentido,
+  // si no, pasa a ordenar por ella en ascendente.
+  const toggleSort = (key) => {
+    if (sortKey === key) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+  };
 
   // ---------- Cambio de estado ----------
 
@@ -517,10 +532,22 @@ export default function AdminTurnosPage() {
           <TableHead>
             <TableRow>
               <TableCell>
-                <b>Fecha</b>
+                <TableSortLabel
+                  active={sortKey === 'date'}
+                  direction={sortKey === 'date' ? sortOrder : 'asc'}
+                  onClick={() => toggleSort('date')}
+                >
+                  <b>Fecha</b>
+                </TableSortLabel>
               </TableCell>
               <TableCell>
-                <b>Hora</b>
+                <TableSortLabel
+                  active={sortKey === 'hour'}
+                  direction={sortKey === 'hour' ? sortOrder : 'asc'}
+                  onClick={() => toggleSort('hour')}
+                >
+                  <b>Hora</b>
+                </TableSortLabel>
               </TableCell>
               <TableCell>
                 <b>Paciente</b>

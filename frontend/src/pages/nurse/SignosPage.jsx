@@ -21,6 +21,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -29,7 +30,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import HistoryIcon from '@mui/icons-material/History'
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import { getPatients, updatePatientAllergies } from '../../api/patients'
 import { getPatientsByStatus } from '../../api/appointments'
@@ -81,6 +82,7 @@ export default function SignosPage() {
   const [deleteError, setDeleteError] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [selectedDate, setSelectedDate] = useState(dayjs())
+  const [dateOrder, setDateOrder] = useState('desc')
   const [allergyTarget, setAllergyTarget] = useState(null)
   const [allergyValue, setAllergyValue] = useState('')
   const [allergyError, setAllergyError] = useState('')
@@ -155,9 +157,12 @@ export default function SignosPage() {
         label: `${p.first_name} ${p.last_name} — DNI ${getPatientDni(p)}`,
       }))
 
-  const visibleRows = rows.filter(
-    (r) => !selectedDate || dayjs(r.date_and_time).isSame(selectedDate, 'day'),
-  )
+  const visibleRows = rows
+    .filter((r) => !selectedDate || dayjs(r.date_and_time).isSame(selectedDate, 'day'))
+    .sort((a, b) => {
+      const diff = dayjs(a.date_and_time).valueOf() - dayjs(b.date_and_time).valueOf()
+      return dateOrder === 'asc' ? diff : -diff
+    })
 
   const loadAll = async () => {
     setLoading(true)
@@ -342,17 +347,27 @@ export default function SignosPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Paciente</TableCell>
-              <TableCell>DNI</TableCell>
-              <TableCell>Edad</TableCell>
-              <TableCell>Temp.</TableCell>
-              <TableCell>Presión</TableCell>
-              <TableCell>Síntomas</TableCell>
-              <TableCell>Signos</TableCell>
-              <TableCell>Tipo</TableCell>
-              <TableCell>Triage</TableCell>
-              <TableCell>Fecha/Hora</TableCell>
-              <TableCell align="right">Acciones</TableCell>
+              <TableCell align="center">Paciente</TableCell>
+              <TableCell align="center">DNI</TableCell>
+              <TableCell align="center">Edad</TableCell>
+              <TableCell align="center">Temp.</TableCell>
+              <TableCell align="center">Presión</TableCell>
+              <TableCell align="center">Síntomas</TableCell>
+              <TableCell align="center">Signos</TableCell>
+              <TableCell align="center">Tipo</TableCell>
+              <TableCell align="center">Triage</TableCell>
+              <TableCell align="center">
+                <TableSortLabel
+                  active
+                  direction={dateOrder}
+                  onClick={() => setDateOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                >
+                  Fecha/Hora
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center">Historial</TableCell>
+              <TableCell align="center">Alergias</TableCell>
+              <TableCell align="center">Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -361,7 +376,7 @@ export default function SignosPage() {
               const editable = isEditable(r)
               return (
                 <TableRow key={r.id_signs_and_symptoms}>
-                  <TableCell sx={{ fontWeight: 600 }}>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>
                     {patientName(r.id_patient)}
                     {patient?.allergies && (
                       <Tooltip title={`Alergias: ${patient.allergies}`}>
@@ -372,24 +387,24 @@ export default function SignosPage() {
                       </Tooltip>
                     )}
                   </TableCell>
-                  <TableCell>{getPatientDni(patient)}</TableCell>
-                  <TableCell>{getPatientAge(patient?.date_of_birth) ?? '—'}</TableCell>
-                  <TableCell
+                  <TableCell align="center">{getPatientDni(patient)}</TableCell>
+                  <TableCell align="center">{getPatientAge(patient?.date_of_birth) ?? '—'}</TableCell>
+                  <TableCell align="center"
                     sx={{ color: r.temperature >= 38 ? paletteRaw.danger : 'inherit', fontWeight: r.temperature >= 38 ? 700 : 400 }}
                   >
                     {r.temperature}°C
                   </TableCell>
-                  <TableCell>{r.blood_pressure || '—'}</TableCell>
-                  <TableCell>{r.symptoms}</TableCell>
-                  <TableCell>{r.signs || '—'}</TableCell>
-                  <TableCell>
+                  <TableCell align="center">{r.blood_pressure || '—'}</TableCell>
+                  <TableCell align="center">{r.symptoms}</TableCell>
+                  <TableCell align="center">{r.signs || '—'}</TableCell>
+                  <TableCell align="center">
                     <Chip
                       size="small"
                       label={r.record_type}
                       color={r.record_type === 'Urgencia' ? 'error' : 'primary'}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     {getTriageLevel(r.triage_level) ? (
                       <Chip
                         size="small"
@@ -404,18 +419,20 @@ export default function SignosPage() {
                       '—'
                     )}
                   </TableCell>
-                  <TableCell sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}>
+                  <TableCell align="center" sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}>
                     {formatDateTime(r.date_and_time)}
                   </TableCell>
-                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                  <TableCell align="center">
                     <Tooltip title="Historial clínico">
                       <IconButton
                         size="small"
                         onClick={() => openHistory(r.id_patient, patientName(r.id_patient))}
                       >
-                        <HistoryIcon fontSize="small" />
+                        <HourglassEmptyIcon fontSize="small" sx={{ color: paletteRaw.azul }} />
                       </IconButton>
                     </Tooltip>
+                  </TableCell>
+                  <TableCell align="center">
                     <Tooltip title="Alergias">
                       <IconButton
                         size="small"
@@ -424,6 +441,8 @@ export default function SignosPage() {
                         <WarningAmberIcon fontSize="small" sx={{ color: paletteRaw.danger }} />
                       </IconButton>
                     </Tooltip>
+                  </TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <Tooltip
                       title={
                         editable
@@ -450,7 +469,7 @@ export default function SignosPage() {
             })}
             {!loading && visibleRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={11} align="center" sx={{ color: paletteRaw.gray }}>
+                <TableCell colSpan={13} align="center" sx={{ color: paletteRaw.gray }}>
                   No hay registros para el día seleccionado.
                 </TableCell>
               </TableRow>

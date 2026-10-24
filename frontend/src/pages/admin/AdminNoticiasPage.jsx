@@ -17,6 +17,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from '@mui/material';
@@ -34,6 +35,7 @@ const MAX_PHOTO_MB = 5;
 export default function AdminNoticiasPage() {
   const [news, setNews] = useState([]);
   const [loadError, setLoadError] = useState('');
+  const [dateOrder, setDateOrder] = useState('desc');
 
   // Diálogo crear/editar
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -152,6 +154,11 @@ export default function AdminNoticiasPage() {
     return new Date(isoString).toLocaleDateString('es-AR');
   };
 
+  const sortedNews = [...news].sort((a, b) => {
+    const diff = new Date(a.date) - new Date(b.date);
+    return dateOrder === 'asc' ? diff : -diff;
+  });
+
   return (
     <Box>
       <Box
@@ -199,7 +206,15 @@ export default function AdminNoticiasPage() {
                 <b>Categoría</b>
               </TableCell>
               <TableCell>
-                <b>Fecha</b>
+                <TableSortLabel
+                  active
+                  direction={dateOrder}
+                  onClick={() =>
+                    setDateOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+                  }
+                >
+                  <b>Fecha</b>
+                </TableSortLabel>
               </TableCell>
               <TableCell align="right">
                 <b>Acciones</b>
@@ -207,7 +222,7 @@ export default function AdminNoticiasPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {news.map((item) => (
+            {sortedNews.map((item) => (
               <TableRow key={item.id_news_and_prevention}>
                 <TableCell>
                   <Avatar

@@ -4,6 +4,7 @@ import {
   AppBar,
   Avatar,
   Box,
+  ButtonBase,
   Drawer,
   IconButton,
   List,
@@ -15,6 +16,8 @@ import {
   Typography,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import KeyboardDoubleArrowLeftIcon from '@mui/icons-material/KeyboardDoubleArrowLeft';
+import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import HelpIcon from '@mui/icons-material/Help';
 import { useAuth } from '../../context/useAuth';
@@ -28,6 +31,18 @@ import { isTourDone, markTourDone } from '../tour/tourStorage';
 import { PATIENT_TOUR_STEPS, patientTourKey } from '../tour/tourSteps';
 
 const DRAWER_WIDTH = 260;
+const COLLAPSED_WIDTH = 72;
+const COLLAPSED_KEY = 'sidebar-collapsed';
+
+// La preferencia es una comodidad: si el navegador bloquea el storage, la
+// barra simplemente arranca desplegada.
+const readCollapsed = () => {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
 
 // Nombre de anclaje del tutorial para cada item del menu: '/mis-turnos' -> 'nav-mis-turnos'
 const navTourName = (path) =>
@@ -38,6 +53,24 @@ export default function AuthShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // collapsed = barra en modo "auto-ocultar": reposa angosta (solo íconos) y se
+  // despliega encima del contenido mientras el mouse está sobre ella.
+  // collapsed = false = barra fija (siempre desplegada).
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [hovered, setHovered] = useState(false);
+
+  const toggleCollapsed = () => {
+    setHovered(false);
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
+      } catch {
+        // sin storage: el cambio vale solo para esta sesión
+      }
+      return next;
+    });
+  };
 
   const menu = menuForRole(rol);
   const roleLabel = ROLE_LABELS[rol] || rol;
@@ -74,128 +107,184 @@ export default function AuthShell() {
     navigate('/', { replace: true });
   };
 
-  const drawerContent = (
+  // compact = solo íconos (barra de escritorio oculta). El cajón del celular
+  // siempre se dibuja completo y sin botón de ocultar (showToggle = false).
+  const renderDrawer = (compact, showToggle) => (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
+          justifyContent: compact ? 'center' : 'flex-start',
           gap: 1.5,
-          px: 2.5,
+          px: compact ? 1 : 2.5,
           py: 2,
           borderBottom: '1px solid #E3EEF6',
         }}
       >
-        <Logo size={40} />
-        <Box>
-          <Typography
-            variant="subtitle1"
-            fontWeight={800}
-            lineHeight={1}
-            color={paletteRaw.azulD}
-          >
-            Paciente<span style={{ color: paletteRaw.celeste }}>360º</span>
-          </Typography>
-          <Typography variant="caption" color={paletteRaw.gray}>
-            Salud digital
-          </Typography>
-        </Box>
+        {showToggle ? (
+          // El logo fija o auto-oculta la barra (mismo efecto que el botón de al lado).
+          <Tooltip title={collapsed ? 'Fijar menú' : 'Ocultar menú'} placement="right">
+            <ButtonBase
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? 'Fijar menú' : 'Ocultar menú'}
+              sx={{ width: 40, height: 40, flexShrink: 0, borderRadius: 2 }}
+            >
+              <Logo size={40} />
+            </ButtonBase>
+          </Tooltip>
+        ) : (
+          <Logo size={40} />
+        )}
+        {!compact && (
+          <Box>
+            <Typography
+              variant="subtitle1"
+              fontWeight={800}
+              lineHeight={1}
+              color={paletteRaw.azulD}
+            >
+              Paciente<span style={{ color: paletteRaw.celeste }}>360º</span>
+            </Typography>
+            <Typography variant="caption" color={paletteRaw.gray}>
+              Salud digital
+            </Typography>
+          </Box>
+        )}
+        {showToggle && !compact && (
+          <Tooltip title={collapsed ? 'Fijar menú' : 'Ocultar menú'} placement="right">
+            <IconButton
+              size="small"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? 'Fijar menú' : 'Ocultar menú'}
+              sx={{ ml: 'auto', color: paletteRaw.azul }}
+            >
+              {collapsed ? <PushPinOutlinedIcon /> : <KeyboardDoubleArrowLeftIcon />}
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
       <List sx={{ flex: 1, px: 1.5, py: 1.5 }}>
         {menu.map((item) => {
           const active = location.pathname.startsWith(item.path);
           const Icon = item.icon;
           return (
-            <ListItemButton
+            <Tooltip
               key={item.id}
-              component={NavLink}
-              to={item.path}
-              onClick={() => setMobileOpen(false)}
-              selected={active}
-              data-tour={navTourName(item.path)}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                '&.Mui-selected': {
-                  backgroundColor: paletteRaw.azul,
-                  color: '#fff',
-                  '&:hover': { backgroundColor: paletteRaw.azul },
-                },
-              }}
+              title={compact ? item.label : ''}
+              placement="right"
             >
-              <ListItemIcon
+              <ListItemButton
+                component={NavLink}
+                to={item.path}
+                onClick={() => setMobileOpen(false)}
+                selected={active}
+                data-tour={navTourName(item.path)}
                 sx={{
-                  color: active ? '#fff' : paletteRaw.celeste,
-                  minWidth: 36,
+                  borderRadius: 2,
+                  mb: 0.5,
+                  justifyContent: compact ? 'center' : 'flex-start',
+                  '&.Mui-selected': {
+                    backgroundColor: paletteRaw.azul,
+                    color: '#fff',
+                    '&:hover': { backgroundColor: paletteRaw.azul },
+                  },
                 }}
               >
-                <Icon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                slotProps={{ primary: { fontWeight: 600, fontSize: 14 } }}
-              />
-            </ListItemButton>
+                <ListItemIcon
+                  sx={{
+                    color: active ? '#fff' : paletteRaw.celeste,
+                    minWidth: compact ? 0 : 36,
+                  }}
+                >
+                  <Icon fontSize="small" />
+                </ListItemIcon>
+                {!compact && (
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{ primary: { fontWeight: 600, fontSize: 14 } }}
+                  />
+                )}
+              </ListItemButton>
+            </Tooltip>
           );
         })}
       </List>
       <Box sx={{ p: 1.5, borderTop: '1px solid #E3EEF6' }}>
-        <Box
-          onClick={goToProfile}
-          data-tour="profile-sidebar"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            borderRadius: 2,
-            px: 1.5,
-            py: 1,
-            mb: 1,
-            background: paletteRaw.bg,
-            cursor: 'pointer',
-            '&:hover': { filter: 'brightness(0.97)' },
-          }}
-        >
-          <Avatar
-            src={photoUrl}
+        <Tooltip title={compact ? 'Ver mi perfil' : ''} placement="right">
+          <Box
+            onClick={goToProfile}
+            data-tour="profile-sidebar"
             sx={{
-              width: 34,
-              height: 34,
-              bgcolor: paletteRaw.azul,
-              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: compact ? 'center' : 'flex-start',
+              gap: 1.5,
+              borderRadius: 2,
+              px: compact ? 0 : 1.5,
+              py: 1,
+              mb: 1,
+              background: paletteRaw.bg,
+              cursor: 'pointer',
+              '&:hover': { filter: 'brightness(0.97)' },
             }}
           >
-            {(nombre || '?').charAt(0).toUpperCase()}
-          </Avatar>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="body2"
-              fontWeight={700}
-              color={paletteRaw.azulD}
-              noWrap
+            <Avatar
+              src={photoUrl}
+              sx={{
+                width: 34,
+                height: 34,
+                bgcolor: paletteRaw.azul,
+                fontSize: 14,
+              }}
             >
-              {nombre}
-            </Typography>
-            <Typography variant="caption" color={paletteRaw.gray}>
-              {roleLabel} · Ver mi perfil
-            </Typography>
+              {(nombre || '?').charAt(0).toUpperCase()}
+            </Avatar>
+            {!compact && (
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color={paletteRaw.azulD}
+                  noWrap
+                >
+                  {nombre}
+                </Typography>
+                <Typography variant="caption" color={paletteRaw.gray}>
+                  {roleLabel} · Ver mi perfil
+                </Typography>
+              </Box>
+            )}
           </Box>
-        </Box>
-        <ListItemButton
-          onClick={handleLogout}
-          sx={{ borderRadius: 2, color: paletteRaw.danger }}
-        >
-          <ListItemIcon sx={{ color: paletteRaw.danger, minWidth: 36 }}>
-            <LogoutIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText
-            primary="Cerrar sesión"
-            slotProps={{ primary: { fontWeight: 600, fontSize: 14 } }}
-          />
-        </ListItemButton>
+        </Tooltip>
+        <Tooltip title={compact ? 'Cerrar sesión' : ''} placement="right">
+          <ListItemButton
+            onClick={handleLogout}
+            sx={{
+              borderRadius: 2,
+              color: paletteRaw.danger,
+              justifyContent: compact ? 'center' : 'flex-start',
+            }}
+          >
+            <ListItemIcon
+              sx={{ color: paletteRaw.danger, minWidth: compact ? 0 : 36 }}
+            >
+              <LogoutIcon fontSize="small" />
+            </ListItemIcon>
+            {!compact && (
+              <ListItemText
+                primary="Cerrar sesión"
+                slotProps={{ primary: { fontWeight: 600, fontSize: 14 } }}
+              />
+            )}
+          </ListItemButton>
+        </Tooltip>
       </Box>
     </Box>
   );
+
+  const sidebarWidth = collapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH;
+  const peeking = collapsed && hovered;
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', background: paletteRaw.bg }}>
@@ -209,23 +298,35 @@ export default function AuthShell() {
           '& .MuiDrawer-paper': { width: DRAWER_WIDTH },
         }}
       >
-        {drawerContent}
+        {renderDrawer(false, false)}
       </Drawer>
       <Drawer
         variant="permanent"
         sx={{
           display: { xs: 'none', md: 'block' },
-          width: DRAWER_WIDTH,
+          width: sidebarWidth,
           flexShrink: 0,
+          transition: 'width 0.2s',
+          // El contenedor siempre reserva el ancho de reposo; al pasar el mouse
+          // la barra se despliega encima del contenido sin empujarlo.
           '& .MuiDrawer-paper': {
-            width: DRAWER_WIDTH,
+            width: peeking ? DRAWER_WIDTH : sidebarWidth,
             boxSizing: 'border-box',
             borderRight: '1px solid #E3EEF6',
+            overflowX: 'hidden',
+            transition: 'width 0.2s, box-shadow 0.2s',
+            boxShadow: peeking ? '4px 0 16px rgba(14, 76, 130, 0.15)' : 'none',
+          },
+        }}
+        slotProps={{
+          paper: {
+            onMouseEnter: () => setHovered(true),
+            onMouseLeave: () => setHovered(false),
           },
         }}
         open
       >
-        {drawerContent}
+        {renderDrawer(collapsed && !peeking, true)}
       </Drawer>
       <Box
         sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}

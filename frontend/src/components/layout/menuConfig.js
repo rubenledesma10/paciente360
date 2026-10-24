@@ -5,6 +5,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import HomeIcon from '@mui/icons-material/Home';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
 import HistoryIcon from '@mui/icons-material/History';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import PeopleIcon from '@mui/icons-material/People';
@@ -71,7 +72,7 @@ export const DOCTOR_MENU = [
   {
     id: 'historia-clinica',
     label: 'Historia clínica',
-    icon: HistoryIcon,
+    icon: HourglassEmptyIcon,
     path: '/historia-clinica',
   },
 ];

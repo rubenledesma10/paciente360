@@ -155,6 +155,9 @@ export default function StockPage() {
   const [movSelectedDate, setMovSelectedDate] = useState(dayjs());
   const [movSortOrder, setMovSortOrder] = useState('desc');
   const [trzSearch, setTrzSearch] = useState('');
+  // Orden por columnas de fecha: null = orden original hasta el primer click
+  const [invExpOrder, setInvExpOrder] = useState(null);
+  const [trzSort, setTrzSort] = useState({ key: null, order: 'asc' });
   const productRowRefs = useRef({});
 
   const movForm = useForm({
@@ -255,18 +258,24 @@ export default function StockPage() {
     [products],
   );
 
-  const visibleProducts = useMemo(
-    () =>
-      products.filter((p) => {
-        if (!invSearch) return true;
-        const term = invSearch.trim().toLowerCase();
-        return (
-          (p.name_product || '').toLowerCase().includes(term) ||
-          (p.type_product || '').toLowerCase().includes(term)
-        );
-      }),
-    [products, invSearch],
-  );
+  const visibleProducts = useMemo(() => {
+    const filtered = products.filter((p) => {
+      if (!invSearch) return true;
+      const term = invSearch.trim().toLowerCase();
+      return (
+        (p.name_product || '').toLowerCase().includes(term) ||
+        (p.type_product || '').toLowerCase().includes(term)
+      );
+    });
+    if (!invExpOrder) return filtered;
+    // Los productos sin vencimiento quedan siempre al final
+    return filtered.sort((a, b) => {
+      if (!a.expiration_date) return 1;
+      if (!b.expiration_date) return -1;
+      const diff = a.expiration_date.localeCompare(b.expiration_date);
+      return invExpOrder === 'asc' ? diff : -diff;
+    });
+  }, [products, invSearch, invExpOrder]);
 
   // El backend manda date_time en UTC sin sufijo 'Z'; sin esto, dayjs lo toma como si ya
   // fuera hora local y el día calculado queda corrido (ej. "hoy" a la noche cae mañana).
@@ -303,22 +312,34 @@ export default function StockPage() {
     [visibleMovements, movSortOrder],
   );
 
-  const visibleTraceabilities = useMemo(
-    () =>
-      traceabilities.filter((t) => {
-        if (!trzSearch) return true;
-        const term = trzSearch.trim().toLowerCase();
-        const patient = patients.find((p) => p.id_user === t.id_patient);
-        const fullPatientName = patient
-          ? `${patient.first_name} ${patient.last_name}`
-          : '';
-        return (
-          (t.product_name || '').toLowerCase().includes(term) ||
-          fullPatientName.toLowerCase().includes(term)
-        );
-      }),
-    [traceabilities, trzSearch, patients],
-  );
+  const visibleTraceabilities = useMemo(() => {
+    const filtered = traceabilities.filter((t) => {
+      if (!trzSearch) return true;
+      const term = trzSearch.trim().toLowerCase();
+      const patient = patients.find((p) => p.id_user === t.id_patient);
+      const fullPatientName = patient
+        ? `${patient.first_name} ${patient.last_name}`
+        : '';
+      return (
+        (t.product_name || '').toLowerCase().includes(term) ||
+        fullPatientName.toLowerCase().includes(term)
+      );
+    });
+    if (!trzSort.key) return filtered;
+    const field = trzSort.key === 'expiration' ? 'expiration_date' : 'date_of_use';
+    return filtered.sort((a, b) => {
+      if (!a[field]) return 1;
+      if (!b[field]) return -1;
+      const diff = String(a[field]).localeCompare(String(b[field]));
+      return trzSort.order === 'asc' ? diff : -diff;
+    });
+  }, [traceabilities, trzSearch, patients, trzSort]);
+
+  const toggleTrzSort = (key) =>
+    setTrzSort((prev) => ({
+      key,
+      order: prev.key === key && prev.order === 'asc' ? 'desc' : 'asc',
+    }));
 
   // Nombres únicos de producto para el selector de "Registrar uso": el lote puntual
   // se resuelve por FEFO (acá a modo de preview, y de forma autoritativa en el backend).
@@ -566,13 +587,23 @@ export default function StockPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Producto</TableCell>
-                  <TableCell>Tipo</TableCell>
-                  <TableCell>Stock</TableCell>
-                  <TableCell>Mínimo</TableCell>
-                  <TableCell>Lote</TableCell>
-                  <TableCell>Vence</TableCell>
-                  <TableCell>Estado</TableCell>
+                  <TableCell align="center">Producto</TableCell>
+                  <TableCell align="center">Tipo</TableCell>
+                  <TableCell align="center">Stock</TableCell>
+                  <TableCell align="center">Mínimo</TableCell>
+                  <TableCell align="center">Lote</TableCell>
+                  <TableCell align="center">
+                    <TableSortLabel
+                      active={!!invExpOrder}
+                      direction={invExpOrder || 'asc'}
+                      onClick={() =>
+                        setInvExpOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+                      }
+                    >
+                      Vence
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="center">Estado</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -592,13 +623,13 @@ export default function StockPage() {
                         transition: 'background-color 0.3s',
                       }}
                     >
-                      <TableCell sx={{ fontWeight: 600 }}>
+                      <TableCell align="center" sx={{ fontWeight: 600 }}>
                         {p.name_product}
                       </TableCell>
-                      <TableCell>
+                      <TableCell align="center">
                         <Chip size="small" label={p.type_product || '—'} />
                       </TableCell>
-                      <TableCell
+                      <TableCell align="center"
                         sx={{
                           color: low ? paletteRaw.danger : 'inherit',
                           fontWeight: 700,
@@ -606,17 +637,18 @@ export default function StockPage() {
                       >
                         {p.current_stock}
                       </TableCell>
-                      <TableCell sx={{ color: paletteRaw.gray }}>
+                      <TableCell align="center" sx={{ color: paletteRaw.gray }}>
                         {p.minimum_stock_level}
                       </TableCell>
-                      <TableCell>{p.batch_number || '—'}</TableCell>
-                      <TableCell>{formatDate(p.expiration_date)}</TableCell>
-                      <TableCell>
+                      <TableCell align="center">{p.batch_number || '—'}</TableCell>
+                      <TableCell align="center">{formatDate(p.expiration_date)}</TableCell>
+                      <TableCell align="center">
                         {p.por_vencer ? (
                           <Box
                             sx={{
                               display: 'flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: 1,
                               '&:hover .discard-btn': { opacity: 1 },
                             }}
@@ -719,10 +751,10 @@ export default function StockPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Producto</TableCell>
-                  <TableCell>Tipo</TableCell>
-                  <TableCell>Cantidad</TableCell>
-                  <TableCell>
+                  <TableCell align="center">Producto</TableCell>
+                  <TableCell align="center">Tipo</TableCell>
+                  <TableCell align="center">Cantidad</TableCell>
+                  <TableCell align="center">
                     <TableSortLabel
                       active
                       direction={movSortOrder}
@@ -740,10 +772,10 @@ export default function StockPage() {
               <TableBody>
                 {sortedMovements.map((m) => (
                   <TableRow key={m.id_stock_movement}>
-                    <TableCell sx={{ fontWeight: 600 }}>
+                    <TableCell align="center" sx={{ fontWeight: 600 }}>
                       {m.product_name || '—'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell align="center">
                       <Chip
                         size="small"
                         label={m.type_movement}
@@ -756,8 +788,8 @@ export default function StockPage() {
                         }
                       />
                     </TableCell>
-                    <TableCell>{m.quantity}</TableCell>
-                    <TableCell sx={{ color: paletteRaw.gray }}>
+                    <TableCell align="center">{m.quantity}</TableCell>
+                    <TableCell align="center" sx={{ color: paletteRaw.gray }}>
                       {formatDateTime(m.date_time)}
                     </TableCell>
                   </TableRow>
@@ -807,14 +839,30 @@ export default function StockPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Paciente</TableCell>
-                  <TableCell>DNI</TableCell>
-                  <TableCell>Edad</TableCell>
-                  <TableCell>Producto</TableCell>
-                  <TableCell>Cantidad</TableCell>
-                  <TableCell>Lote</TableCell>
-                  <TableCell>Vence</TableCell>
-                  <TableCell>Fecha de uso</TableCell>
+                  <TableCell align="center">Paciente</TableCell>
+                  <TableCell align="center">DNI</TableCell>
+                  <TableCell align="center">Edad</TableCell>
+                  <TableCell align="center">Producto</TableCell>
+                  <TableCell align="center">Cantidad</TableCell>
+                  <TableCell align="center">Lote</TableCell>
+                  <TableCell align="center">
+                    <TableSortLabel
+                      active={trzSort.key === 'expiration'}
+                      direction={trzSort.key === 'expiration' ? trzSort.order : 'asc'}
+                      onClick={() => toggleTrzSort('expiration')}
+                    >
+                      Vence
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell align="center">
+                    <TableSortLabel
+                      active={trzSort.key === 'use'}
+                      direction={trzSort.key === 'use' ? trzSort.order : 'asc'}
+                      onClick={() => toggleTrzSort('use')}
+                    >
+                      Fecha de uso
+                    </TableSortLabel>
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -824,20 +872,20 @@ export default function StockPage() {
                   );
                   return (
                     <TableRow key={t.id_traceability}>
-                      <TableCell sx={{ fontWeight: 600 }}>
+                      <TableCell align="center" sx={{ fontWeight: 600 }}>
                         {patientName(t.id_patient)}
                       </TableCell>
-                      <TableCell>{getPatientDni(patient)}</TableCell>
-                      <TableCell>
+                      <TableCell align="center">{getPatientDni(patient)}</TableCell>
+                      <TableCell align="center">
                         {getPatientAge(patient?.date_of_birth) ?? '—'}
                       </TableCell>
-                      <TableCell>{t.product_name || '—'}</TableCell>
-                      <TableCell>{t.quantity}</TableCell>
-                      <TableCell>
+                      <TableCell align="center">{t.product_name || '—'}</TableCell>
+                      <TableCell align="center">{t.quantity}</TableCell>
+                      <TableCell align="center">
                         <Chip size="small" label={t.batch_number || '—'} />
                       </TableCell>
-                      <TableCell>{formatDate(t.expiration_date)}</TableCell>
-                      <TableCell sx={{ color: paletteRaw.gray }}>
+                      <TableCell align="center">{formatDate(t.expiration_date)}</TableCell>
+                      <TableCell align="center" sx={{ color: paletteRaw.gray }}>
                         {formatDateTime(t.date_of_use)}
                       </TableCell>
                     </TableRow>

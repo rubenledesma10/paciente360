@@ -13,7 +13,7 @@ medical_indications_bp = Blueprint('medical_indications', __name__, url_prefix='
 
 
 @medical_indications_bp.route('/', methods=['POST'])
-@role_required(RoleEnum.DOCTOR)
+@role_required(RoleEnum.DOCTOR, solo_lectura_admins=True)
 def create_medical_indication():
     try:
         if not request.is_json:
@@ -98,7 +98,7 @@ def get_medical_indications_by_patient(patient_id):
 
 
 @medical_indications_bp.route('/<int:indication_id>', methods=['PUT'])
-@role_required(RoleEnum.DOCTOR)
+@role_required(RoleEnum.DOCTOR, solo_lectura_admins=True)
 def update_medical_indication(indication_id):
     try:
         indication = MedicalIndication.query.get(indication_id)
@@ -131,7 +131,7 @@ def update_medical_indication(indication_id):
 
 
 @medical_indications_bp.route('/<int:indication_id>', methods=['DELETE'])
-@role_required(RoleEnum.DOCTOR)
+@role_required(RoleEnum.DOCTOR, solo_lectura_admins=True)
 def delete_medical_indication(indication_id):
     try:
         indication = MedicalIndication.query.get(indication_id)

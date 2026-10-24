@@ -35,6 +35,7 @@ import {
   getPatientsByStatus,
 } from '../../api/appointments';
 import { useAuth } from '../../context/useAuth';
+import { useReadOnly } from '../../hooks/useReadOnly';
 import { downloadMedicalHistoryPdf } from '../../utils/medicalHistoryPdf';
 import { formatDateTime } from '../../utils/dateFormat';
 import {
@@ -111,6 +112,9 @@ function EventDetail({ evento }) {
 
 export default function HistoriaClinicaPage() {
   const { userId } = useAuth();
+  // Administrador y superadministrador consultan la historia clinica, pero
+  // no cargan ni editan indicaciones: eso es una accion del medico.
+  const readOnly = useReadOnly();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -315,13 +319,15 @@ export default function HistoriaClinicaPage() {
                 Descargar PDF
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={openCreateDialog}
-            >
-              Nueva indicación
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={openCreateDialog}
+              >
+                Nueva indicación
+              </Button>
+            )}
           </Box>
         )}
       </Box>
@@ -452,7 +458,7 @@ export default function HistoriaClinicaPage() {
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color={paletteRaw.gray}>
-                N° de socio
+                N° de afiliado
               </Typography>
               <Typography variant="body2" fontWeight={600}>
                 {selectedPatientObj.member_number || '—'}
@@ -557,7 +563,7 @@ export default function HistoriaClinicaPage() {
                     {formatDateTime(evento.fecha)}
                   </Typography>
                 </Box>
-                {evento.tipo === 'Indicación Médica' && (
+                {!readOnly && evento.tipo === 'Indicación Médica' && (
                   <Tooltip
                     title={
                       editable

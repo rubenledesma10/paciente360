@@ -27,7 +27,7 @@ def create_administrative():
         if User.query.filter_by(username=request.json.get('username')).first():
             return jsonify({"msg": "Username already exists"}), 400
         
-        if User.query.filter_by(phone_number=request.json.get('phone_number')).first():
+        if request.json.get('phone_number') and User.query.filter_by(phone_number=request.json.get('phone_number')).first():
             return jsonify({"msg": "Phone number already exists"}), 400
                     
         if User.query.filter_by(dni=request.json.get('dni')).first():
@@ -87,14 +87,16 @@ def get_administrative_users():
 @role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def update_administrative(user_id):
     try:
-        user = User.query.get(user_id)
+        user = User.query.filter_by(id_user=user_id, rol=RoleEnum.ADMINISTRATIVE).first()
         if not user:
             return jsonify({"msg": "Administrative user not found"}), 404
         
         if not request.is_json and request.files.get('profile_photo') is None:
             return jsonify({"msg": "Missing JSON in request"}), 400
         
-        if 'photo' in request.files:
+        data = request.get_json(silent=True) or {}
+
+        if 'profile_photo' in request.files:
             profile_photo = request.files['profile_photo']
             if profile_photo.filename != '':
                 filename = secure_filename(profile_photo.filename)
@@ -102,46 +104,50 @@ def update_administrative(user_id):
                 profile_photo.save(file_path)
                 user.profile_photo = file_path
 
-        if 'dni' in request.json:
-            if User.query.filter_by(dni=request.json.get('dni')).first() and user.dni != request.json.get('dni'):
+        if 'dni' in data:
+            if User.query.filter_by(dni=data.get('dni')).first() and user.dni != data.get('dni'):
                 return jsonify({"msg": "DNI already exists"}), 400
-            user.dni = request.json.get('dni')
+            user.dni = data.get('dni')
 
-        if 'email' in request.json:
-            if User.query.filter_by(email=request.json.get('email')).first() and user.email != request.json.get('email'):
+        if 'email' in data:
+            if User.query.filter_by(email=data.get('email')).first() and user.email != data.get('email'):
                 return jsonify({"msg": "Email already exists"}), 400
-            user.email = request.json.get('email')
+            user.email = data.get('email')
 
-        if 'username' in request.json:
-            if User.query.filter_by(username=request.json.get('username')).first() and user.username != request.json.get('username'):
+        if 'username' in data:
+            if User.query.filter_by(username=data.get('username')).first() and user.username != data.get('username'):
                 return jsonify({"msg": "Username already exists"}), 400
-            user.username = request.json.get('username')
+            user.username = data.get('username')
         
-        if 'phone' in request.json:
-            if User.query.filter_by(phone_number=request.json.get('phone')).first() and user.phone_number != request.json.get('phone'):
+        if 'phone_number' in data or 'phone' in data:
+            phone = data.get('phone_number', data.get('phone'))
+            if phone and User.query.filter(User.phone_number == phone, User.id_user != user.id_user).first():
                 return jsonify({"msg": "Phone number already exists"}), 400
-            user.phone_number = request.json.get('phone')
+            user.phone_number = phone or None
 
-        if 'first_name' in request.json:
-            user.first_name = request.json.get('first_name')
+        if 'first_name' in data:
+            user.first_name = data.get('first_name')
 
-        if 'last_name' in request.json:
-            user.last_name = request.json.get('last_name')
+        if 'last_name' in data:
+            user.last_name = data.get('last_name')
 
-        if 'date_of_birth' in request.json:
-            user.date_of_birth = date.fromisoformat(request.json.get('date_of_birth')) if request.json.get('date_of_birth') else None
+        if 'date_of_birth' in data:
+            user.date_of_birth = date.fromisoformat(data.get('date_of_birth')) if data.get('date_of_birth') else None
 
-        if 'country' in request.json:
-            user.country = request.json.get('country')
+        if 'country' in data:
+            user.country = data.get('country')
 
-        if 'address' in request.json:
-            user.address = request.json.get('address')
+        if 'address' in data:
+            user.address = data.get('address')
 
-        if 'emergency_contact' in request.json:
-            user.emergency_contact = request.json.get('emergency_contact')
+        if 'emergency_contact' in data:
+            user.emergency_contact = data.get('emergency_contact')
 
-        if 'is_active' in request.json:
-            user.is_active = request.json.get('is_active')
+        if data.get('password'):
+            user.set_password(data.get('password'))
+
+        if 'is_active' in data:
+            user.is_active = data.get('is_active')
 
         db.session.commit()
         return jsonify({"msg": "Administrative user updated successfully"}), 200
@@ -154,7 +160,7 @@ def update_administrative(user_id):
 @role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def get_administrative_user(user_id):
     try:
-        user = User.query.get(user_id)
+        user = User.query.filter_by(id_user=user_id, rol=RoleEnum.ADMINISTRATIVE).first()
         if not user:
             return jsonify({"msg": "Administrative user not found"}), 404
         return jsonify(user.to_dict()), 200
@@ -165,7 +171,7 @@ def get_administrative_user(user_id):
 @role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def delete_administrative(user_id):
     try:
-        user = User.query.get(user_id)
+        user = User.query.filter_by(id_user=user_id, rol=RoleEnum.ADMINISTRATIVE).first()
         if not user:
             return jsonify({"msg": "Administrative user not found"}), 404
         
@@ -195,7 +201,7 @@ def search_administrative_users():
 @role_required(RoleEnum.ADMINISTRATOR, RoleEnum.SUPERADMINISTRADOR)
 def toggle_administrative_active_status(user_id): #activar
     try:
-        user = User.query.get(user_id)
+        user = User.query.filter_by(id_user=user_id, rol=RoleEnum.ADMINISTRATIVE).first()
         if not user:
             return jsonify({"msg": "Administrative user not found"}), 404
         

@@ -311,8 +311,8 @@ export const SUPERADMIN_TOUR_STEPS = [
   {
     target: 'users-tabs',
     route: '/admin/usuarios',
-    title: 'Pestaña Administradores',
-    body: 'Solo vos la ves: desde ahí das de alta y de baja a los administradores.',
+    title: 'Pestañas Administradores y Superadministradores',
+    body: 'Solo vos las ves: desde ahí das de alta, editás y das de baja a los administradores y a otros superadministradores. No podés darte de baja a vos ni al último superadmin activo.',
   },
   ...ADMIN_COMMON_STEPS.slice(2),
   {

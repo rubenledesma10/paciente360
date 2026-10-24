@@ -9,6 +9,7 @@ from models.nurse import Nurse
 from models.user import User
 from models.patient import Patient
 from datetime import datetime, timedelta, date
+import math
 
 signs_and_symptoms_bp = Blueprint('signs_and_symptoms', __name__, url_prefix='/api/signs_and_symptoms')
 
@@ -19,6 +20,20 @@ def normalize_triage(value):
     if value in (None, ''):
         return None, True
     return value, value in TRIAGE_LEVELS
+
+TEMPERATURE_ERROR = "Invalid temperature. It must be a number greater than or equal to 0"
+
+def validate_temperature(value):
+    # devuelve (float, es_valido); no acepta vacios, booleanos, NaN/inf ni negativos
+    if value is None or isinstance(value, bool):
+        return None, False
+    try:
+        temperature = float(value)
+    except (TypeError, ValueError):
+        return None, False
+    if not math.isfinite(temperature) or temperature < 0:
+        return None, False
+    return temperature, True
 
 @signs_and_symptoms_bp.route('/', methods=['POST'])
 @role_required(RoleEnum.NURSE)
@@ -38,13 +53,17 @@ def create_signs_and_symptoms():
     if not triage_ok:
         return jsonify({"error": f"Invalid triage_level. Allowed: {', '.join(TRIAGE_LEVELS)}"}),400
 
+    temperature, temperature_ok = validate_temperature(data.get('temperature'))
+    if not temperature_ok:
+        return jsonify({"error": TEMPERATURE_ERROR}), 400
+
     id_nurse_login=int(get_jwt_identity())
 
     try:
         new_signs_and_symptoms = SignsAndSymptoms(
             id_patient=data['id_patient'],
             id_nurse=id_nurse_login,
-            temperature=data.get('temperature'),
+            temperature=temperature,
             blood_pressure=data.get('blood_pressure'),
             observations=data.get('observations'),
             signs=data.get('signs'),
@@ -146,10 +165,16 @@ def update_signs_and_symptoms(id_signs_and_symptoms):
     if not triage_ok:
         return jsonify({"error": f"Invalid triage_level. Allowed: {', '.join(TRIAGE_LEVELS)}"}), 400
 
+    temperature = None
+    if 'temperature' in data:
+        temperature, temperature_ok = validate_temperature(data['temperature'])
+        if not temperature_ok:
+            return jsonify({"error": TEMPERATURE_ERROR}), 400
+
     try:
         if not is_past_time_limit: #actualizar campos si aun no han pasado los 5 minutos
             if 'temperature' in data:
-                signs_and_symptoms.temperature = data['temperature']
+                signs_and_symptoms.temperature = temperature
             if 'blood_pressure' in data:
                 signs_and_symptoms.blood_pressure = data['blood_pressure']
             if 'signs' in data:

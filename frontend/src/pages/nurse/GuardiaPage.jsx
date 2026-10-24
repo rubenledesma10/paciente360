@@ -45,7 +45,7 @@ import {
 const EDIT_WINDOW_MINUTES = 15;
 
 const schema = yup.object({
-  rotation: yup.mixed().required('Elegí fecha y hora'),
+  rotation: yup.mixed(),
   notes: yup.string().required('Ingresá las novedades'),
 });
 
@@ -178,11 +178,7 @@ export default function GuardiaPage() {
           notes: values.notes,
         });
       } else {
-        await createGuardPass({
-          id_nurse: userId,
-          rotation: dayjs(values.rotation).format('YYYY-MM-DD HH:mm:ss'),
-          notes: values.notes,
-        });
+        await createGuardPass({ notes: values.notes });
       }
       setOpen(false);
       loadAll();
@@ -296,23 +292,25 @@ export default function GuardiaPage() {
                       label={nurseName(g.id_nurse)}
                       color="primary"
                     />
-                    <Tooltip
-                      title={
-                        editable
-                          ? 'Editar'
-                          : 'Solo se puede editar dentro de los 15 minutos posteriores al registro'
-                      }
-                    >
-                      <span>
-                        <IconButton
-                          size="small"
-                          disabled={!editable || readOnly}
-                          onClick={() => openEditDialog(g)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+                    {!readOnly && (
+                      <Tooltip
+                        title={
+                          editable
+                            ? 'Editar'
+                            : 'Solo se puede editar dentro de los 15 minutos posteriores al registro'
+                        }
+                      >
+                        <span>
+                          <IconButton
+                            size="small"
+                            disabled={!editable}
+                            onClick={() => openEditDialog(g)}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
                   </Box>
                 </Box>
                 <Typography
@@ -377,11 +375,13 @@ export default function GuardiaPage() {
                   label="Rotación / turno"
                   value={field.value || null}
                   onChange={field.onChange}
-                  disabled={!!editingRow}
+                  disabled
                   slotProps={{
                     textField: {
                       error: !!errors.rotation,
-                      helperText: errors.rotation?.message,
+                      helperText: editingRow
+                        ? errors.rotation?.message
+                        : 'Se registra automáticamente al guardar',
                     },
                   }}
                 />

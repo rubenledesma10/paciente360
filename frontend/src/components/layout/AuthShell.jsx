@@ -28,7 +28,7 @@ import Logo from '../Logo';
 import { mediaUrl } from '../../utils/mediaUrl';
 import GuidedTour from '../tour/GuidedTour';
 import { isTourDone, markTourDone } from '../tour/tourStorage';
-import { PATIENT_TOUR_STEPS, patientTourKey } from '../tour/tourSteps';
+import { tourForRole } from '../tour/roleTourSteps';
 
 const DRAWER_WIDTH = 260;
 const COLLAPSED_WIDTH = 72;
@@ -76,23 +76,22 @@ export default function AuthShell() {
   const roleLabel = ROLE_LABELS[rol] || rol;
   const photoUrl = mediaUrl(foto) || undefined;
 
-  // Tutorial: por ahora solo existe el del paciente. Se ofrece la primera vez
-  // que cada paciente inicia sesion en cada arranque de la app, y se puede
-  // volver a abrir con el boton de ayuda de la barra superior.
+  // Tutorial segun el rol (paciente, enfermero, medico, administrativo,
+  // administrador o superadmin). Se ofrece la primera vez que cada usuario
+  // inicia sesion en cada arranque de la app, y se puede volver a abrir con
+  // el boton de ayuda de la barra superior.
   // Se calcula en cada render (no una sola vez al montar) por si los datos
   // de la sesion tardan un instante en estar disponibles.
-  const isPatient = roleLabel === 'Paciente';
-  const tourKey = patientTourKey(userId);
+  const tour = tourForRole(rol, userId);
   const [manualTour, setManualTour] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const tourOpen =
-    manualTour ||
-    (isPatient && userId != null && !dismissed && !isTourDone(tourKey));
+    tour != null && (manualTour || (!dismissed && !isTourDone(tour.key)));
 
   // dismissed fuerza el redibujado al cerrar el tutorial que se abrio solo
   // (setManualTour(false) no alcanza: ya valia false y React no redibuja)
   const closeTour = () => {
-    markTourDone(tourKey);
+    if (tour) markTourDone(tour.key);
     setDismissed(true);
     setManualTour(false);
   };
@@ -359,7 +358,7 @@ export default function AuthShell() {
               </Box>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {isPatient && (
+              {tour && (
                 <Tooltip title="Ver tutorial">
                   <IconButton
                     onClick={() => setManualTour(true)}
@@ -419,9 +418,7 @@ export default function AuthShell() {
       </Box>
 
       {/* Vive en el layout para seguir abierto mientras navega entre paginas */}
-      {tourOpen && (
-        <GuidedTour steps={PATIENT_TOUR_STEPS} onClose={closeTour} />
-      )}
+      {tourOpen && <GuidedTour steps={tour.steps} onClose={closeTour} />}
     </Box>
   );
 }

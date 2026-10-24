@@ -303,8 +303,18 @@ export default function GuidedTour({ steps, onClose }) {
             </>
           ) : (
             <>
-              {/* Avance: un punto por paso */}
-              <Box sx={{ display: 'flex', gap: 0.75 }} aria-hidden="true">
+              {/* Avance: un punto por paso. Los tutoriales largos (personal
+                  de la salita) pasan a dos filas en vez de empujar los botones */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 0.75,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+                aria-hidden="true"
+              >
                 {Array.from({ length: counted }, (_, i) => (
                   <Box
                     key={i}
@@ -318,7 +328,7 @@ export default function GuidedTour({ steps, onClose }) {
                   />
                 ))}
               </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
                 {position > 1 && <Button onClick={prev}>Anterior</Button>}
                 <Button ref={primaryRef} variant="contained" onClick={next}>
                   {isLast ? 'Terminar' : 'Siguiente'}

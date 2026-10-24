@@ -178,7 +178,8 @@ export default function BitacoraPage() {
         </Alert>
       )}
 
-      <Card sx={{ p: 2, mb: 2 }}>
+      {/* data-tour: lo resalta el tutorial del superadministrador */}
+      <Card sx={{ p: 2, mb: 2 }} data-tour="bitacora-filters">
         <Box
           sx={{
             display: 'flex',

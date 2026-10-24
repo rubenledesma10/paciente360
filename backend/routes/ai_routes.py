@@ -10,6 +10,7 @@ from models.medical_indication import MedicalIndication
 from models.specialty import Specialty
 from enums import RoleEnum, AppointmentStatusEnum
 from utils.role_required import role_required
+from utils.moderation import check_ai_request, register_ai_offense
 from utils.ai_service import (
     explicar_simple,
     conversar_sobre_noticia,
@@ -17,6 +18,7 @@ from utils.ai_service import (
     asistente_app,
     sugerir_especialidad,
     AIServiceError,
+    ContenidoOfensivoError,
 )
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/api/ai')
@@ -78,12 +80,23 @@ def chat_about_news(id_news_and_prevention):
     if not isinstance(historial, list):
         return jsonify({"msg": "El historial tiene un formato invalido."}), 400
 
+    # Lo ofensivo se corta aca: no llega al modelo ni gasta cuota
+    rechazo = check_ai_request(pregunta, historial)
+    if rechazo:
+        body, status = rechazo
+        return jsonify(body), status
+
     try:
         respuesta = conversar_sobre_noticia(news.title, news.content, pregunta, historial)
         return jsonify({
             "id_news_and_prevention": news.id_news_and_prevention,
             "answer": respuesta
         }), 200
+    except ContenidoOfensivoError:
+        # La IA detecto una ofensa que no estaba en las listas: cuenta
+        # como una advertencia mas
+        body, status = register_ai_offense()
+        return jsonify(body), status
     except AIServiceError as e:
         return jsonify({"msg": str(e)}), 503
     except Exception as e:
@@ -238,16 +251,37 @@ def patient_clinical_summary(patient_id):
 # Asistente de uso de la aplicacion (chatbot flotante)
 # ---------------------------------------------------------------------------
 
+def _tiene_sesion_valida():
+    """True si el pedido trae un JWT valido (hay alguien logueado).
+
+    Un token vencido o mal formado cuenta como visitante: puede pasar que
+    quede guardado en el navegador despues de que vencio la sesion, y esa
+    persona tiene que poder usar el asistente igual.
+    """
+    try:
+        verify_jwt_in_request(optional=True)
+        return bool(get_jwt())
+    except Exception:
+        return False
+
+
 @ai_bp.route('/assistant', methods=['POST'])
 def app_assistant():
     """Chat de ayuda sobre como usar la aplicacion.
 
-    Es publico: tambien lo usa alguien sin cuenta que esta sacando turno.
-    Si hay sesion, el rol se toma del JWT (no del body) para adaptar la
-    respuesta; si no la hay, se trata como visitante.
+    Es solo para visitantes sin sesion: una guia para quien llega sin cuenta
+    (por ejemplo, a sacar turno). Con sesion iniciada cada rol ya tiene su
+    menu y su circuito, por eso el front oculta el boton. Aca se garantiza
+    lo mismo para quien llame al endpoint directo.
 
-    Body: { "question": "...", "history": [...], "path": "/mis-turnos" }
+    Body: { "question": "...", "history": [...], "path": "/sacar-turno" }
     """
+    if _tiene_sesion_valida():
+        return jsonify({
+            "msg": "El asistente virtual es solo para visitantes sin sesión iniciada.",
+            "code": "assistant_visitors_only",
+        }), 403
+
     if not request.is_json:
         return jsonify({"msg": "Falta el JSON en la peticion"}), 400
 
@@ -261,18 +295,21 @@ def app_assistant():
     if not isinstance(historial, list):
         return jsonify({"msg": "El historial tiene un formato invalido."}), 400
 
-    # JWT opcional: si viene y es valido, sacamos el rol; si no, visitante.
-    rol = None
-    try:
-        verify_jwt_in_request(optional=True)
-        claims = get_jwt()
-        rol = claims.get('rol') if claims else None
-    except Exception:
-        rol = None
+    # Lo ofensivo se corta aca: no llega al modelo ni gasta cuota
+    rechazo = check_ai_request(pregunta, historial)
+    if rechazo:
+        body, status = rechazo
+        return jsonify(body), status
 
     try:
-        respuesta = asistente_app(pregunta, historial, rol=rol, ruta=ruta)
+        # Siempre como visitante: con sesion ya se rechazo arriba
+        respuesta = asistente_app(pregunta, historial, rol=None, ruta=ruta)
         return jsonify({"answer": respuesta}), 200
+    except ContenidoOfensivoError:
+        # La IA detecto una ofensa que no estaba en las listas: cuenta
+        # como una advertencia mas
+        body, status = register_ai_offense()
+        return jsonify(body), status
     except AIServiceError as e:
         return jsonify({"msg": str(e)}), 503
     except Exception as e:
@@ -299,6 +336,12 @@ def specialty_suggest():
     if not descripcion:
         return jsonify({"msg": "Contanos brevemente qué te pasa."}), 400
 
+    # Lo ofensivo se corta aca: no llega al modelo ni gasta cuota
+    rechazo = check_ai_request(descripcion)
+    if rechazo:
+        body, status = rechazo
+        return jsonify(body), status
+
     especialidades = [
         {"id": e.id_speciality, "name": e.name}
         for e in Specialty.query.order_by(Specialty.name.asc()).all()
@@ -309,6 +352,11 @@ def specialty_suggest():
     try:
         resultado = sugerir_especialidad(descripcion, especialidades)
         return jsonify(resultado), 200
+    except ContenidoOfensivoError:
+        # La IA detecto una ofensa que no estaba en las listas: cuenta
+        # como una advertencia mas
+        body, status = register_ai_offense()
+        return jsonify(body), status
     except AIServiceError as e:
         return jsonify({"msg": str(e)}), 503
     except Exception as e:

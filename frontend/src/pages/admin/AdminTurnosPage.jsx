@@ -418,6 +418,7 @@ export default function AdminTurnosPage() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={openCreate}
+          data-tour="admin-appointments-new"
         >
           Nuevo turno
         </Button>
@@ -448,7 +449,8 @@ export default function AdminTurnosPage() {
       )}
 
       {/* Filtros */}
-      <Card sx={{ p: 2, mb: 2 }}>
+      {/* data-tour: lo resalta el tutorial del administrativo */}
+      <Card sx={{ p: 2, mb: 2 }} data-tour="admin-appointments-filters">
         <Box
           sx={{
             display: 'flex',

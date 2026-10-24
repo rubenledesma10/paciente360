@@ -27,7 +27,7 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import { searchPatients } from '../../api/patients'
 import { getMedicalHistory } from '../../api/medicalHistory'
 import { createMedicalIndication, updateMedicalIndication } from '../../api/medicalIndications'
-import { getAppointmentsByPatient } from '../../api/appointments'
+import { getAppointmentsByPatient, getPatientsByStatus } from '../../api/appointments'
 import { useAuth } from '../../context/useAuth'
 import { downloadMedicalHistoryPdf } from '../../utils/medicalHistoryPdf'
 import { formatDateTime } from '../../utils/dateFormat'
@@ -217,8 +217,16 @@ export default function HistoriaClinicaPage() {
           treatment: values.treatment,
         })
       } else {
+        // el backend exige el turno: se toma el de hoy (En espera/Atendido) con este medico
+        const eligibleRes = await getPatientsByStatus({ id_doctor: userId })
+        const appointment = eligibleRes.data.find((p) => p.id_user === selectedPatient)
+        if (!appointment) {
+          setFormError('El paciente no tiene un turno En espera/Atendido hoy con vos; no se puede registrar la indicación.')
+          return
+        }
         await createMedicalIndication({
           id_patient: selectedPatient,
+          id_medical_appointment: appointment.id_medical_appointment,
           indication: values.indication,
           treatment: values.treatment,
         })

@@ -1,0 +1,393 @@
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  CircularProgress,
+  Fab,
+  IconButton,
+  Paper,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import CloseIcon from '@mui/icons-material/Close';
+import SendIcon from '@mui/icons-material/Send';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import { askAssistant } from '../api/ai';
+import {
+  useModeration,
+  syncBlockFromServer,
+  BLOCK_MINUTES,
+} from '../hooks/useModeration';
+
+// Sugerencias de arranque, para que el panel vacio no intimide
+const SUGERENCIAS = [
+  '¿Cómo saco un turno?',
+  '¿Cómo cancelo un turno?',
+  '¿Cómo cambio mi contraseña?',
+];
+
+function buildWarning(strikesLeft) {
+  const repeticion =
+    strikesLeft === 1
+      ? 'Si se repite una vez más'
+      : `Si se repite ${strikesLeft} veces más`;
+  return `Ese mensaje tiene lenguaje ofensivo y no se envió. ${repeticion}, el asistente se va a bloquear por ${BLOCK_MINUTES} minutos.`;
+}
+
+function TextoFormateado({ text }) {
+  return (
+    <Box>
+      {text.split('\n').map((linea, i) => {
+        const limpia = linea.trim().replace(/\*\*/g, '');
+        if (!limpia) return <Box key={i} sx={{ height: 6 }} />;
+        const esItem = /^(\d+[.)]|[-*•])\s+/.test(limpia);
+        return (
+          <Typography
+            key={i}
+            variant="body2"
+            color="#334155"
+            sx={{ lineHeight: 1.65, pl: esItem ? 1.5 : 0 }}
+          >
+            {limpia}
+          </Typography>
+        );
+      })}
+    </Box>
+  );
+}
+
+export default function HelpAssistant() {
+  const location = useLocation();
+  // El asistente es una guia para quien llega sin cuenta y no conoce el
+  // sistema. Con sesion iniciada cada rol ya tiene su menu y su circuito,
+  // asi que no se muestra.
+  const { isAuthenticated } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [question, setQuestion] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
+  const { blocked, blockedUntil, check } = useModeration();
+  const endRef = useRef(null);
+  // Se incrementa en cada reinicio: permite descartar respuestas que llegan
+  // de una conversacion anterior.
+  const sessionRef = useRef(0);
+
+  useEffect(() => {
+    if (open) endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading, open, warning, blocked]);
+
+  if (isAuthenticated) return null;
+
+  const send = async (text) => {
+    const q = (text ?? question).trim();
+    if (!q || loading || blocked) return;
+
+    // Los mensajes ofensivos nunca llegan al modelo
+    const verdict = check(q);
+    if (!verdict.ok) {
+      setWarning(verdict.blocked ? '' : buildWarning(verdict.strikesLeft));
+      return;
+    }
+
+    setWarning('');
+    setError('');
+    setQuestion('');
+    const history = messages;
+    const sessionAtSend = sessionRef.current;
+    setMessages((prev) => [...prev, { role: 'user', text: q }]);
+    setLoading(true);
+    try {
+      const res = await askAssistant(q, history, location.pathname);
+      if (sessionAtSend !== sessionRef.current) return; // el chat se reinicio mientras tanto
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', text: res.data.answer },
+      ]);
+    } catch (err) {
+      if (sessionAtSend !== sessionRef.current) return;
+      const data = err.response?.data;
+      // El backend tambien filtra: si rechazo el mensaje, se saca del chat
+      // porque nunca llego al modelo.
+      if (data?.code === 'ai_blocked' || data?.code === 'offensive_language') {
+        setMessages((prev) => prev.slice(0, -1));
+        if (data.code === 'ai_blocked') {
+          syncBlockFromServer(data.blocked_until);
+        } else {
+          setWarning(data.msg);
+        }
+        return;
+      }
+      setError(data?.msg || 'No se pudo responder. Probá de nuevo.');
+    } finally {
+      if (sessionAtSend === sessionRef.current) setLoading(false);
+    }
+  };
+
+  const resetChat = () => {
+    sessionRef.current += 1;
+    setMessages([]);
+    setQuestion('');
+    setError('');
+    setWarning('');
+    setLoading(false);
+  };
+
+  const horaDesbloqueo = blocked
+    ? new Date(blockedUntil).toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '';
+
+  const puedeReiniciar = messages.length > 0 || Boolean(error);
+
+  return (
+    <>
+      {/* Boton flotante */}
+      {!open && (
+        <Tooltip title="Asistente virtual" placement="left">
+          <Fab
+            color="primary"
+            onClick={() => setOpen(true)}
+            sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1300 }}
+            aria-label="Abrir asistente virtual"
+            data-tour="assistant"
+          >
+            <SmartToyIcon />
+          </Fab>
+        </Tooltip>
+      )}
+
+      {/* Panel de chat */}
+      {open && (
+        <Paper
+          elevation={8}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            width: { xs: 'calc(100vw - 32px)', sm: 380 },
+            height: { xs: 'calc(100vh - 100px)', sm: 520 },
+            maxHeight: 'calc(100vh - 48px)',
+            zIndex: 1300,
+            display: 'flex',
+            flexDirection: 'column',
+            borderRadius: 3,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Cabecera */}
+          <Box
+            sx={{
+              px: 2,
+              py: 1.5,
+              bgcolor: '#0E4C82',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
+            <SmartToyIcon fontSize="small" />
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography variant="subtitle2" fontWeight={700} lineHeight={1.2}>
+                Asistente virtual
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.85 }}>
+                Te ayudo a usar Paciente360
+              </Typography>
+            </Box>
+
+            {/* El span permite mostrar el tooltip aunque el boton este deshabilitado */}
+            <Tooltip title="Nueva conversación">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={resetChat}
+                  disabled={!puedeReiniciar}
+                  sx={{
+                    color: '#fff',
+                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.4)' },
+                  }}
+                  aria-label="Reiniciar conversación"
+                >
+                  <RestartAltIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            <Tooltip title="Cerrar">
+              <IconButton
+                size="small"
+                onClick={() => setOpen(false)}
+                sx={{ color: '#fff' }}
+                aria-label="Cerrar asistente virtual"
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+          {/* Mensajes */}
+          <Box
+            sx={{ flexGrow: 1, overflowY: 'auto', p: 2, bgcolor: '#f8fafc' }}
+          >
+            {messages.length === 0 && (
+              <Box>
+                <Typography variant="body2" color="#5b7387" sx={{ mb: 1.5 }}>
+                  Puedo explicarte dónde está cada cosa y cómo funciona. Por
+                  ejemplo:
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {SUGERENCIAS.map((s) => (
+                    <Button
+                      key={s}
+                      size="small"
+                      variant="outlined"
+                      onClick={() => send(s)}
+                      disabled={blocked}
+                      sx={{
+                        justifyContent: 'flex-start',
+                        textTransform: 'none',
+                      }}
+                    >
+                      {s}
+                    </Button>
+                  ))}
+                </Box>
+              </Box>
+            )}
+
+            {messages.map((m, i) => {
+              const esUsuario = m.role === 'user';
+              return (
+                <Box
+                  key={i}
+                  sx={{
+                    display: 'flex',
+                    gap: 1,
+                    mb: 1.5,
+                    flexDirection: esUsuario ? 'row-reverse' : 'row',
+                  }}
+                >
+                  {!esUsuario && (
+                    <Avatar sx={{ width: 26, height: 26, bgcolor: '#29ABE2' }}>
+                      <SmartToyIcon sx={{ fontSize: 14 }} />
+                    </Avatar>
+                  )}
+                  <Box
+                    sx={{
+                      maxWidth: '85%',
+                      p: 1.25,
+                      borderRadius: 2,
+                      bgcolor: esUsuario ? '#0E4C82' : '#fff',
+                      border: esUsuario ? 'none' : '1px solid #e2e8f0',
+                    }}
+                  >
+                    {esUsuario ? (
+                      <Typography variant="body2" sx={{ color: '#fff' }}>
+                        {m.text}
+                      </Typography>
+                    ) : (
+                      <TextoFormateado text={m.text} />
+                    )}
+                  </Box>
+                </Box>
+              );
+            })}
+
+            {loading && (
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Avatar sx={{ width: 26, height: 26, bgcolor: '#29ABE2' }}>
+                  <SmartToyIcon sx={{ fontSize: 14 }} />
+                </Avatar>
+                <CircularProgress size={16} />
+              </Box>
+            )}
+
+            {error && (
+              <Alert
+                severity="warning"
+                sx={{ mt: 1 }}
+                onClose={() => setError('')}
+              >
+                {error}
+              </Alert>
+            )}
+            {warning && !blocked && (
+              <Alert
+                severity="error"
+                sx={{ mt: 1 }}
+                onClose={() => setWarning('')}
+              >
+                {warning}
+              </Alert>
+            )}
+            <div ref={endRef} />
+          </Box>
+
+          {/* Entrada (o aviso de bloqueo) */}
+          {blocked ? (
+            <Box sx={{ p: 1.5, borderTop: '1px solid #e2e8f0' }}>
+              <Alert severity="error">
+                El asistente quedó bloqueado por uso de lenguaje ofensivo. Vas a
+                poder usarlo de nuevo a las {horaDesbloqueo}.
+              </Alert>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                p: 1.5,
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                gap: 1,
+              }}
+            >
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Escribí tu pregunta"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                slotProps={{ htmlInput: { maxLength: 400 } }}
+                disabled={loading}
+                autoFocus
+              />
+              <Button
+                variant="contained"
+                onClick={() => send()}
+                disabled={loading || !question.trim()}
+                sx={{ minWidth: 40, px: 1.5 }}
+              >
+                <SendIcon fontSize="small" />
+              </Button>
+            </Box>
+          )}
+
+          <Typography
+            variant="caption"
+            color="#5b7387"
+            sx={{ px: 2, pb: 1.5, textAlign: 'center' }}
+          >
+            Solo explica cómo usar la app. Para consultas de salud, sacá un
+            turno.
+          </Typography>
+        </Paper>
+      )}
+    </>
+  );
+}

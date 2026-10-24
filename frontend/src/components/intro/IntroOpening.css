@@ -1,0 +1,415 @@
+/* Intro de Paciente360. Todas las clases llevan el prefijo p360i- para no
+   chocar con los estilos del resto de la app. */
+
+.p360i-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2000; /* por encima del asistente virtual (1300) */
+  overflow: hidden;
+  color: #fff;
+  font-family: inherit;
+  background: radial-gradient(
+    ellipse at 50% 42%,
+    #12568f 0%,
+    #0b3561 42%,
+    #061a2e 100%
+  );
+  transition: opacity 0.8s ease;
+}
+
+.p360i-root.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Cada escena ocupa toda la pantalla y entra/sale con un fundido */
+.p360i-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.6s ease,
+    visibility 0s linear 0.6s;
+}
+
+.p360i-layer.is-on {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.6s ease,
+    visibility 0s;
+}
+
+/* ---------- Marca ---------- */
+
+.p360i-wordmark {
+  margin: 18px 0 6px;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800; /* igual que en el login */
+  letter-spacing: 0.01em;
+}
+
+.p360i-wordmark span {
+  color: var(--p360i-celeste, #4cc3f0);
+}
+
+.p360i-gate-logo,
+.p360i-logo {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.p360i-gate-logo {
+  width: 92px;
+  height: 92px;
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.06);
+}
+
+/* ---------- Pantalla de entrada ---------- */
+
+.p360i-gate-text {
+  margin: 0 0 28px;
+  opacity: 0.75;
+}
+
+.p360i-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  min-height: 48px;
+}
+
+.p360i-btn {
+  padding: 12px 26px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.p360i-btn--primary {
+  background: #29abe2;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(41, 171, 226, 0.35);
+}
+
+.p360i-btn--primary:hover {
+  background: #3bb8ec;
+  transform: translateY(-1px);
+}
+
+.p360i-btn--ghost {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.p360i-btn--ghost:hover {
+  border-color: #fff;
+}
+
+/* ---------- Controles (sonido / saltar) ---------- */
+
+.p360i-controls {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.p360i-controls.is-on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.p360i-icon-btn,
+.p360i-skip {
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.p360i-icon-btn {
+  width: 40px;
+  display: grid;
+  place-items: center;
+}
+
+.p360i-skip {
+  padding: 0 18px;
+  font-size: 0.9rem;
+}
+
+.p360i-icon-btn:hover,
+.p360i-skip:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.p360i-btn:focus-visible,
+.p360i-icon-btn:focus-visible,
+.p360i-skip:focus-visible {
+  outline: 3px solid #9be1fb;
+  outline-offset: 3px;
+}
+
+/* ---------- Latido ---------- */
+
+.p360i-ecg {
+  width: min(1100px, 96vw);
+  height: auto;
+  overflow: visible;
+}
+
+.p360i-ecg path {
+  fill: none;
+  stroke: #4cc3f0;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 6px rgba(76, 195, 240, 0.9));
+}
+
+.p360i-layer.is-on .p360i-ecg path {
+  animation: p360i-draw 2.8s linear forwards;
+}
+
+.p360i-ecg-caption {
+  margin: 28px 0 0;
+  font-size: clamp(1.1rem, 2.6vw, 1.6rem);
+  font-weight: 300;
+  opacity: 0;
+}
+
+.p360i-layer.is-on .p360i-ecg-caption {
+  animation: p360i-rise 0.9s ease 1.2s forwards;
+}
+
+/* ---------- Anillo 360° ---------- */
+
+.p360i-ring-wrap {
+  position: relative;
+  width: clamp(210px, 44vmin, 330px);
+  aspect-ratio: 1;
+}
+
+.p360i-ring {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.p360i-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 6;
+}
+
+.p360i-arc {
+  fill: none;
+  stroke: #29abe2;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0; /* sin esto, el extremo redondeado deja un punto antes de dibujarse */
+  filter: drop-shadow(0 0 8px rgba(41, 171, 226, 0.75));
+  transition:
+    stroke-dashoffset 1.3s cubic-bezier(0.33, 1, 0.68, 1),
+    stroke 0.8s ease,
+    opacity 0.15s ease;
+}
+
+.p360i-arc.is-on {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+
+.p360i-stage.is-final .p360i-arc {
+  stroke: #7fd6f7;
+}
+
+.p360i-stage.is-final .p360i-ring {
+  animation: p360i-spin 18s linear infinite;
+}
+
+.p360i-ripple {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(76, 195, 240, 0.5);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: p360i-ripple 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) forwards;
+}
+
+.p360i-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.p360i-center > * {
+  grid-area: 1 / 1;
+}
+
+.p360i-deg {
+  font-size: clamp(2.8rem, 10vmin, 4.6rem);
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.p360i-stage.is-final .p360i-deg {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.p360i-logo {
+  width: 58%;
+  aspect-ratio: 1;
+  box-shadow:
+    0 0 0 10px rgba(255, 255, 255, 0.06),
+    0 20px 60px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.p360i-stage.is-final .p360i-logo {
+  animation: p360i-pop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s forwards;
+}
+
+/* ---------- Textos ---------- */
+
+.p360i-copy {
+  display: grid;
+  max-width: 36rem;
+  min-height: 9em;
+  margin-top: clamp(24px, 5vh, 44px);
+}
+
+.p360i-copy > * {
+  grid-area: 1 / 1;
+}
+
+.p360i-pillar {
+  animation: p360i-rise 0.7s cubic-bezier(0.33, 1, 0.68, 1) 0.15s both;
+}
+
+.p360i-pillar h2 {
+  margin: 0 0 10px;
+  font-size: clamp(1.7rem, 4.4vw, 2.7rem);
+  font-weight: 500;
+}
+
+.p360i-pillar p {
+  max-width: 34ch;
+  margin: 0 auto;
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  line-height: 1.55;
+  opacity: 0.78;
+}
+
+.p360i-final .p360i-wordmark {
+  margin-top: 0;
+  animation: p360i-rise 0.8s ease 0.7s both;
+}
+
+.p360i-tagline {
+  margin: 0 0 24px;
+  font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+  opacity: 0.8;
+  animation: p360i-rise 0.8s ease 0.95s both;
+}
+
+.p360i-final .p360i-btn {
+  animation: p360i-rise 0.8s ease 1.4s both;
+}
+
+/* ---------- Animaciones ---------- */
+
+@keyframes p360i-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes p360i-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes p360i-pop {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes p360i-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes p360i-ripple {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+/* Quien tiene activado "reducir movimiento" no la ve sola; si la abre con
+   ?intro, las animaciones pasan a ser instantaneas. */
+@media (prefers-reduced-motion: reduce) {
+  .p360i-root,
+  .p360i-root * {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

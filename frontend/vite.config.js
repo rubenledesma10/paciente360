@@ -1,7 +1,10 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-})
+  // Id distinto en cada `npm run dev` o build: la intro se muestra una vez por arranque
+  define: {
+    __APP_SESSION__: JSON.stringify(Date.now().toString()),
+  },
+});

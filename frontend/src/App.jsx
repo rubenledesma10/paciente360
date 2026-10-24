@@ -1,122 +1,130 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { Navigate, Route, Routes } from 'react-router-dom';
+import ProtectedRoute from './routes/ProtectedRoute';
+import PublicOnlyRoute from './routes/PublicOnlyRoute';
+import NurseRoute from './routes/NurseRoute';
+import DoctorRoute from './routes/DoctorRoute';
+import PatientRoute from './routes/PatientRoute';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import RecuperarCuentaPage from './pages/RecuperarCuentaPage';
+import HomePlaceholderPage from './pages/HomePlaceholderPage';
+import AuthShell from './components/layout/AuthShell';
+import NewsShell from './components/layout/NewsShell';
+import SignosPage from './pages/nurse/SignosPage';
+import StockPage from './pages/nurse/StockPage';
+import GuardiaPage from './pages/nurse/GuardiaPage';
+import EstadisticasPage from './pages/nurse/EstadisticasPage';
+import NewsAndPrevention from './pages/NewsAndPrevention';
+import NewsDetail from './pages/NewsDetail';
+import SacarTurnoPublicoPage from './pages/SacarTurnoPublicoPage';
+import TurnoEmailPage from './pages/TurnoEmailPage';
+import Seguimiento from './pages/Seguimiento';
+import IndicacionesPage from './pages/doctor/IndicacionesPage';
+import HistoriaClinicaPage from './pages/doctor/HistoriaClinicaPage';
+import AgendaPage from './pages/doctor/AgendaPage';
+import PerfilPage from './pages/PerfilPage';
+import MisTurnosPage from './pages/patient/MisTurnosPage';
+import SacarTurnoPage from './pages/patient/SacarTurnoPage';
+import { useAuth } from './context/useAuth';
+import { roleHome } from './utils/roleHome';
+import AdministrativeRoute from './routes/AdministrativeRoute';
+import AdminRoute from './routes/AdminRoute';
+import SuperAdminRoute from './routes/SuperAdminRoute';
+import AdminNoticiasPage from './pages/admin/AdminNoticiasPage';
+import AdminTurnosPage from './pages/admin/AdminTurnosPage';
+import AdminUsuariosPage from './pages/admin/AdminUsuariosPage';
+import BitacoraPage from './pages/admin/BitacoraPage';
+import HelpAssistant from './components/HelpAssistant';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const { rol } = useAuth();
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      <Routes>
+        {/* Principal pública: login + registro */}
+        <Route element={<PublicOnlyRoute />}>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/recuperar-cuenta" element={<RecuperarCuentaPage />} />
+        </Route>
 
-      <div className="ticks"></div>
+        {/* Noticias: se ven con y sin sesión.
+            NewsShell elige el layout: sidebar si estás logueado, cabecera pública si no. */}
+        <Route element={<NewsShell />}>
+          <Route path="/turnos" element={<SacarTurnoPublicoPage />} />
+          <Route path="/noticias" element={<NewsAndPrevention />} />
+          <Route path="/noticias/:id" element={<NewsDetail />} />
+        </Route>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AuthShell />}>
+            <Route element={<NurseRoute />}>
+              <Route path="signos" element={<SignosPage />} />
+              <Route path="seguimiento" element={<Seguimiento />} />
+              <Route path="stock" element={<StockPage />} />
+              <Route path="guardia" element={<GuardiaPage />} />
+              <Route path="estadisticas" element={<EstadisticasPage />} />
+            </Route>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+            <Route element={<DoctorRoute />}>
+              <Route path="agenda" element={<AgendaPage />} />
+              <Route path="indicaciones" element={<IndicacionesPage />} />
+              <Route
+                path="historia-clinica"
+                element={<HistoriaClinicaPage />}
+              />
+            </Route>
+
+            <Route element={<PatientRoute />}>
+              <Route path="sacar-turno" element={<SacarTurnoPage />} />
+              <Route path="mis-turnos" element={<MisTurnosPage />} />
+            </Route>
+
+            {/* Operatoria de la salita: Administrativo, Administrador y Superadmin */}
+            <Route element={<AdministrativeRoute />}>
+              <Route path="admin/turnos" element={<AdminTurnosPage />} />
+              <Route path="admin/noticias" element={<AdminNoticiasPage />} />
+            </Route>
+
+            {/* Gestion del sistema: Administrador y Superadmin.
+                Stock, historia clinica y guardia reusan las pantallas de
+                enfermero y medico bajo rutas propias. */}
+            <Route element={<AdminRoute />}>
+              <Route path="admin/usuarios" element={<AdminUsuariosPage />} />
+              <Route path="admin/stock" element={<StockPage />} />
+              <Route
+                path="admin/historia-clinica"
+                element={<HistoriaClinicaPage />}
+              />
+              <Route path="admin/guardia" element={<GuardiaPage />} />
+            </Route>
+
+            {/* Solo Superadmin */}
+            <Route element={<SuperAdminRoute />}>
+              <Route path="admin/bitacora" element={<BitacoraPage />} />
+            </Route>
+
+            {/* Perfil: comun a los cuatro roles */}
+            <Route path="perfil" element={<PerfilPage />} />
+
+            <Route path="inicio" element={<HomePlaceholderPage />} />
+          </Route>
+        </Route>
+
+        {/* Resultado de confirmar/cancelar desde el mail. Sin layout a
+            proposito: se abre desde un link, no desde la app, y tiene que
+            verse igual con o sin sesion. */}
+        <Route path="/turno-email" element={<TurnoEmailPage />} />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      {/* Chatbot de ayuda: fuera de <Routes> para que este en todas las
+          pantallas, con o sin sesion */}
+      <HelpAssistant />
     </>
-  )
+  );
 }
 
-export default App
+export default App;

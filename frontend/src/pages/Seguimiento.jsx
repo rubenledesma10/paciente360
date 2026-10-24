@@ -4,21 +4,29 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import {
   Alert,
-  Avatar,
   Box,
   Button,
-  Card,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
+  IconButton,
   MenuItem,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import dayjs from 'dayjs';
 import { getPatients } from '../api/patients';
 import { getAttendedPatients } from '../api/appointments';
@@ -90,6 +98,7 @@ export default function Seguimiento() {
   // Filtros extra: fecha de registro (YYYY-MM-DD) y búsqueda por nombre/DNI
   const [selectedDate, setSelectedDate] = useState('');
   const [search, setSearch] = useState('');
+  const [dateOrder, setDateOrder] = useState('desc');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyPatient, setHistoryPatient] = useState({
     id: null,
@@ -267,6 +276,10 @@ export default function Seguimiento() {
     }
     return true;
   });
+  filteredRows.sort((a, b) => {
+    const diff = dayjs(a.date_time).valueOf() - dayjs(b.date_time).valueOf();
+    return dateOrder === 'asc' ? diff : -diff;
+  });
 
   // Cuenta mis pendientes (vencidos) para la alerta
   const pendingCount = rows.filter(
@@ -371,134 +384,122 @@ export default function Seguimiento() {
       )}
 
       {/* Lista de seguimientos */}
-      <Grid container spacing={2}>
-        {filteredRows.map((fu) => {
-          const name = fu.patient_name || patientName(fu.id_patient);
-          const patient = patients.find((p) => p.id_user === fu.id_patient);
-          const patientAge = patient
-            ? getPatientAge(patient.date_of_birth)
-            : null;
-          const statusLabel = STATUS_LABELS[fu.status] || fu.status;
-          const isMine = fu.id_nurse === userId;
-          // Finalizar = alta médica: solo tiene sentido en seguimientos vigentes,
-          // donde el enfermero efectivamente vio al paciente.
-          const canFinish =
-            isMine && (fu.status === 'active' || fu.status === 'scheduled');
-          // Reprogramar = solo cuando el control ya venció y hay que darle nueva fecha.
-          const canReschedule = isMine && fu.status === 'pending';
-          return (
-            <Grid key={fu.id_follow_up} size={{ xs: 12, md: 6 }}>
-              <Card sx={{ p: 2.5 }}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                  }}
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell align="center">Paciente</TableCell>
+              <TableCell align="center">DNI</TableCell>
+              <TableCell align="center">Edad</TableCell>
+              <TableCell align="center">
+                <TableSortLabel
+                  active
+                  direction={dateOrder}
+                  onClick={() =>
+                    setDateOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+                  }
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Avatar
-                      sx={{
-                        bgcolor: '#29ABE2',
-                        color: '#fff',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {name.charAt(0)}
-                    </Avatar>
-                    <Box>
-                      <Typography fontWeight={700} color="#0E4C82">
-                        {name}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="#5b7387"
-                        display="block"
+                  Fecha/Hora
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="center">Observaciones</TableCell>
+              <TableCell align="center">Próximo control</TableCell>
+              <TableCell align="center">Atendido por</TableCell>
+              <TableCell align="center">Estado</TableCell>
+              <TableCell align="center">Historial</TableCell>
+              <TableCell align="center">Acciones</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredRows.map((fu) => {
+              const name = fu.patient_name || patientName(fu.id_patient);
+              const patient = patients.find((p) => p.id_user === fu.id_patient);
+              const patientAge = patient
+                ? getPatientAge(patient.date_of_birth)
+                : null;
+              const statusLabel = STATUS_LABELS[fu.status] || fu.status;
+              const isMine = fu.id_nurse === userId;
+              // Finalizar = alta médica: solo tiene sentido en seguimientos vigentes,
+              // donde el enfermero efectivamente vio al paciente.
+              const canFinish =
+                isMine && (fu.status === 'active' || fu.status === 'scheduled');
+              // Reprogramar = solo cuando el control ya venció y hay que darle nueva fecha.
+              const canReschedule = isMine && fu.status === 'pending';
+              return (
+                <TableRow key={fu.id_follow_up}>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>{name}</TableCell>
+                  <TableCell align="center">{patient ? getPatientDni(patient) : '—'}</TableCell>
+                  <TableCell align="center">{patientAge ?? '—'}</TableCell>
+                  <TableCell align="center" sx={{ color: '#5b7387', whiteSpace: 'nowrap' }}>
+                    {fu.date_time
+                      ? new Date(fu.date_time).toLocaleString('es-AR')
+                      : '—'}
+                  </TableCell>
+                  <TableCell align="center">{fu.observations}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+                    {fu.next_check_up
+                      ? new Date(fu.next_check_up).toLocaleDateString('es-AR')
+                      : '—'}
+                  </TableCell>
+                  <TableCell align="center">
+                    {fu.nurse_name || '—'}
+                    {isMine && ' (vos)'}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      size="small"
+                      label={statusLabel}
+                      color={statusColor(fu.status)}
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Ver historia clínica">
+                      <IconButton
+                        size="small"
+                        onClick={() => openHistory(fu.id_patient, name)}
                       >
-                        DNI {patient ? getPatientDni(patient) : '—'}
-                        {patientAge != null && ` — ${patientAge} años`}
-                      </Typography>
-                      <Typography variant="caption" color="#5b7387">
-                        {fu.date_time
-                          ? new Date(fu.date_time).toLocaleString('es-AR')
-                          : ''}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Chip
-                    size="small"
-                    label={statusLabel}
-                    color={statusColor(fu.status)}
-                  />
-                </Box>
-
-                <Typography variant="body2" sx={{ mt: 2 }} color="#34495e">
-                  {fu.observations}
-                </Typography>
-
-                {fu.next_check_up && (
-                  <Typography
-                    variant="caption"
-                    sx={{ mt: 1, display: 'block' }}
-                    color="#1565A8"
-                    fontWeight={700}
-                  >
-                    Próximo control:{' '}
-                    {new Date(fu.next_check_up).toLocaleDateString('es-AR')}
-                  </Typography>
-                )}
-
-                <Typography
-                  variant="caption"
-                  sx={{ mt: 0.5, display: 'block' }}
-                  color="#5b7387"
-                >
-                  Atendido por: {fu.nurse_name || '—'}
-                  {isMine && ' (vos)'}
-                </Typography>
-
-                <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {canFinish && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => toggle(fu.id_follow_up)}
-                    >
-                      Marcar finalizado
-                    </Button>
-                  )}
-                  {canReschedule && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="info"
-                      onClick={() => openReschedule(fu)}
-                    >
-                      Reprogramar
-                    </Button>
-                  )}
-                  <Button
-                    size="small"
-                    variant="text"
-                    onClick={() => openHistory(fu.id_patient, name)}
-                  >
-                    Ver historia clínica
-                  </Button>
-                </Box>
-              </Card>
-            </Grid>
-          );
-        })}
-        {filteredRows.length === 0 && (
-          <Grid size={{ xs: 12 }}>
-            <Typography color="#5b7387">
-              {hasExtraFilter
-                ? 'No hay seguimientos para ese filtro.'
-                : 'No hay seguimientos en esta categoría.'}
-            </Typography>
-          </Grid>
-        )}
-      </Grid>
+                        <HourglassEmptyIcon fontSize="small" sx={{ color: '#1565A8' }} />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+                    {canFinish && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        sx={{ mr: 1 }}
+                        onClick={() => toggle(fu.id_follow_up)}
+                      >
+                        Marcar finalizado
+                      </Button>
+                    )}
+                    {canReschedule && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="info"
+                        sx={{ mr: 1 }}
+                        onClick={() => openReschedule(fu)}
+                      >
+                        Reprogramar
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {filteredRows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={10} align="center" sx={{ color: '#5b7387' }}>
+                  {hasExtraFilter
+                    ? 'No hay seguimientos para ese filtro.'
+                    : 'No hay seguimientos en esta categoría.'}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* Diálogo de nuevo seguimiento */}
       <Dialog

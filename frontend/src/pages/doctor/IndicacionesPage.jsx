@@ -20,6 +20,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
@@ -63,6 +64,22 @@ const schema = yup.object({
 });
 
 export default function IndicacionesPage() {
+<<<<<<< HEAD
+  const { userId } = useAuth()
+  const [rows, setRows] = useState([])
+  const [patients, setPatients] = useState([])
+  const [eligiblePatients, setEligiblePatients] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [open, setOpen] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [editingRow, setEditingRow] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [historyTarget, setHistoryTarget] = useState(null)
+  const [dateOrder, setDateOrder] = useState('desc')
+=======
   const { userId } = useAuth();
   const [rows, setRows] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -76,6 +93,7 @@ export default function IndicacionesPage() {
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [historyTarget, setHistoryTarget] = useState(null);
+>>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
 
   const {
     register,
@@ -93,9 +111,16 @@ export default function IndicacionesPage() {
   const isEditable = (row) =>
     dayjs().diff(dayjs(row.created_at), 'minute') < EDIT_WINDOW_MINUTES;
 
+<<<<<<< HEAD
+  const sortedRows = [...rows].sort((a, b) => {
+    const diff = dayjs(a.created_at).valueOf() - dayjs(b.created_at).valueOf()
+    return dateOrder === 'asc' ? diff : -diff
+  })
+=======
   const sortedRows = [...rows].sort(
     (a, b) => dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf(),
   );
+>>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
 
   const downloadIndicationPdf = async (row) => {
     const patient = patients.find((p) => p.id_user === row.id_patient);
@@ -293,15 +318,23 @@ export default function IndicacionesPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Paciente</TableCell>
-              <TableCell>DNI</TableCell>
-              <TableCell>Edad</TableCell>
-              <TableCell>Indicación</TableCell>
-              <TableCell>Tratamiento</TableCell>
-              <TableCell>Fecha</TableCell>
+              <TableCell align="center">Paciente</TableCell>
+              <TableCell align="center">DNI</TableCell>
+              <TableCell align="center">Edad</TableCell>
+              <TableCell align="center">Indicación</TableCell>
+              <TableCell align="center">Tratamiento</TableCell>
+              <TableCell align="center">
+                <TableSortLabel
+                  active
+                  direction={dateOrder}
+                  onClick={() => setDateOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                >
+                  Fecha
+                </TableSortLabel>
+              </TableCell>
               <TableCell align="center">Historial</TableCell>
               <TableCell align="center">PDF</TableCell>
-              <TableCell align="right">Acciones</TableCell>
+              <TableCell align="center">Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -310,6 +343,18 @@ export default function IndicacionesPage() {
               const patient = patients.find((p) => p.id_user === r.id_patient);
               return (
                 <TableRow key={r.id_medical_indication}>
+<<<<<<< HEAD
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>
+                    {patientName(r.id_patient)}
+                  </TableCell>
+                  <TableCell align="center">{getPatientDni(patient)}</TableCell>
+                  <TableCell align="center">
+                    {getPatientAge(patient?.date_of_birth) ?? '—'}
+                  </TableCell>
+                  <TableCell align="center">{r.indication}</TableCell>
+                  <TableCell align="center">{r.treatment || '—'}</TableCell>
+                  <TableCell align="center" sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}>
+=======
                   <TableCell sx={{ fontWeight: 600 }}>
                     {patientName(r.id_patient)}
                   </TableCell>
@@ -322,6 +367,7 @@ export default function IndicacionesPage() {
                   <TableCell
                     sx={{ color: paletteRaw.gray, whiteSpace: 'nowrap' }}
                   >
+>>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
                     {formatDateTime(r.created_at)}
                   </TableCell>
                   <TableCell align="center">
@@ -350,6 +396,10 @@ export default function IndicacionesPage() {
                       </IconButton>
                     </Tooltip>
                   </TableCell>
+<<<<<<< HEAD
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+                    <Tooltip title={editable ? 'Editar' : 'Ya pasaron 5 minutos desde el registro'}>
+=======
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                     <Tooltip
                       title={
@@ -358,6 +408,7 @@ export default function IndicacionesPage() {
                           : 'Ya pasaron 5 minutos desde el registro'
                       }
                     >
+>>>>>>> f6a31da6346a925d42899d95a32a11b9fef2b45a
                       <span>
                         <IconButton
                           size="small"
